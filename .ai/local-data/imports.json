@@ -1,0 +1,82 @@
+[
+  {
+    "id": "import-1780117219107",
+    "workspaceId": "dev-workspace-001",
+    "userId": "dev-user-001",
+    "rowCount": 10,
+    "mode": "persist",
+    "healthScore": 83,
+    "importedAt": "2026-05-30T05:00:19.107Z",
+    "transactionIds": [
+      "csv-1780117219106-0",
+      "csv-1780117219106-1",
+      "csv-1780117219106-2",
+      "csv-1780117219106-3",
+      "csv-1780117219106-4",
+      "csv-1780117219106-5",
+      "csv-1780117219106-6",
+      "csv-1780117219106-7",
+      "csv-1780117219106-8",
+      "csv-1780117219106-9"
+    ]
+  },
+  {
+    "id": "import-1780130392764",
+    "workspaceId": "dev-workspace-001",
+    "userId": "dev-user-001",
+    "rowCount": 10,
+    "mode": "persist",
+    "healthScore": 83,
+    "importedAt": "2026-05-30T08:39:52.764Z",
+    "transactionIds": [
+      "csv-1780130392763-0",
+      "csv-1780130392763-1",
+      "csv-1780130392763-2",
+      "csv-1780130392763-3",
+      "csv-1780130392763-4",
+      "csv-1780130392763-5",
+      "csv-1780130392763-6",
+      "csv-1780130392763-7",
+      "csv-1780130392763-8",
+      "csv-1780130392763-9"
+    ]
+  },
+  {
+    "id": "import-1780130511012",
+    "workspaceId": "dev-workspace-001",
+    "userId": "dev-user-001",
+    "rowCount": 8,
+    "mode": "persist",
+    "healthScore": 96,
+    "importedAt": "2026-05-30T08:41:51.012Z",
+    "transactionIds": [
+      "csv-1780130511011-0",
+      "csv-1780130511011-1",
+      "csv-1780130511011-2",
+      "csv-1780130511011-3",
+      "csv-1780130511011-4",
+      "csv-1780130511011-5",
+      "csv-1780130511011-6",
+      "csv-1780130511011-7"
+    ]
+  },
+  {
+    "id": "import-1780131667134",
+    "workspaceId": "dev-workspace-001",
+    "userId": "dev-user-001",
+    "rowCount": 8,
+    "mode": "persist",
+    "healthScore": 96,
+    "importedAt": "2026-05-30T09:01:07.134Z",
+    "transactionIds": [
+      "csv-1780131667130-0",
+      "csv-1780131667130-1",
+      "csv-1780131667130-2",
+      "csv-1780131667130-3",
+      "csv-1780131667130-4",
+      "csv-1780131667130-5",
+      "csv-1780131667130-6",
+      "csv-1780131667130-7"
+    ]
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "cadenceMinutes": 60,
+  "lastRunAt": null,
+  "nextRunAt": null,
+  "note": "Set enabled=true and cadenceMinutes to activate scheduled autonomous validation runs."
+}

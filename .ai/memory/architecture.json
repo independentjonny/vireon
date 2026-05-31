@@ -1,0 +1,15 @@
+{
+  "type": "architecture",
+  "updatedAt": "2026-05-25T03:30:00.000Z",
+  "notes": [
+    "Next.js 16.2.6 (Turbopack) app router — src/app/",
+    "All finance engines in src/lib/ — pure TypeScript, no side effects",
+    "API routes in src/app/api/**/route.ts — server-only",
+    "Multi-agent layer in src/lib/agents/ — orchestratorAgent.ts coordinates",
+    "Autonomy layer in src/lib/autonomy/ — repair, browser, policy engines",
+    "Dashboard is one SSR page at src/app/page.tsx — no client components",
+    "No database connected — all data is mock in transactionEngine.ts",
+    "Prisma schema scaffolded but not migrated",
+    "Auth not yet connected — all routes are public"
+  ]
+}

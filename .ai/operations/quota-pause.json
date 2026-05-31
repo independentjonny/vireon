@@ -1,0 +1,10 @@
+{
+  "paused": true,
+  "reason": "Claude session limit or quota hit",
+  "goal": "Fix duplicate System Health database status definitions.\n\nIn page.tsx there are two System Health component lists:\n\n1. An old top-level list where Database is hardcoded as yellow/degraded.\n2. A newer dynamic list inside HomePage where Database becomes green when database config exists.\n\nDelete the old top-level hardcoded list completely.\n\nOnly keep the dynamic list inside HomePage.\n\nThe Database row should be:\n\n- Healthy when database configuration is detected\n- Degraded only when no database configuration is detected\n\nHealthy display:\nDatabase\nConnected database configuration detected\nHealthy",
+  "claudeError": "You've hit your session limit · resets 10:40pm (Australia/Sydney)\n\n\nCommand failed: claude -p --dangerously-skip-permissions < \"C:\\Users\\summe\\liberva\\.ai\\tasks\\daemon-prompt.md\"",
+  "validationPassed": false,
+  "meaningfulDiff": false,
+  "resumeAfter": "When Claude quota resets",
+  "checkedAt": "2026-05-29T11:37:23.827Z"
+}

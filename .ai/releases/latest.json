@@ -1,0 +1,45 @@
+{
+  "generatedAt": "2026-05-31T08:50:28.772Z",
+  "version": "rc-1780217428772",
+  "checks": [
+    {
+      "name": "Build Status",
+      "status": "warn",
+      "detail": "No build record — POST /api/build-pipeline first"
+    },
+    {
+      "name": "Route Count",
+      "status": "pass",
+      "detail": "77 routes · 99 modules"
+    },
+    {
+      "name": "Semantic Diff Gate",
+      "status": "warn",
+      "detail": "No semantic diff data available"
+    },
+    {
+      "name": "Dependency Health",
+      "status": "warn",
+      "detail": "4 pass · 2 warn · 0 fail"
+    },
+    {
+      "name": "Test Scaffold",
+      "status": "pass",
+      "detail": "5 test files in __tests__/"
+    },
+    {
+      "name": "Browser Validation",
+      "status": "pass",
+      "detail": "browser-check.png present (.ai/)"
+    },
+    {
+      "name": "Rollback Readiness",
+      "status": "pass",
+      "detail": "Git history available — revert with git revert HEAD"
+    }
+  ],
+  "ready": true,
+  "blockers": 0,
+  "warnings": 3,
+  "summary": "RC ready — 3 warning(s), 0 blockers"
+}

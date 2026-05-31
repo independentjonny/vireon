@@ -1,0 +1,15 @@
+{
+  "enabled": false,
+  "maxTasks": 10,
+  "tasksRun": 0,
+  "startedAt": null,
+  "stoppedAt": null,
+  "stopReason": null,
+  "safetyGates": [
+    "build must pass before each task",
+    "no destructive shell commands allowed",
+    "max task count enforced",
+    "pause flag checked before each iteration"
+  ],
+  "note": "Set enabled=true and maxTasks to activate overnight autonomous loop. Loop halts when tasksRun >= maxTasks or paused=true in daemon.json."
+}

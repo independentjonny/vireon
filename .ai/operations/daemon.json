@@ -1,0 +1,7 @@
+{
+  "lastBeat": null,
+  "pid": null,
+  "uptime": null,
+  "paused": false,
+  "note": "Write { paused: true } to pause daemon. Set false to resume. Update lastBeat each iteration."
+}

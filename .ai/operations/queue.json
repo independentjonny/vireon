@@ -1,0 +1,4 @@
+{
+  "items": [],
+  "note": "Append { id, title, source, addedAt, status } objects. status: queued | running | done | failed. Roadmap items can be converted to queue items via /api/runtime/next-task."
+}

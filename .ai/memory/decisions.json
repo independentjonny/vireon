@@ -1,0 +1,34 @@
+{
+  "type": "decisions",
+  "updatedAt": "2026-05-25T03:30:00.000Z",
+  "decisions": [
+    {
+      "id": "d-001",
+      "date": "2026-05-25",
+      "decision": "Keep dashboard as SSR-only page",
+      "rationale": "Avoids hydration issues, simpler deployment, finance data is not user-specific yet",
+      "reversible": true
+    },
+    {
+      "id": "d-002",
+      "date": "2026-05-25",
+      "decision": "Use Tailwind CSS with bg-[#07111f] dark theme",
+      "rationale": "Consistent with premium finance product aesthetic; no runtime CSS overhead",
+      "reversible": true
+    },
+    {
+      "id": "d-003",
+      "date": "2026-05-25",
+      "decision": "Mock data first, real DB second",
+      "rationale": "Allows full UI and API development before DB credentials are available",
+      "reversible": true
+    },
+    {
+      "id": "d-004",
+      "date": "2026-05-25",
+      "decision": "Multi-agent orchestration via orchestratorAgent.ts",
+      "rationale": "Separation of concerns; each agent can be swapped independently",
+      "reversible": true
+    }
+  ]
+}

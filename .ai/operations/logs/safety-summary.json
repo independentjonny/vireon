@@ -1,0 +1,10 @@
+{
+  "lastUpdated": "2026-05-26T09:00:00.000Z",
+  "totalTasksRun": 0,
+  "totalDefectsDetected": 0,
+  "totalDefectsResolved": 0,
+  "overnightRunsCompleted": 0,
+  "pauseEvents": 0,
+  "safetyGatesTriggered": 0,
+  "note": "Append safety events here. Each overnight run completion updates totalTasksRun and overnightRunsCompleted."
+}

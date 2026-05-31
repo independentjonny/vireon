@@ -1,0 +1,33 @@
+{
+  "type": "defects",
+  "updatedAt": "2026-05-25T03:30:00.000Z",
+  "defects": [
+    {
+      "id": "def-001",
+      "status": "open",
+      "severity": "low",
+      "title": "No real database connected",
+      "description": "All transaction, subscription, and health data is mock. Prisma schema exists but not migrated.",
+      "affectedFiles": ["src/lib/transactionEngine.ts", "src/lib/subscriptionEngine.ts"],
+      "remediation": "Connect Supabase or Postgres, run prisma migrate dev"
+    },
+    {
+      "id": "def-002",
+      "status": "open",
+      "severity": "medium",
+      "title": "Auth not enabled",
+      "description": "All API routes are public. No session validation.",
+      "affectedFiles": ["src/app/api/"],
+      "remediation": "Add NextAuth middleware or Supabase RLS"
+    },
+    {
+      "id": "def-003",
+      "status": "open",
+      "severity": "low",
+      "title": "API routes not edge-runtime compatible",
+      "description": "Some routes may import Node-only modules incompatible with Cloudflare edge runtime.",
+      "affectedFiles": ["src/app/api/"],
+      "remediation": "Audit imports, use fetch-only patterns for edge"
+    }
+  ]
+}

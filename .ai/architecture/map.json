@@ -1,0 +1,1890 @@
+{
+  "generatedAt": "2026-05-31T08:50:28.730Z",
+  "modules": [
+    {
+      "name": "activationStatus",
+      "path": "lib/activationStatus.ts",
+      "type": "utility",
+      "lineCount": 45,
+      "exports": [
+        "LayerId",
+        "ActivationLayer",
+        "computeActivationStatus",
+        "getActivationStatus"
+      ]
+    },
+    {
+      "name": "backendAgent",
+      "path": "lib/agents/backendAgent.ts",
+      "type": "utility",
+      "lineCount": 14,
+      "exports": []
+    },
+    {
+      "name": "databaseAgent.test",
+      "path": "lib/agents/databaseAgent.test.ts",
+      "type": "utility",
+      "lineCount": 83,
+      "exports": []
+    },
+    {
+      "name": "databaseAgent",
+      "path": "lib/agents/databaseAgent.ts",
+      "type": "utility",
+      "lineCount": 187,
+      "exports": [
+        "DatabaseCheckResult",
+        "DatabaseAgentReport",
+        "SupabaseProbeResult"
+      ]
+    },
+    {
+      "name": "deploymentAgent",
+      "path": "lib/agents/deploymentAgent.ts",
+      "type": "utility",
+      "lineCount": 39,
+      "exports": [
+        "DeploymentReadinessReport",
+        "DeploymentCheck"
+      ]
+    },
+    {
+      "name": "financeAgent",
+      "path": "lib/agents/financeAgent.ts",
+      "type": "utility",
+      "lineCount": 13,
+      "exports": []
+    },
+    {
+      "name": "orchestratorAgent",
+      "path": "lib/agents/orchestratorAgent.ts",
+      "type": "utility",
+      "lineCount": 32,
+      "exports": []
+    },
+    {
+      "name": "plannerAgent",
+      "path": "lib/agents/plannerAgent.ts",
+      "type": "utility",
+      "lineCount": 60,
+      "exports": [
+        "PlannerOutput",
+        "PlannerPhase"
+      ]
+    },
+    {
+      "name": "qaAgent",
+      "path": "lib/agents/qaAgent.ts",
+      "type": "utility",
+      "lineCount": 41,
+      "exports": [
+        "QAResult",
+        "QACheck"
+      ]
+    },
+    {
+      "name": "repairAgent",
+      "path": "lib/agents/repairAgent.ts",
+      "type": "utility",
+      "lineCount": 15,
+      "exports": []
+    },
+    {
+      "name": "uiAgent",
+      "path": "lib/agents/uiAgent.ts",
+      "type": "utility",
+      "lineCount": 14,
+      "exports": []
+    },
+    {
+      "name": "analyticsEngine",
+      "path": "lib/analyticsEngine.ts",
+      "type": "utility",
+      "lineCount": 13,
+      "exports": [
+        "executiveAnalytics"
+      ]
+    },
+    {
+      "name": "anomalyEngine",
+      "path": "lib/anomalyEngine.ts",
+      "type": "utility",
+      "lineCount": 17,
+      "exports": [
+        "detectAnomalies"
+      ]
+    },
+    {
+      "name": "architectureDrift",
+      "path": "lib/architectureDrift.ts",
+      "type": "utility",
+      "lineCount": 125,
+      "exports": [
+        "DriftItem",
+        "DriftReport",
+        "detectArchitectureDrift"
+      ]
+    },
+    {
+      "name": "architectureMapper",
+      "path": "lib/architectureMapper.ts",
+      "type": "runtime-control",
+      "lineCount": 204,
+      "exports": [
+        "ModuleInfo",
+        "RouteInfo",
+        "ArchitectureMap",
+        "generateArchitectureMap",
+        "persistArchitectureMap"
+      ]
+    },
+    {
+      "name": "middleware",
+      "path": "lib/auth/middleware.ts",
+      "type": "utility",
+      "lineCount": 59,
+      "exports": [
+        "Session",
+        "AuthResult",
+        "getSession",
+        "requireSession",
+        "requirePermission",
+        "getDevSession"
+      ]
+    },
+    {
+      "name": "rbac",
+      "path": "lib/auth/rbac.ts",
+      "type": "utility",
+      "lineCount": 87,
+      "exports": [
+        "Role",
+        "Permission",
+        "hasPermission",
+        "getRolePermissions",
+        "canInvokeAgent"
+      ]
+    },
+    {
+      "name": "auth",
+      "path": "lib/auth.ts",
+      "type": "utility",
+      "lineCount": 6,
+      "exports": [
+        "authStatus"
+      ]
+    },
+    {
+      "name": "autonomousEngineerLoop",
+      "path": "lib/autonomousEngineerLoop.ts",
+      "type": "utility",
+      "lineCount": 2,
+      "exports": [
+        "autonomousEngineerLoop"
+      ]
+    },
+    {
+      "name": "autonomousLoopTest",
+      "path": "lib/autonomousLoopTest.ts",
+      "type": "utility",
+      "lineCount": 2,
+      "exports": [
+        "autonomousLoopTest"
+      ]
+    },
+    {
+      "name": "autonomousRepairLoop",
+      "path": "lib/autonomousRepairLoop.ts",
+      "type": "utility",
+      "lineCount": 16,
+      "exports": [
+        "autonomousRepairLoop"
+      ]
+    },
+    {
+      "name": "browserValidator",
+      "path": "lib/autonomy/browserValidator.ts",
+      "type": "utility",
+      "lineCount": 13,
+      "exports": [
+        "browserValidationPlan"
+      ]
+    },
+    {
+      "name": "policyEngine",
+      "path": "lib/autonomy/policyEngine.ts",
+      "type": "utility",
+      "lineCount": 20,
+      "exports": [
+        "commandPolicy"
+      ]
+    },
+    {
+      "name": "repairLoop",
+      "path": "lib/autonomy/repairLoop.ts",
+      "type": "utility",
+      "lineCount": 15,
+      "exports": [
+        "repairLoop"
+      ]
+    },
+    {
+      "name": "semanticDOMValidator",
+      "path": "lib/browser/semanticDOMValidator.ts",
+      "type": "utility",
+      "lineCount": 58,
+      "exports": [
+        "DOMValidationRule",
+        "DOMValidationResult",
+        "DOMValidationReport",
+        "PAGE_RULES",
+        "simulateValidation"
+      ]
+    },
+    {
+      "name": "buildArtifactManifest",
+      "path": "lib/buildArtifactManifest.ts",
+      "type": "utility",
+      "lineCount": 98,
+      "exports": [
+        "BuildArtifact",
+        "ArtifactManifest",
+        "recordBuildArtifact",
+        "getArtifactManifest",
+        "getArtifact",
+        "buildCurrentArtifactSnapshot"
+      ]
+    },
+    {
+      "name": "buildOrchestrator",
+      "path": "lib/buildOrchestrator.ts",
+      "type": "utility",
+      "lineCount": 185,
+      "exports": [
+        "OrchestratorStatus",
+        "StageResult",
+        "BuildRunResult",
+        "OrchestratorState",
+        "TRANSIENT_ERROR_PATTERNS",
+        "isTransientFailure",
+        "runBuildJob",
+        "runNextQueuedJob",
+        "getOrchestratorState",
+        "getOrchestratorSummary"
+      ]
+    },
+    {
+      "name": "buildPipeline",
+      "path": "lib/buildPipeline.ts",
+      "type": "runtime-control",
+      "lineCount": 140,
+      "exports": [
+        "BuildStageStatus",
+        "BuildStage",
+        "BuildRecord",
+        "runBuildPipeline",
+        "getBuildHistory",
+        "getLatestBuildStatus"
+      ]
+    },
+    {
+      "name": "buildQueue",
+      "path": "lib/buildQueue.ts",
+      "type": "utility",
+      "lineCount": 99,
+      "exports": [
+        "BuildJobStatus",
+        "BuildJob",
+        "BuildQueue",
+        "addBuildJob",
+        "listBuildJobs",
+        "getNextQueuedJob",
+        "startBuildJob",
+        "completeBuildJob"
+      ]
+    },
+    {
+      "name": "ciReadiness",
+      "path": "lib/ciReadiness.ts",
+      "type": "utility",
+      "lineCount": 129,
+      "exports": [
+        "CIStep",
+        "CIReadiness",
+        "generateCIReadiness",
+        "persistCIWorkflow"
+      ]
+    },
+    {
+      "name": "cloudDeployment",
+      "path": "lib/cloudDeployment.ts",
+      "type": "utility",
+      "lineCount": 13,
+      "exports": [
+        "cloudDeploymentReadiness"
+      ]
+    },
+    {
+      "name": "commandPolicy",
+      "path": "lib/commandPolicy.ts",
+      "type": "utility",
+      "lineCount": 74,
+      "exports": [
+        "AllowedCommand",
+        "ALLOWED_COMMANDS",
+        "PolicyDecision",
+        "PolicyResult",
+        "evaluateCommandPolicy",
+        "runAllowedCommand",
+        "listAllowedCommands",
+        "isKeyAllowed"
+      ]
+    },
+    {
+      "name": "controlTest",
+      "path": "lib/controlTest.ts",
+      "type": "utility",
+      "lineCount": 2,
+      "exports": [
+        "controlTest"
+      ]
+    },
+    {
+      "name": "copilotEngine",
+      "path": "lib/copilotEngine.ts",
+      "type": "utility",
+      "lineCount": 61,
+      "exports": [
+        "CopilotContext",
+        "getCopilotContext",
+        "askCopilot",
+        "getCopilotPromptSuggestions"
+      ]
+    },
+    {
+      "name": "daemonRuntime",
+      "path": "lib/daemonRuntime.ts",
+      "type": "runtime-control",
+      "lineCount": 224,
+      "exports": [
+        "RunStatus",
+        "QueueEntry",
+        "StaleRunResult",
+        "AutonomousHealthReport",
+        "getActiveRun",
+        "getRunQueue",
+        "getQueueSummary",
+        "detectStaleRun",
+        "hashTaskGoal",
+        "isTaskDuplicate",
+        "getRunLogPath",
+        "getAutonomousHealth",
+        "persistRunMemory"
+      ]
+    },
+    {
+      "name": "db",
+      "path": "lib/db.ts",
+      "type": "persistence",
+      "lineCount": 22,
+      "exports": [
+        "dbStatus",
+        "getDbConnectionStatus"
+      ]
+    },
+    {
+      "name": "dependencyScanner",
+      "path": "lib/dependencyScanner.ts",
+      "type": "runtime-control",
+      "lineCount": 162,
+      "exports": [
+        "DependencyCheck",
+        "DependencyHealthReport",
+        "scanDependencyHealth"
+      ]
+    },
+    {
+      "name": "deploymentAgent",
+      "path": "lib/deploymentAgent.ts",
+      "type": "utility",
+      "lineCount": 14,
+      "exports": [
+        "deploymentReadiness"
+      ]
+    },
+    {
+      "name": "copilotContext",
+      "path": "lib/embeddings/copilotContext.ts",
+      "type": "utility",
+      "lineCount": 45,
+      "exports": [
+        "CopilotContext"
+      ]
+    },
+    {
+      "name": "embeddingProvider",
+      "path": "lib/embeddings/embeddingProvider.ts",
+      "type": "utility",
+      "lineCount": 52,
+      "exports": [
+        "EmbeddingProvider",
+        "EmbeddingRequest",
+        "EmbeddingResponse",
+        "getActiveProvider",
+        "getStubEmbedding",
+        "EMBEDDING_DIMENSIONS"
+      ]
+    },
+    {
+      "name": "memoryGraph",
+      "path": "lib/embeddings/memoryGraph.ts",
+      "type": "utility",
+      "lineCount": 99,
+      "exports": [
+        "MemoryNode",
+        "MemoryGraph",
+        "getMemoryGraph"
+      ]
+    },
+    {
+      "name": "semanticRetrieval",
+      "path": "lib/embeddings/semanticRetrieval.ts",
+      "type": "utility",
+      "lineCount": 45,
+      "exports": [
+        "RetrievalResult",
+        "cosineSimilarity"
+      ]
+    },
+    {
+      "name": "engineeringLoop",
+      "path": "lib/engineeringLoop.ts",
+      "type": "utility",
+      "lineCount": 119,
+      "exports": [
+        "TaskQueueItem",
+        "LoopState",
+        "createTaskQueue",
+        "processNextTask",
+        "completeTask",
+        "loopStatus",
+        "initialLoopState"
+      ]
+    },
+    {
+      "name": "executiveEngine",
+      "path": "lib/executiveEngine.ts",
+      "type": "utility",
+      "lineCount": 44,
+      "exports": [
+        "executiveRecommendations",
+        "executiveBriefing"
+      ]
+    },
+    {
+      "name": "forecastEngine",
+      "path": "lib/forecastEngine.ts",
+      "type": "utility",
+      "lineCount": 59,
+      "exports": [
+        "ForecastScenario",
+        "cashflowForecast",
+        "getRecommendations"
+      ]
+    },
+    {
+      "name": "healthEngine",
+      "path": "lib/healthEngine.ts",
+      "type": "utility",
+      "lineCount": 40,
+      "exports": [
+        "HealthSubScore",
+        "calculateHealthScore",
+        "getHealthSubScores"
+      ]
+    },
+    {
+      "name": "infrastructureActivation",
+      "path": "lib/infrastructureActivation.ts",
+      "type": "utility",
+      "lineCount": 86,
+      "exports": [
+        "ActivationLayer",
+        "ActivationManifest",
+        "getActivationManifest"
+      ]
+    },
+    {
+      "name": "categorizer",
+      "path": "lib/ingestion/categorizer.ts",
+      "type": "utility",
+      "lineCount": 54,
+      "exports": [
+        "CategoryResult",
+        "categorizeTransaction"
+      ]
+    },
+    {
+      "name": "csvPipeline",
+      "path": "lib/ingestion/csvPipeline.ts",
+      "type": "utility",
+      "lineCount": 119,
+      "exports": [
+        "RawCSVRow",
+        "NormalizedTransaction",
+        "IngestionResult",
+        "ingestCSV"
+      ]
+    },
+    {
+      "name": "duplicateDetector",
+      "path": "lib/ingestion/duplicateDetector.ts",
+      "type": "utility",
+      "lineCount": 25,
+      "exports": [
+        "detectDuplicates"
+      ]
+    },
+    {
+      "name": "healthScorer",
+      "path": "lib/ingestion/healthScorer.ts",
+      "type": "utility",
+      "lineCount": 63,
+      "exports": [
+        "IngestionHealthReport",
+        "scoreIngestionHealth",
+        "getIngestionHealthReport"
+      ]
+    },
+    {
+      "name": "merchantCanonicalizer",
+      "path": "lib/ingestion/merchantCanonicalizer.ts",
+      "type": "utility",
+      "lineCount": 86,
+      "exports": [
+        "canonicalizeMerchant",
+        "getMerchantCategory"
+      ]
+    },
+    {
+      "name": "recurringDetector",
+      "path": "lib/ingestion/recurringDetector.ts",
+      "type": "utility",
+      "lineCount": 62,
+      "exports": [
+        "detectRecurring"
+      ]
+    },
+    {
+      "name": "insightsEngine",
+      "path": "lib/insightsEngine.ts",
+      "type": "utility",
+      "lineCount": 87,
+      "exports": [
+        "InsightCategory",
+        "Insight",
+        "generateInsights",
+        "getInsightsByCategory",
+        "getActionableInsights",
+        "getHighPriorityInsights"
+      ]
+    },
+    {
+      "name": "localStore",
+      "path": "lib/localStore.ts",
+      "type": "persistence",
+      "lineCount": 297,
+      "exports": [
+        "LocalImportRecord",
+        "getLocalTransactions",
+        "saveLocalTransactions",
+        "appendLocalTransactions",
+        "getLocalSubscriptions",
+        "saveLocalSubscriptions",
+        "upsertLocalSubscription",
+        "backfillSubscriptionsFromTransactions",
+        "getLocalTelemetry",
+        "appendLocalTelemetry",
+        "getLocalMemory",
+        "appendLocalMemory",
+        "getLocalImports",
+        "appendLocalImport",
+        "CopilotHistoryEntry",
+        "getCopilotHistory",
+        "appendCopilotHistory",
+        "InsightResolutionEntry",
+        "getInsightResolutions",
+        "resolveInsight",
+        "SubscriptionAction",
+        "getSubscriptionActions",
+        "appendSubscriptionAction",
+        "WorkflowRun",
+        "getWorkflowRuns",
+        "appendWorkflowRun",
+        "MerchantCleanupMapping",
+        "getMerchantCleanupMappings",
+        "upsertMerchantCleanupMapping",
+        "StorageMode",
+        "getStorageMode",
+        "hasLocalData"
+      ]
+    },
+    {
+      "name": "memoryEngine",
+      "path": "lib/memoryEngine.ts",
+      "type": "utility",
+      "lineCount": 16,
+      "exports": [
+        "runtimeMemory"
+      ]
+    },
+    {
+      "name": "mobileShell",
+      "path": "lib/mobileShell.ts",
+      "type": "utility",
+      "lineCount": 8,
+      "exports": [
+        "mobileShellStatus"
+      ]
+    },
+    {
+      "name": "mockData",
+      "path": "lib/mockData.ts",
+      "type": "utility",
+      "lineCount": 35,
+      "exports": [
+        "healthScore",
+        "insights",
+        "transactions",
+        "subscriptions",
+        "analytics"
+      ]
+    },
+    {
+      "name": "coordinationContracts",
+      "path": "lib/multiagent/coordinationContracts.ts",
+      "type": "utility",
+      "lineCount": 165,
+      "exports": [
+        "AgentRole",
+        "AgentMessage",
+        "AgentContract",
+        "AGENT_CONTRACTS",
+        "createMessage"
+      ]
+    },
+    {
+      "name": "deploymentGovernor",
+      "path": "lib/multiagent/deploymentGovernor.ts",
+      "type": "utility",
+      "lineCount": 68,
+      "exports": [
+        "DeployTarget",
+        "DeployGate",
+        "DeployReadiness",
+        "getDeployReadiness"
+      ]
+    },
+    {
+      "name": "financialIntelligenceAgent",
+      "path": "lib/multiagent/financialIntelligenceAgent.ts",
+      "type": "utility",
+      "lineCount": 87,
+      "exports": [
+        "FinancialSignal",
+        "FinancialIntelligenceReport",
+        "runFinancialIntelligenceAgent"
+      ]
+    },
+    {
+      "name": "supervisor",
+      "path": "lib/multiagent/supervisor.ts",
+      "type": "utility",
+      "lineCount": 67,
+      "exports": [
+        "SupervisorState",
+        "getSupervisorState",
+        "supervisorHandleFailure"
+      ]
+    },
+    {
+      "name": "supervisorOrchestrator",
+      "path": "lib/multiagent/supervisorOrchestrator.ts",
+      "type": "utility",
+      "lineCount": 323,
+      "exports": [
+        "FailureType",
+        "SeverityLevel",
+        "FailureFingerprint",
+        "ClassifiedFailure",
+        "RepairLoopResult",
+        "createFingerprint",
+        "classifyFailure",
+        "SupervisorOrchestrator",
+        "supervisorOrchestrator"
+      ]
+    },
+    {
+      "name": "pass2",
+      "path": "lib/pass2.ts",
+      "type": "utility",
+      "lineCount": 6,
+      "exports": [
+        "pass2"
+      ]
+    },
+    {
+      "name": "repositories",
+      "path": "lib/persistence/repositories.ts",
+      "type": "persistence",
+      "lineCount": 208,
+      "exports": [
+        "PaginationOptions",
+        "QueryResult",
+        "userRepository",
+        "transactionRepository",
+        "subscriptionRepository",
+        "insightRepository",
+        "embeddingRepository",
+        "memoryRepository",
+        "roadmapRepository",
+        "telemetryRepository"
+      ]
+    },
+    {
+      "name": "schema",
+      "path": "lib/persistence/schema.ts",
+      "type": "persistence",
+      "lineCount": 144,
+      "exports": [
+        "UUID",
+        "ISODateString",
+        "UserRecord",
+        "OrgRecord",
+        "WorkspaceRecord",
+        "TransactionRecord",
+        "SubscriptionRecord",
+        "InsightRecord",
+        "EmbeddingRecord",
+        "MemoryNodeRecord",
+        "RoadmapTaskRecord",
+        "TelemetryRecord",
+        "SCHEMA_VERSION",
+        "TABLE_NAMES"
+      ]
+    },
+    {
+      "name": "productionAgent",
+      "path": "lib/productionAgent.ts",
+      "type": "utility",
+      "lineCount": 37,
+      "exports": [
+        "productionStatus"
+      ]
+    },
+    {
+      "name": "releaseCandidate",
+      "path": "lib/releaseCandidate.ts",
+      "type": "utility",
+      "lineCount": 129,
+      "exports": [
+        "RCCheck",
+        "ReleaseCandidate",
+        "generateReleaseCandidate",
+        "getLatestReleaseCandidate"
+      ]
+    },
+    {
+      "name": "releasePromotion",
+      "path": "lib/releasePromotion.ts",
+      "type": "utility",
+      "lineCount": 130,
+      "exports": [
+        "PromotionState",
+        "RollbackCheckpoint",
+        "PromotionRecord",
+        "initPromotion",
+        "promoteRelease",
+        "approveForProduction",
+        "rollbackPromotion",
+        "getPromotionRecord",
+        "getPromotionSummary"
+      ]
+    },
+    {
+      "name": "repairClassifier",
+      "path": "lib/repairClassifier.ts",
+      "type": "utility",
+      "lineCount": 135,
+      "exports": [
+        "RepairClass",
+        "RepairClassification",
+        "repairCategories",
+        "classifyRepair"
+      ]
+    },
+    {
+      "name": "executionEngine",
+      "path": "lib/roadmapExecution/executionEngine.ts",
+      "type": "utility",
+      "lineCount": 129,
+      "exports": [
+        "ExecutionTask",
+        "SprintPlan",
+        "buildExecutionQueue",
+        "buildSprintPlan",
+        "getExecutionSummary"
+      ]
+    },
+    {
+      "name": "roadmapPlanner",
+      "path": "lib/roadmapPlanner.ts",
+      "type": "utility",
+      "lineCount": 105,
+      "exports": [
+        "RoadmapItem",
+        "Roadmap",
+        "generateRoadmap",
+        "getTopPriorities"
+      ]
+    },
+    {
+      "name": "readiness",
+      "path": "lib/runtime/readiness.ts",
+      "type": "utility",
+      "lineCount": 6,
+      "exports": [
+        "dbConfigured",
+        "authConfigured",
+        "smokeTestsPassed"
+      ]
+    },
+    {
+      "name": "runtime-config",
+      "path": "lib/runtime/runtime-config.ts",
+      "type": "utility",
+      "lineCount": 13,
+      "exports": [
+        "runtimeConfig"
+      ]
+    },
+    {
+      "name": "runtimeControl",
+      "path": "lib/runtimeControl.ts",
+      "type": "runtime-control",
+      "lineCount": 395,
+      "exports": [
+        "getRuntimeStatus",
+        "getRuntimeLogs",
+        "getRuntimeRuns",
+        "getRuntimeQueue",
+        "assignRun",
+        "getCancelScaffold",
+        "getScreenshotMeta",
+        "getHeartbeat",
+        "getSchedulerStatus",
+        "getOvernightStatus",
+        "getNextTask",
+        "getDefects",
+        "getPauseResumeState",
+        "getContinuousStatus",
+        "getFinalGreenReport",
+        "getGitState"
+      ]
+    },
+    {
+      "name": "selfRepairEngine",
+      "path": "lib/selfRepairEngine.ts",
+      "type": "utility",
+      "lineCount": 15,
+      "exports": [
+        "selfRepairPlan"
+      ]
+    },
+    {
+      "name": "semanticDiffVerifier",
+      "path": "lib/semanticDiffVerifier.ts",
+      "type": "runtime-control",
+      "lineCount": 74,
+      "exports": [
+        "DiffVerificationResult",
+        "DiffVerificationInput",
+        "verifySemanticDiff",
+        "buildDiffVerificationSummary"
+      ]
+    },
+    {
+      "name": "financeService",
+      "path": "lib/services/financeService.ts",
+      "type": "domain-service",
+      "lineCount": 229,
+      "exports": [
+        "FinanceSummary",
+        "CategorySummary",
+        "MerchantSummary",
+        "MonthSummary",
+        "FinanceInsight",
+        "computeFinanceSummary",
+        "computeCategoryMap",
+        "computeMerchantMap",
+        "computeMonthSummaries",
+        "computeCashflowForecast",
+        "generateInsights",
+        "computeAnomalousTransactions"
+      ]
+    },
+    {
+      "name": "merchantService",
+      "path": "lib/services/merchantService.ts",
+      "type": "domain-service",
+      "lineCount": 86,
+      "exports": [
+        "MerchantVariant",
+        "MerchantConfidence",
+        "MerchantCleanupEntry",
+        "computeMerchantVariants",
+        "computeMerchantConfidence",
+        "computeCleanupEntries",
+        "canonicalMerchantScore"
+      ]
+    },
+    {
+      "name": "subscriptionService",
+      "path": "lib/services/subscriptionService.ts",
+      "type": "domain-service",
+      "lineCount": 83,
+      "exports": [
+        "RenewalEvent",
+        "computeUpcomingRenewals",
+        "computeRenewalCalendar",
+        "totalMonthlyCost",
+        "totalSavingsOpportunity",
+        "findDuplicateRisk"
+      ]
+    },
+    {
+      "name": "subscriptionDetector",
+      "path": "lib/subscriptionDetector.ts",
+      "type": "utility",
+      "lineCount": 15,
+      "exports": [
+        "detectRecurring"
+      ]
+    },
+    {
+      "name": "subscriptionEngine",
+      "path": "lib/subscriptionEngine.ts",
+      "type": "utility",
+      "lineCount": 32,
+      "exports": [
+        "Subscription",
+        "detectSubscriptions",
+        "subscriptionSummary"
+      ]
+    },
+    {
+      "name": "cadenceDetector",
+      "path": "lib/subscriptions/cadenceDetector.ts",
+      "type": "utility",
+      "lineCount": 53,
+      "exports": [
+        "CadenceResult",
+        "detectCadence"
+      ]
+    },
+    {
+      "name": "renewalPredictor",
+      "path": "lib/subscriptions/renewalPredictor.ts",
+      "type": "utility",
+      "lineCount": 60,
+      "exports": [
+        "RenewalPrediction",
+        "RenewalForecast",
+        "predictRenewals"
+      ]
+    },
+    {
+      "name": "savingsRecommender",
+      "path": "lib/subscriptions/savingsRecommender.ts",
+      "type": "utility",
+      "lineCount": 89,
+      "exports": [
+        "SavingsRecommendation",
+        "SavingsReport",
+        "generateSavingsRecommendations"
+      ]
+    },
+    {
+      "name": "client",
+      "path": "lib/supabase/client.ts",
+      "type": "utility",
+      "lineCount": 50,
+      "exports": [
+        "SupabaseClientStub",
+        "supabaseConfigured",
+        "getSupabaseClientConfig",
+        "createBrowserClient"
+      ]
+    },
+    {
+      "name": "envValidator",
+      "path": "lib/supabase/envValidator.ts",
+      "type": "utility",
+      "lineCount": 136,
+      "exports": [
+        "EnvCheckResult",
+        "validateEnv",
+        "getMissingRequired",
+        "getMissingByGroup",
+        "isProductionReady",
+        "isDatabaseReady",
+        "isAuthReady",
+        "SupabaseReadinessDiagnostic",
+        "supabaseReadinessDiagnostics"
+      ]
+    },
+    {
+      "name": "server",
+      "path": "lib/supabase/server.ts",
+      "type": "utility",
+      "lineCount": 46,
+      "exports": [
+        "SupabaseServerConfig",
+        "supabaseServerConfigured",
+        "getSupabaseServerConfig",
+        "ServerAuthResult"
+      ]
+    },
+    {
+      "name": "readiness",
+      "path": "lib/system/readiness.ts",
+      "type": "utility",
+      "lineCount": 28,
+      "exports": [
+        "ReadinessState",
+        "getSystemReadiness"
+      ]
+    },
+    {
+      "name": "systemHealth",
+      "path": "lib/systemHealth.ts",
+      "type": "utility",
+      "lineCount": 43,
+      "exports": [
+        "ComponentStatus",
+        "SystemComponent",
+        "buildSystemComponents"
+      ]
+    },
+    {
+      "name": "errorClassifier",
+      "path": "lib/telemetry/errorClassifier.ts",
+      "type": "utility",
+      "lineCount": 106,
+      "exports": [
+        "ErrorClass",
+        "ClassifiedError",
+        "classifyError"
+      ]
+    },
+    {
+      "name": "healthMonitor",
+      "path": "lib/telemetry/healthMonitor.ts",
+      "type": "utility",
+      "lineCount": 89,
+      "exports": [
+        "SystemHealthStatus",
+        "ComponentHealth",
+        "getSystemHealth"
+      ]
+    },
+    {
+      "name": "telemetryIngestion",
+      "path": "lib/telemetry/telemetryIngestion.ts",
+      "type": "utility",
+      "lineCount": 98,
+      "exports": [
+        "TelemetryLevel",
+        "TelemetryEvent",
+        "ingestTelemetry",
+        "getTelemetryBuffer",
+        "getTelemetrySummary"
+      ]
+    },
+    {
+      "name": "testWriter",
+      "path": "lib/testWriter.ts",
+      "type": "utility",
+      "lineCount": 2,
+      "exports": [
+        "testWriter"
+      ]
+    },
+    {
+      "name": "transactionEngine",
+      "path": "lib/transactionEngine.ts",
+      "type": "utility",
+      "lineCount": 78,
+      "exports": [
+        "Transaction",
+        "TransactionCategory",
+        "getTransactions",
+        "summariseTransactions",
+        "getTransactionsByCategory",
+        "getSpendingBreakdown"
+      ]
+    },
+    {
+      "name": "transactionIngestion",
+      "path": "lib/transactionIngestion.ts",
+      "type": "utility",
+      "lineCount": 11,
+      "exports": [
+        "ingestTransactions"
+      ]
+    },
+    {
+      "name": "vectorMemory",
+      "path": "lib/vectorMemory.ts",
+      "type": "utility",
+      "lineCount": 9,
+      "exports": [
+        "storeMemory"
+      ]
+    },
+    {
+      "name": "writerTestA",
+      "path": "lib/writerTestA.ts",
+      "type": "utility",
+      "lineCount": 2,
+      "exports": [
+        "writerTestA"
+      ]
+    },
+    {
+      "name": "writerTestB",
+      "path": "lib/writerTestB.ts",
+      "type": "utility",
+      "lineCount": 2,
+      "exports": [
+        "writerTestB"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "route": "/api/agent-hierarchy",
+      "fsPath": "app/api/agent-hierarchy/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/agents",
+      "fsPath": "app/api/agents/route.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/analytics",
+      "fsPath": "app/api/analytics/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/architecture-drift",
+      "fsPath": "app/api/architecture-drift/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/architecture-map",
+      "fsPath": "app/api/architecture-map/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/auth/login",
+      "fsPath": "app/api/auth/login/route.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/auth/logout",
+      "fsPath": "app/api/auth/logout/route.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/auth/session",
+      "fsPath": "app/api/auth/session/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/autonomous-engineer",
+      "fsPath": "app/api/autonomous-engineer/route.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/autonomous-task",
+      "fsPath": "app/api/autonomous-task/route.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/autonomy-status",
+      "fsPath": "app/api/autonomy-status/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/backup/export",
+      "fsPath": "app/api/backup/export/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/backup/import",
+      "fsPath": "app/api/backup/import/route.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/build-artifacts",
+      "fsPath": "app/api/build-artifacts/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/build-history",
+      "fsPath": "app/api/build-history/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/build-orchestrator",
+      "fsPath": "app/api/build-orchestrator/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/build-pipeline",
+      "fsPath": "app/api/build-pipeline/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/build-queue/complete",
+      "fsPath": "app/api/build-queue/complete/route.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/build-queue/next",
+      "fsPath": "app/api/build-queue/next/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/build-queue",
+      "fsPath": "app/api/build-queue/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/build-status",
+      "fsPath": "app/api/build-status/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/command-policy",
+      "fsPath": "app/api/command-policy/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/copilot",
+      "fsPath": "app/api/copilot/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/copilot-history",
+      "fsPath": "app/api/copilot-history/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/dashboard-metrics",
+      "fsPath": "app/api/dashboard-metrics/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/database-agent",
+      "fsPath": "app/api/database-agent/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/dependency-health",
+      "fsPath": "app/api/dependency-health/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/deployment-status",
+      "fsPath": "app/api/deployment-status/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/engineering-loop",
+      "fsPath": "app/api/engineering-loop/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/env-check",
+      "fsPath": "app/api/env-check/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/execution-queue",
+      "fsPath": "app/api/execution-queue/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/executive-briefing",
+      "fsPath": "app/api/executive-briefing/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/finance-health",
+      "fsPath": "app/api/finance-health/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/financial-intelligence",
+      "fsPath": "app/api/financial-intelligence/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/health",
+      "fsPath": "app/api/health/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/health-score",
+      "fsPath": "app/api/health-score/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/infrastructure-activation",
+      "fsPath": "app/api/infrastructure-activation/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/ingest",
+      "fsPath": "app/api/ingest/route.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/ingestion-health",
+      "fsPath": "app/api/ingestion-health/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/insights",
+      "fsPath": "app/api/insights/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/local-data/status",
+      "fsPath": "app/api/local-data/status/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/logs/ingest",
+      "fsPath": "app/api/logs/ingest/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/memory",
+      "fsPath": "app/api/memory/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PATCH"
+      ]
+    },
+    {
+      "route": "/api/merchant-intelligence",
+      "fsPath": "app/api/merchant-intelligence/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/platform-status",
+      "fsPath": "app/api/platform-status/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/production-readiness",
+      "fsPath": "app/api/production-readiness/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/production-status",
+      "fsPath": "app/api/production-status/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/recommendations",
+      "fsPath": "app/api/recommendations/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/release-candidate",
+      "fsPath": "app/api/release-candidate/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/release-promotion",
+      "fsPath": "app/api/release-promotion/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/reset-local-data",
+      "fsPath": "app/api/reset-local-data/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/roadmap",
+      "fsPath": "app/api/roadmap/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/assign",
+      "fsPath": "app/api/runtime/assign/route.ts",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/runtime/cancel",
+      "fsPath": "app/api/runtime/cancel/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/runtime/continuous-status",
+      "fsPath": "app/api/runtime/continuous-status/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/defects",
+      "fsPath": "app/api/runtime/defects/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/git",
+      "fsPath": "app/api/runtime/git/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/health-contract",
+      "fsPath": "app/api/runtime/health-contract/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/heartbeat",
+      "fsPath": "app/api/runtime/heartbeat/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/logs",
+      "fsPath": "app/api/runtime/logs/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/next-task",
+      "fsPath": "app/api/runtime/next-task/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/overnight",
+      "fsPath": "app/api/runtime/overnight/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/queue",
+      "fsPath": "app/api/runtime/queue/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/runs",
+      "fsPath": "app/api/runtime/runs/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/scheduler",
+      "fsPath": "app/api/runtime/scheduler/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/screenshot",
+      "fsPath": "app/api/runtime/screenshot/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/screenshots",
+      "fsPath": "app/api/runtime/screenshots/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime/status",
+      "fsPath": "app/api/runtime/status/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/runtime-operations",
+      "fsPath": "app/api/runtime-operations/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/smoke",
+      "fsPath": "app/api/smoke/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/subscriptions/intelligence",
+      "fsPath": "app/api/subscriptions/intelligence/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/subscriptions",
+      "fsPath": "app/api/subscriptions/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/system-health",
+      "fsPath": "app/api/system-health/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/telemetry",
+      "fsPath": "app/api/telemetry/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "route": "/api/test-runner",
+      "fsPath": "app/api/test-runner/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/transactions",
+      "fsPath": "app/api/transactions/route.ts",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "route": "/api/workflow-status",
+      "fsPath": "app/api/workflow-status/route.ts",
+      "methods": [
+        "GET"
+      ]
+    }
+  ],
+  "domainBoundaries": {
+    "Domain Services": [
+      "financeService",
+      "merchantService",
+      "subscriptionService"
+    ],
+    "API Adapters": [],
+    "Local Persistence": [
+      "db",
+      "localStore",
+      "repositories",
+      "schema"
+    ],
+    "Runtime Control": [
+      "architectureMapper",
+      "buildPipeline",
+      "daemonRuntime",
+      "dependencyScanner",
+      "runtimeControl",
+      "semanticDiffVerifier"
+    ],
+    "UI Composition": [],
+    "Utilities": [
+      "activationStatus",
+      "backendAgent",
+      "databaseAgent.test",
+      "databaseAgent",
+      "deploymentAgent",
+      "financeAgent",
+      "orchestratorAgent",
+      "plannerAgent",
+      "qaAgent",
+      "repairAgent",
+      "uiAgent",
+      "analyticsEngine",
+      "anomalyEngine",
+      "architectureDrift",
+      "middleware",
+      "rbac",
+      "auth",
+      "autonomousEngineerLoop",
+      "autonomousLoopTest",
+      "autonomousRepairLoop",
+      "browserValidator",
+      "policyEngine",
+      "repairLoop",
+      "semanticDOMValidator",
+      "buildArtifactManifest",
+      "buildOrchestrator",
+      "buildQueue",
+      "ciReadiness",
+      "cloudDeployment",
+      "commandPolicy",
+      "controlTest",
+      "copilotEngine",
+      "deploymentAgent",
+      "copilotContext",
+      "embeddingProvider",
+      "memoryGraph",
+      "semanticRetrieval",
+      "engineeringLoop",
+      "executiveEngine",
+      "forecastEngine",
+      "healthEngine",
+      "infrastructureActivation",
+      "categorizer",
+      "csvPipeline",
+      "duplicateDetector",
+      "healthScorer",
+      "merchantCanonicalizer",
+      "recurringDetector",
+      "insightsEngine",
+      "memoryEngine",
+      "mobileShell",
+      "mockData",
+      "coordinationContracts",
+      "deploymentGovernor",
+      "financialIntelligenceAgent",
+      "supervisor",
+      "supervisorOrchestrator",
+      "pass2",
+      "productionAgent",
+      "releaseCandidate",
+      "releasePromotion",
+      "repairClassifier",
+      "executionEngine",
+      "roadmapPlanner",
+      "readiness",
+      "runtime-config",
+      "selfRepairEngine",
+      "subscriptionDetector",
+      "subscriptionEngine",
+      "cadenceDetector",
+      "renewalPredictor",
+      "savingsRecommender",
+      "client",
+      "envValidator",
+      "server",
+      "readiness",
+      "systemHealth",
+      "errorClassifier",
+      "healthMonitor",
+      "telemetryIngestion",
+      "testWriter",
+      "transactionEngine",
+      "transactionIngestion",
+      "vectorMemory",
+      "writerTestA",
+      "writerTestB"
+    ]
+  },
+  "dataFlows": [
+    {
+      "from": "browser",
+      "to": "Next.js API routes",
+      "via": "HTTP GET/POST"
+    },
+    {
+      "from": "API routes",
+      "to": "domain-services",
+      "via": "function call"
+    },
+    {
+      "from": "domain-services",
+      "to": "localStore",
+      "via": "read/write JSON"
+    },
+    {
+      "from": "localStore",
+      "to": ".ai/local-data/",
+      "via": "fs read/write"
+    },
+    {
+      "from": "runtimeControl",
+      "to": ".ai/daemon-state.json",
+      "via": "fs read"
+    },
+    {
+      "from": "buildPipeline",
+      "to": ".ai/builds/",
+      "via": "fs write"
+    },
+    {
+      "from": "architectureMapper",
+      "to": ".ai/architecture/",
+      "via": "fs write"
+    }
+  ],
+  "riskAreas": [],
+  "summary": {
+    "totalModules": 99,
+    "totalRoutes": 77,
+    "liveRoutes": 68,
+    "scaffoldRoutes": 0,
+    "riskCount": 0
+  }
+}
