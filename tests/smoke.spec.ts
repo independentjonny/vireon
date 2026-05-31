@@ -36,7 +36,7 @@ test.describe("Neven smoke tests", () => {
     if (!fs.existsSync(screenshotDir)) {
       fs.mkdirSync(screenshotDir, { recursive: true });
     }
-    await page.screenshot({ path: path.join(screenshotDir, "database-health-regression.png"), fullPage: false });
+    await page.screenshot({ path: path.join(screenshotDir, "database-health-regression.png"), fullPage: true });
   });
 
   test("2. database health card does not falsely show DATABASE_URL needed when env exists", async ({

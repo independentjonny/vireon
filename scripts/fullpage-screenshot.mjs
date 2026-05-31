@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const PRIMARY_DIR = join(ROOT, "screenshot");
-const AI_DIR = join(ROOT, ".ai", "screenshots");
+const AI_DIR = join(ROOT, ".ai", "sc");
 const baseUrl = process.env.NEVEN_BASE_URL || process.argv[2] || "http://localhost:3000";
 
 mkdirSync(PRIMARY_DIR, { recursive: true });

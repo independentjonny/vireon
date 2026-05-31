@@ -34,6 +34,31 @@ export type SupabaseProbeResult = {
   error: string | null;
 };
 
+const PROBE_RETRY_DELAYS_MS = [1000, 3000, 5000];
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+): Promise<{ response: Response | null; error: string | null; attempts: number }> {
+  let lastError: string | null = null;
+  for (let i = 0; i <= PROBE_RETRY_DELAYS_MS.length; i++) {
+    try {
+      const response = await fetch(url, options);
+      return { response, error: null, attempts: i + 1 };
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      if (i < PROBE_RETRY_DELAYS_MS.length) {
+        await new Promise((resolve) => setTimeout(resolve, PROBE_RETRY_DELAYS_MS[i]));
+      }
+    }
+  }
+  return {
+    response: null,
+    error: `Failed after ${PROBE_RETRY_DELAYS_MS.length + 1} attempts: ${lastError}`,
+    attempts: PROBE_RETRY_DELAYS_MS.length + 1,
+  };
+}
+
 export async function probeSupabaseConnection(): Promise<SupabaseProbeResult> {
   if (!supabaseConfigured) {
     return { configured: false, reachable: null, latencyMs: null, error: null };
@@ -43,23 +68,18 @@ export async function probeSupabaseConnection(): Promise<SupabaseProbeResult> {
   const probeUrl = `${url}/rest/v1/`;
   const start = Date.now();
 
-  try {
-    const res = await fetch(probeUrl, {
-      method: "HEAD",
-      headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
-      signal: AbortSignal.timeout(5000),
-    });
-    const latencyMs = Date.now() - start;
-    const reachable = res.status < 500;
-    return { configured: true, reachable, latencyMs, error: null };
-  } catch (err) {
-    return {
-      configured: true,
-      reachable: false,
-      latencyMs: Date.now() - start,
-      error: err instanceof Error ? err.message : String(err),
-    };
+  const { response, error } = await fetchWithRetry(probeUrl, {
+    method: "HEAD",
+    headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+    signal: AbortSignal.timeout(5000),
+  });
+
+  const latencyMs = Date.now() - start;
+
+  if (response) {
+    return { configured: true, reachable: response.status < 500, latencyMs, error: null };
   }
+  return { configured: true, reachable: false, latencyMs, error };
 }
 
 export async function databaseAgent(task: string): Promise<DatabaseAgentReport> {

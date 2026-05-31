@@ -1,5 +1,107 @@
 {
-  "activeRun": null,
+  "activeRun": {
+    "runId": "1780218543064-a8eed282a944c",
+    "goal": "Stage 2: Stabilise autonomous execution runtime.\n\nGoal:\nMake Neven’s automation reliable, bounded, and repeatable.\n\nFix these issues in order:\n\n1. Git validation\n- If .git does not exist, do not fail validation.\n- Show warning: \"Git repository not initialised\"\n- Continue validation.\n- Optional: add setup guidance to initialise Git.\n\n2. Fetch/ECONNABORTED retry\n- Add retry logic around validation API calls.\n- Retry 3 times.\n- Use 1s, 3s, 5s backoff.\n- If still failing, write clear failure reason.\n\n3. Full-page screenshots\n- Capture full page, not viewport only.\n- Save to:\n  screenshot/\n  .ai/sc",
+    "startedAt": "2026-05-31T09:09:03.449Z",
+    "checkpoint": {
+      "ok": true,
+      "commit": "3e26e4035fc2e8060fbfdb742528c19038d98cdd"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "claudeOk": true,
+        "claudeOutputTail": "All three issues are fixed and the build passes. Here's a summary of what changed:\n\n**5 files changed:**\n\n1. **`scripts/doctor.js`** — Added `checkGitRepository()` function that checks for `.git` directory. If absent, emits a `warn` (not a `fail`) with setup guidance (`git init && git add -A && git commit -m 'Initial commit'`), then continues validation normally.\n\n2. **`src/lib/agents/databaseAgent.ts`** — Added `fetchWithRetry()` helper with 1 s / 3 s / 5 s exponential backoff (4 total attempts). `probeSupabaseConnection()` now uses it; if all retries fail, the error message includes the attempt count and the last error string.\n\n3. **`scripts/fullpage-screenshot.mjs`** — Changed AI output dir from `.ai/screenshots` → `.ai/sc` (the `fullPage: true` was already correct).\n\n4. **`scripts/local-automation.mjs`** — Pre-creates `.ai/sc` instead of `.ai/screenshots` to stay consistent with the screenshot script.\n\n5. **`tests/smoke.spec.ts`** — Changed the regression screenshot from `fullPage: false` → `fullPage: true`.\n",
+        "claudeErrorTail": "",
+        "validationOk": true,
+        "meaningfulDiff": true,
+        "sessionLimitHit": false,
+        "validation": {
+          "ok": true,
+          "buildBrowser": {
+            "ok": true,
+            "stage": "validate-and-repair",
+            "build": {
+              "ok": true,
+              "cwd": "C:\\Users\\summe\\liberva",
+              "outputTail": "p)\n┌ ƒ /\n├ ○ /_not-found\n├ ƒ /api/agent-hierarchy\n├ ƒ /api/agents\n├ ƒ /api/analytics\n├ ƒ /api/architecture-drift\n├ ƒ /api/architecture-map\n├ ƒ /api/auth/login\n├ ƒ /api/auth/logout\n├ ƒ /api/auth/session\n├ ƒ /api/autonomous-engineer\n├ ƒ /api/autonomous-task\n├ ƒ /api/autonomy-status\n├ ƒ /api/backup/export\n├ ƒ /api/backup/import\n├ ƒ /api/build-artifacts\n├ ƒ /api/build-history\n├ ƒ /api/build-orchestrator\n├ ƒ /api/build-pipeline\n├ ƒ /api/build-queue\n├ ƒ /api/build-queue/complete\n├ ƒ /api/build-queue/next\n├ ƒ /api/build-status\n├ ƒ /api/command-policy\n├ ƒ /api/copilot\n├ ƒ /api/copilot-history\n├ ƒ /api/dashboard-metrics\n├ ƒ /api/database-agent\n├ ƒ /api/dependency-health\n├ ƒ /api/deployment-status\n├ ƒ /api/engineering-loop\n├ ƒ /api/env-check\n├ ƒ /api/execution-queue\n├ ƒ /api/executive-briefing\n├ ƒ /api/finance-health\n├ ƒ /api/financial-intelligence\n├ ƒ /api/health\n├ ƒ /api/health-score\n├ ƒ /api/infrastructure-activation\n├ ƒ /api/ingest\n├ ƒ /api/ingestion-health\n├ ƒ /api/insights\n├ ƒ /api/local-data/status\n├ ƒ /api/logs/ingest\n├ ƒ /api/memory\n├ ƒ /api/merchant-intelligence\n├ ƒ /api/platform-status\n├ ƒ /api/production-readiness\n├ ƒ /api/production-status\n├ ƒ /api/recommendations\n├ ƒ /api/release-candidate\n├ ƒ /api/release-promotion\n├ ƒ /api/reset-local-data\n├ ƒ /api/roadmap\n├ ƒ /api/runtime-operations\n├ ƒ /api/runtime/assign\n├ ƒ /api/runtime/cancel\n├ ƒ /api/runtime/continuous-status\n├ ƒ /api/runtime/defects\n├ ƒ /api/runtime/git\n├ ƒ /api/runtime/health-contract\n├ ƒ /api/runtime/heartbeat\n├ ƒ /api/runtime/logs\n├ ƒ /api/runtime/next-task\n├ ƒ /api/runtime/overnight\n├ ƒ /api/runtime/queue\n├ ƒ /api/runtime/runs\n├ ƒ /api/runtime/scheduler\n├ ƒ /api/runtime/screenshot\n├ ƒ /api/runtime/screenshots\n├ ƒ /api/runtime/status\n├ ƒ /api/smoke\n├ ƒ /api/subscriptions\n├ ƒ /api/subscriptions/intelligence\n├ ƒ /api/system-health\n├ ƒ /api/telemetry\n├ ƒ /api/test-runner\n├ ƒ /api/transactions\n└ ƒ /api/workflow-status\n\n\n○  (Static)   prerendered as static content\nƒ  (Dynamic)  server-rendered on demand\n\n",
+              "output": "\n> neven@0.1.0 build\n> next build\n\n▲ Next.js 16.2.6 (Turbopack)\n\n  Creating an optimized production build ...\n✓ Compiled successfully in 4.5s\n  Running TypeScript ...\n  Finished TypeScript in 5.9s ...\n  Collecting page data using 7 workers ...\n  Generating static pages using 7 workers (0/58) ...\n  Generating static pages using 7 workers (14/58) \r\n  Generating static pages using 7 workers (28/58) \r\n  Generating static pages using 7 workers (43/58) \r\n✓ Generating static pages using 7 workers (58/58) in 220ms\n  Finalizing page optimization ...\n\nRoute (app)\n┌ ƒ /\n├ ○ /_not-found\n├ ƒ /api/agent-hierarchy\n├ ƒ /api/agents\n├ ƒ /api/analytics\n├ ƒ /api/architecture-drift\n├ ƒ /api/architecture-map\n├ ƒ /api/auth/login\n├ ƒ /api/auth/logout\n├ ƒ /api/auth/session\n├ ƒ /api/autonomous-engineer\n├ ƒ /api/autonomous-task\n├ ƒ /api/autonomy-status\n├ ƒ /api/backup/export\n├ ƒ /api/backup/import\n├ ƒ /api/build-artifacts\n├ ƒ /api/build-history\n├ ƒ /api/build-orchestrator\n├ ƒ /api/build-pipeline\n├ ƒ /api/build-queue\n├ ƒ /api/build-queue/complete\n├ ƒ /api/build-queue/next\n├ ƒ /api/build-status\n├ ƒ /api/command-policy\n├ ƒ /api/copilot\n├ ƒ /api/copilot-history\n├ ƒ /api/dashboard-metrics\n├ ƒ /api/database-agent\n├ ƒ /api/dependency-health\n├ ƒ /api/deployment-status\n├ ƒ /api/engineering-loop\n├ ƒ /api/env-check\n├ ƒ /api/execution-queue\n├ ƒ /api/executive-briefing\n├ ƒ /api/finance-health\n├ ƒ /api/financial-intelligence\n├ ƒ /api/health\n├ ƒ /api/health-score\n├ ƒ /api/infrastructure-activation\n├ ƒ /api/ingest\n├ ƒ /api/ingestion-health\n├ ƒ /api/insights\n├ ƒ /api/local-data/status\n├ ƒ /api/logs/ingest\n├ ƒ /api/memory\n├ ƒ /api/merchant-intelligence\n├ ƒ /api/platform-status\n├ ƒ /api/production-readiness\n├ ƒ /api/production-status\n├ ƒ /api/recommendations\n├ ƒ /api/release-candidate\n├ ƒ /api/release-promotion\n├ ƒ /api/reset-local-data\n├ ƒ /api/roadmap\n├ ƒ /api/runtime-operations\n├ ƒ /api/runtime/assign\n├ ƒ /api/runtime/cancel\n├ ƒ /api/runtime/continuous-status\n├ ƒ /api/runtime/defects\n├ ƒ /api/runtime/git\n├ ƒ /api/runtime/health-contract\n├ ƒ /api/runtime/heartbeat\n├ ƒ /api/runtime/logs\n├ ƒ /api/runtime/next-task\n├ ƒ /api/runtime/overnight\n├ ƒ /api/runtime/queue\n├ ƒ /api/runtime/runs\n├ ƒ /api/runtime/scheduler\n├ ƒ /api/runtime/screenshot\n├ ƒ /api/runtime/screenshots\n├ ƒ /api/runtime/status\n├ ƒ /api/smoke\n├ ƒ /api/subscriptions\n├ ƒ /api/subscriptions/intelligence\n├ ƒ /api/system-health\n├ ƒ /api/telemetry\n├ ƒ /api/test-runner\n├ ƒ /api/transactions\n└ ƒ /api/workflow-status\n\n\n○  (Static)   prerendered as static content\nƒ  (Dynamic)  server-rendered on demand\n\n"
+            },
+            "browser": {
+              "ok": true,
+              "url": "http://localhost:3000",
+              "title": "NEVEN — Autonomous Financial OS",
+              "blankScreen": false,
+              "hasNextError": false,
+              "consoleErrors": [
+                "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <InnerLayoutRouter url=\"/\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>\n      <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n        <SegmentTrieNode>\n        <HomePage>\n          <main data-testid=\"app-root\" className=\"min-h-scre...\">\n            <MobileNav>\n            <div>\n            <div className=\"flex min-h...\">\n              <aside>\n              <section className=\"flex-1 min...\">\n                <header>\n                <div className=\"mx-auto ma...\">\n                  <UIToggleWrapper>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                    <div>\n                    <div>\n                    <div className=\"mt-3 grid ...\">\n                      <div className=\"xl:col-span-2\">\n                        <Card>\n                          <div className=\"rounded-2x...\">\n                            <AutonomousTaskComposer suggestedGoal=\"Validation...\">\n                              <div className=\"space-y-4\">\n                                <div>\n                                <div>\n                                <div>\n                                  <div>\n                                  <textarea\n                                    value=\"Validation Pass: Run full autonomous validation — npm run build, browser ch...\"\n                                    onChange={function onChange}\n                                    placeholder=\"Describe the build goal — or pick a Task Template above…\"\n                                    rows={4}\n                                    className=\"w-full rounded-xl border bg-white/[0.04] px-4 py-3 text-xs text-white/8...\"\n-                                   style={{caret-color:\"transparent\"}}\n                                  >\n                                ...\n                      ...\n                    ...\n                  ...\n      ...\n"
+              ],
+              "pageErrors": [],
+              "screenshotPath": "C:\\Users\\summe\\liberva\\.ai\\validate-and-repair.png",
+              "bodyTextPreview": "Autonomous AI Runtime Active — Supervisor online • 10 agents nominal • Multi-agent v2\n\nAutonomous financial operating system\n\nOverview\nTransactions\nSubscriptions\nFinancial Intelligence\nAI Copilot\nAnalytics\nRoadmap\nTelemetry\nDeployment\nRemote Control\nBuild Automation\nArchitecture Governance\nSettings\nAB\nAlex Becker\nOwner · Premium Plan\nUI v3 — Attention Flow\nToggle UI\n01  /  FINANCIAL IDENTITY\n\nNEVEN FINANCIAL OS — SUNDAY 31 MAY 2026\n\nNET WORTH\n$1.84M\n↑\n+4.2% this month\n·\nGood morning, Alex\nCASH FLOW\n+$6,420\nSAVINGS RATE\n31%\nRUNWAY\n8.4 mo\nAI SCORE\n96%\nFINANCIAL HEALTH\n93\nStrong\nPORTFOLIO ALLOCATION\nProperty\n58%\nEquities\n22%\nCash\n12%\nOther\n8%\nHEALTH INDICATORS\nLIQUIDITY\n92\nStrong\nDIVERSIFICATION\n74\nModerate\nDEBT COVERAGE\n88\nHealthy\nSAVINGS HABIT\n95\nExcellent\n02  /  INTELLIGENCE WORKSPACE\nSIGNALS\n5 active\n01\n\nOffset mortgage by $800/month to save $2,400/year in interest.\n\n02\n\nAI detected $138/month in recurring cost opportunities.\n\n03\n\nProperty exposure remains your largest concentration r"
+            },
+            "gitStatus": " M .ai/architecture/map.json\n M .ai/claude-report.json\n M .ai/daemon-state.json\n M .ai/releases/latest.json\n M .ai/tasks/current-task.md\n M .ai/tasks/daemon-prompt.md\n M .ai/validate-and-repair.png\n M scripts/doctor.js\n M scripts/fullpage-screenshot.mjs\n M scripts/local-automation.mjs\n M src/lib/agents/databaseAgent.ts\n M tests/smoke.spec.ts\n",
+            "diffStat": " .ai/architecture/map.json       |   4 +-\n .ai/claude-report.json          |  13 ++--\n .ai/daemon-state.json           |  13 +++-\n .ai/releases/latest.json        |   4 +-\n .ai/tasks/current-task.md       |   3 +-\n .ai/tasks/daemon-prompt.md      | 169 +++++++++++++++-------------------------\n .ai/validate-and-repair.png     | Bin 2650789 -> 2650081 bytes\n scripts/doctor.js               |  10 +++\n scripts/fullpage-screenshot.mjs |   2 +-\n scripts/local-automation.mjs    |   2 +-\n src/lib/agents/databaseAgent.ts |  52 +++++++++----\n tests/smoke.spec.ts             |   2 +-\n 12 files changed, 135 insertions(+), 139 deletions(-)\n",
+            "repairTask": null,
+            "nextAction": "Validation passed. Review git diff and decide whether to commit.",
+            "checkedAt": "2026-05-31T09:13:30.306Z"
+          },
+          "interaction": {
+            "ok": true,
+            "url": "http://localhost:3000",
+            "clickResults": [
+              {
+                "item": "Overview",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Transactions",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Subscriptions",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Financial Intelligence",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "AI Copilot",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Analytics",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Aggregation",
+                "found": false,
+                "clicked": false
+              },
+              {
+                "item": "Settings",
+                "found": true,
+                "clicked": true
+              }
+            ],
+            "consoleErrors": [],
+            "pageErrors": [],
+            "screenshotPath": "C:\\Users\\summe\\liberva\\.ai\\browser-interaction-check.png",
+            "bodyTextPreview": "Autonomous AI Runtime Active — Supervisor online • 10 agents nominal • Multi-agent v2\n\nAutonomous financial operating system\n\nOverview\nTransactions\nSubscriptions\nFinancial Intelligence\nAI Copilot\nAnalytics\nRoadmap\nTelemetry\nDeployment\nRemote Control\nBuild Automation\nArchitecture Governance\nSettings\nAB\nAlex Becker\nOwner · Premium Plan\nUI v3 — Attention Flow\nToggle UI\n01  /  FINANCIAL IDENTITY\n\nNEVEN FINANCIAL OS — SUNDAY 31 MAY 2026\n\nNET WORTH\n$1.84M\n↑\n+4.2% this month\n·\nGood morning, Alex\nCASH FLOW\n+$6,420\nSAVINGS RATE\n31%\nRUNWAY\n8.4 mo\nAI SCORE\n96%\nFINANCIAL HEALTH\n93\nStrong\nPORTFOLIO ALLOCATION\nProperty\n58%\nEquities\n22%\nCash\n12%\nOther\n8%\nHEALTH INDICATORS\nLIQUIDITY\n92\nStrong\nDIVERSIFICATION\n74\nModerate\nDEBT COVERAGE\n88\nHealthy\nSAVINGS HABIT\n95\nExcellent\n02  /  INTELLIGENCE WORKSPACE\nSIGNALS\n5 active\n01\n\nOffset mortgage by $800/month to save $2,400/year in interest.\n\n02\n\nAI detected $138/month in recurring cost opportunities.\n\n03\n\nProperty exposure remains your largest concentration r",
+            "checkedAt": "2026-05-31T09:14:28.475Z"
+          }
+        },
+        "completedAt": "2026-05-31T09:14:28.476Z"
+      }
+    ]
+  },
   "runs": [
     {
       "runId": "1780101472833-58a2373c27965",
@@ -4799,5 +4901,5 @@
       "completedAt": "2026-05-31T09:02:02.366Z"
     }
   ],
-  "lastTaskHash": "-2108924807"
+  "lastTaskHash": "1949545299"
 }

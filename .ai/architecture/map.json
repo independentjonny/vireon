@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-31T09:07:24.173Z",
+  "generatedAt": "2026-05-31T09:13:50.210Z",
   "modules": [
     {
       "name": "activationStatus",
@@ -31,7 +31,7 @@
       "name": "databaseAgent",
       "path": "lib/agents/databaseAgent.ts",
       "type": "utility",
-      "lineCount": 187,
+      "lineCount": 207,
       "exports": [
         "DatabaseCheckResult",
         "DatabaseAgentReport",

@@ -188,12 +188,22 @@ function checkSmokeTests() {
   }
 }
 
+function checkGitRepository() {
+  const gitDir = path.join(ROOT, ".git");
+  if (fs.existsSync(gitDir)) {
+    ok("Git repository", ".git directory found");
+  } else {
+    warn("Git repository", "Git repository not initialised — run: git init && git add -A && git commit -m 'Initial commit'");
+  }
+}
+
 async function main() {
   console.log("\n╔═══════════════════════════════════╗");
   console.log("║   Liberva Doctor — Self-Diagnosis    ║");
   console.log("╚═══════════════════════════════════╝\n");
 
   checkAppRoot();
+  checkGitRepository();
   checkPackageScripts();
   checkDuplicateNestedFolders();
   await checkPorts();

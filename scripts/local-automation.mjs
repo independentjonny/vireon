@@ -9,7 +9,7 @@ const AI_DIR = join(ROOT, ".ai");
 const SCREENSHOT_DIR = join(ROOT, "screenshot");
 mkdirSync(AI_DIR, { recursive: true });
 mkdirSync(join(AI_DIR, "tasks"), { recursive: true });
-mkdirSync(join(AI_DIR, "screenshots"), { recursive: true });
+mkdirSync(join(AI_DIR, "sc"), { recursive: true });
 mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
 function run(command, args, options = {}) {
