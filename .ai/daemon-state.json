@@ -8,7 +8,187 @@
       "error": "Command failed: git status --short\nfatal: not a git repository (or any of the parent directories): .git\n",
       "output": "\nfatal: not a git repository (or any of the parent directories): .git\n"
     },
-    "attempts": []
+    "attempts": [
+      {
+        "attempt": 1,
+        "claudeOk": true,
+        "claudeOutputTail": "Build passed. Here's a summary of what was fixed and why:\n\n---\n\n**3 files changed:**\n\n**`scripts/local-daemon.mjs`** — Core fix. The daemon wrote completed runs to `lastRun` only, but `runtimeControl.ts` reads from `state.runs` (array). This meant `totalRuns` was always 0, `lastTask` was always null, and the queue bridge in `AutonomousTaskComposer` always showed 0 completed/failed. Fixed by adding `writeCompletedRun()` that appends each finished run (with `goal`, `startedAt`, `status`, `attempts`) to the `runs` array. Also: captured `startedAt` as a variable so it's included in run records; limited `outputTail` to 2 000 chars per attempt to prevent state file bloat; added null guard on `outputTail` before the quota-detection regex.\n\n**`src/app/api/autonomous-task/route.ts`** — Removed duplicate `ATTEMPT:` / `1` lines that appeared at the end of every generated task file (they were already present at the top as `ATTEMPT: 1`).\n\n**`src/lib/runtimeControl.ts`** — Added `resolveRuns()` helper that falls back to `[lastRun]` when the `runs` array is empty, maintaining backwards compatibility with state files from the old daemon. Applied to all four runtime functions. Fixed `getRuntimeQueue` to map `\"paused\"` status correctly instead of treating it as `\"failed\"`.\n",
+        "claudeErrorTail": "",
+        "validationOk": false,
+        "meaningfulDiff": false,
+        "sessionLimitHit": false,
+        "validation": {
+          "ok": false,
+          "buildBrowser": {
+            "ok": false,
+            "error": "Command failed: git status --short\nfatal: not a git repository (or any of the parent directories): .git\n",
+            "stack": "Error: Command failed: git status --short\nfatal: not a git repository (or any of the parent directories): .git\n\n    at genericNodeError (node:internal/errors:998:15)\n    at wrappedFn (node:internal/errors:543:14)\n    at checkExecSyncError (node:child_process:925:11)\n    at execSync (node:child_process:997:15)\n    at C:\\Users\\summe\\ai-dev-orchestrator\\orchestrator-server\\server-bigpass.js:856:24",
+            "repairTask": {
+              "goal": "Repair failed autonomous loop: Repair validate-and-repair endpoint failure",
+              "errorType": "generic-error",
+              "instructions": [
+                "Inspect the build output.",
+                "Identify the affected file or import.",
+                "Make the smallest safe fix.",
+                "Run npm run build.",
+                "Write .ai/claude-report.json."
+              ],
+              "buildOutputTail": "Command failed: git status --short\nfatal: not a git repository (or any of the parent directories): .git\n",
+              "createdAt": "2026-05-31T08:50:27.962Z"
+            },
+            "repairTaskWritten": {
+              "ok": true,
+              "taskPath": "C:\\Users\\summe\\liberva\\.ai\\tasks\\current-task.md",
+              "reportPath": "C:\\Users\\summe\\liberva\\.ai\\claude-report.json"
+            }
+          },
+          "interaction": {
+            "ok": true,
+            "url": "http://localhost:3000",
+            "clickResults": [
+              {
+                "item": "Overview",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Transactions",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Subscriptions",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Financial Intelligence",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "AI Copilot",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Analytics",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Aggregation",
+                "found": false,
+                "clicked": false
+              },
+              {
+                "item": "Settings",
+                "found": true,
+                "clicked": true
+              }
+            ],
+            "consoleErrors": [],
+            "pageErrors": [],
+            "screenshotPath": "C:\\Users\\summe\\liberva\\.ai\\browser-interaction-check.png",
+            "bodyTextPreview": "Autonomous AI Runtime Active — Supervisor online • 10 agents nominal • Multi-agent v2\n\nAutonomous financial operating system\n\nOverview\nTransactions\nSubscriptions\nFinancial Intelligence\nAI Copilot\nAnalytics\nRoadmap\nTelemetry\nDeployment\nRemote Control\nBuild Automation\nArchitecture Governance\nSettings\nAB\nAlex Becker\nOwner · Premium Plan\nUI v3 — Attention Flow\nToggle UI\n01  /  FINANCIAL IDENTITY\n\nNEVEN FINANCIAL OS — SUNDAY 31 MAY 2026\n\nNET WORTH\n$1.84M\n↑\n+4.2% this month\n·\nGood morning, Alex\nCASH FLOW\n+$6,420\nSAVINGS RATE\n31%\nRUNWAY\n8.4 mo\nAI SCORE\n96%\nFINANCIAL HEALTH\n93\nStrong\nPORTFOLIO ALLOCATION\nProperty\n58%\nEquities\n22%\nCash\n12%\nOther\n8%\nHEALTH INDICATORS\nLIQUIDITY\n92\nStrong\nDIVERSIFICATION\n74\nModerate\nDEBT COVERAGE\n88\nHealthy\nSAVINGS HABIT\n95\nExcellent\n02  /  INTELLIGENCE WORKSPACE\nSIGNALS\n5 active\n01\n\nOffset mortgage by $800/month to save $2,400/year in interest.\n\n02\n\nAI detected $138/month in recurring cost opportunities.\n\n03\n\nProperty exposure remains your largest concentration r",
+            "checkedAt": "2026-05-31T08:51:07.186Z"
+          }
+        },
+        "completedAt": "2026-05-31T08:54:33.821Z"
+      },
+      {
+        "attempt": 2,
+        "claudeOk": true,
+        "claudeOutputTail": "Build passes. Here's what was fixed and why:\n\n**Root causes:**\n\n1. **`scripts/local-daemon.mjs` never wrote to `.ai/operations/daemon.json`** — `getHeartbeat()` reads from that file to report daemon alive/paused state to the UI. Without it, `/api/runtime/heartbeat` always returned empty data, so `AutonomousTaskComposer`'s polling could never detect quota pauses or daemon activity. Fixed by adding `writeHeartbeat()` that writes on startup, every 30s, on task start, on quota pause (`paused: true`), and on task complete/fail.\n\n2. **Active Run card in `page.tsx` used hardcoded static data** — Run ID, goal text, attempts count, and queue counts were all hardcoded constants (`1779703026132-da1b3f193e844`, `\"Running\"`, count `1`, etc.). Fixed by wiring them to live `runtimeStatus.daemon.runId`, `runtimeLogs.activeRunGoal`, `activeRun.attempts.length`, and `runtimeQueue.summary` respectively.\n\n**Files changed:** `scripts/local-daemon.mjs`, `src/app/page.tsx`\n\n**Build:** All 79 routes compiled cleanly.\n",
+        "claudeErrorTail": "",
+        "validationOk": true,
+        "meaningfulDiff": true,
+        "sessionLimitHit": false,
+        "validation": {
+          "ok": true,
+          "buildBrowser": {
+            "ok": true,
+            "stage": "validate-and-repair",
+            "build": {
+              "ok": true,
+              "cwd": "C:\\Users\\summe\\liberva",
+              "outputTail": "p)\n┌ ƒ /\n├ ○ /_not-found\n├ ƒ /api/agent-hierarchy\n├ ƒ /api/agents\n├ ƒ /api/analytics\n├ ƒ /api/architecture-drift\n├ ƒ /api/architecture-map\n├ ƒ /api/auth/login\n├ ƒ /api/auth/logout\n├ ƒ /api/auth/session\n├ ƒ /api/autonomous-engineer\n├ ƒ /api/autonomous-task\n├ ƒ /api/autonomy-status\n├ ƒ /api/backup/export\n├ ƒ /api/backup/import\n├ ƒ /api/build-artifacts\n├ ƒ /api/build-history\n├ ƒ /api/build-orchestrator\n├ ƒ /api/build-pipeline\n├ ƒ /api/build-queue\n├ ƒ /api/build-queue/complete\n├ ƒ /api/build-queue/next\n├ ƒ /api/build-status\n├ ƒ /api/command-policy\n├ ƒ /api/copilot\n├ ƒ /api/copilot-history\n├ ƒ /api/dashboard-metrics\n├ ƒ /api/database-agent\n├ ƒ /api/dependency-health\n├ ƒ /api/deployment-status\n├ ƒ /api/engineering-loop\n├ ƒ /api/env-check\n├ ƒ /api/execution-queue\n├ ƒ /api/executive-briefing\n├ ƒ /api/finance-health\n├ ƒ /api/financial-intelligence\n├ ƒ /api/health\n├ ƒ /api/health-score\n├ ƒ /api/infrastructure-activation\n├ ƒ /api/ingest\n├ ƒ /api/ingestion-health\n├ ƒ /api/insights\n├ ƒ /api/local-data/status\n├ ƒ /api/logs/ingest\n├ ƒ /api/memory\n├ ƒ /api/merchant-intelligence\n├ ƒ /api/platform-status\n├ ƒ /api/production-readiness\n├ ƒ /api/production-status\n├ ƒ /api/recommendations\n├ ƒ /api/release-candidate\n├ ƒ /api/release-promotion\n├ ƒ /api/reset-local-data\n├ ƒ /api/roadmap\n├ ƒ /api/runtime-operations\n├ ƒ /api/runtime/assign\n├ ƒ /api/runtime/cancel\n├ ƒ /api/runtime/continuous-status\n├ ƒ /api/runtime/defects\n├ ƒ /api/runtime/git\n├ ƒ /api/runtime/health-contract\n├ ƒ /api/runtime/heartbeat\n├ ƒ /api/runtime/logs\n├ ƒ /api/runtime/next-task\n├ ƒ /api/runtime/overnight\n├ ƒ /api/runtime/queue\n├ ƒ /api/runtime/runs\n├ ƒ /api/runtime/scheduler\n├ ƒ /api/runtime/screenshot\n├ ƒ /api/runtime/screenshots\n├ ƒ /api/runtime/status\n├ ƒ /api/smoke\n├ ƒ /api/subscriptions\n├ ƒ /api/subscriptions/intelligence\n├ ƒ /api/system-health\n├ ƒ /api/telemetry\n├ ƒ /api/test-runner\n├ ƒ /api/transactions\n└ ƒ /api/workflow-status\n\n\n○  (Static)   prerendered as static content\nƒ  (Dynamic)  server-rendered on demand\n\n",
+              "output": "\n> neven@0.1.0 build\n> next build\n\n▲ Next.js 16.2.6 (Turbopack)\n\n  Creating an optimized production build ...\n✓ Compiled successfully in 4.7s\n  Running TypeScript ...\n  Finished TypeScript in 6.0s ...\n  Collecting page data using 7 workers ...\n  Generating static pages using 7 workers (0/58) ...\n  Generating static pages using 7 workers (14/58) \r\n  Generating static pages using 7 workers (28/58) \r\n  Generating static pages using 7 workers (43/58) \r\n✓ Generating static pages using 7 workers (58/58) in 229ms\n  Finalizing page optimization ...\n\nRoute (app)\n┌ ƒ /\n├ ○ /_not-found\n├ ƒ /api/agent-hierarchy\n├ ƒ /api/agents\n├ ƒ /api/analytics\n├ ƒ /api/architecture-drift\n├ ƒ /api/architecture-map\n├ ƒ /api/auth/login\n├ ƒ /api/auth/logout\n├ ƒ /api/auth/session\n├ ƒ /api/autonomous-engineer\n├ ƒ /api/autonomous-task\n├ ƒ /api/autonomy-status\n├ ƒ /api/backup/export\n├ ƒ /api/backup/import\n├ ƒ /api/build-artifacts\n├ ƒ /api/build-history\n├ ƒ /api/build-orchestrator\n├ ƒ /api/build-pipeline\n├ ƒ /api/build-queue\n├ ƒ /api/build-queue/complete\n├ ƒ /api/build-queue/next\n├ ƒ /api/build-status\n├ ƒ /api/command-policy\n├ ƒ /api/copilot\n├ ƒ /api/copilot-history\n├ ƒ /api/dashboard-metrics\n├ ƒ /api/database-agent\n├ ƒ /api/dependency-health\n├ ƒ /api/deployment-status\n├ ƒ /api/engineering-loop\n├ ƒ /api/env-check\n├ ƒ /api/execution-queue\n├ ƒ /api/executive-briefing\n├ ƒ /api/finance-health\n├ ƒ /api/financial-intelligence\n├ ƒ /api/health\n├ ƒ /api/health-score\n├ ƒ /api/infrastructure-activation\n├ ƒ /api/ingest\n├ ƒ /api/ingestion-health\n├ ƒ /api/insights\n├ ƒ /api/local-data/status\n├ ƒ /api/logs/ingest\n├ ƒ /api/memory\n├ ƒ /api/merchant-intelligence\n├ ƒ /api/platform-status\n├ ƒ /api/production-readiness\n├ ƒ /api/production-status\n├ ƒ /api/recommendations\n├ ƒ /api/release-candidate\n├ ƒ /api/release-promotion\n├ ƒ /api/reset-local-data\n├ ƒ /api/roadmap\n├ ƒ /api/runtime-operations\n├ ƒ /api/runtime/assign\n├ ƒ /api/runtime/cancel\n├ ƒ /api/runtime/continuous-status\n├ ƒ /api/runtime/defects\n├ ƒ /api/runtime/git\n├ ƒ /api/runtime/health-contract\n├ ƒ /api/runtime/heartbeat\n├ ƒ /api/runtime/logs\n├ ƒ /api/runtime/next-task\n├ ƒ /api/runtime/overnight\n├ ƒ /api/runtime/queue\n├ ƒ /api/runtime/runs\n├ ƒ /api/runtime/scheduler\n├ ƒ /api/runtime/screenshot\n├ ƒ /api/runtime/screenshots\n├ ƒ /api/runtime/status\n├ ƒ /api/smoke\n├ ƒ /api/subscriptions\n├ ƒ /api/subscriptions/intelligence\n├ ƒ /api/system-health\n├ ƒ /api/telemetry\n├ ƒ /api/test-runner\n├ ƒ /api/transactions\n└ ƒ /api/workflow-status\n\n\n○  (Static)   prerendered as static content\nƒ  (Dynamic)  server-rendered on demand\n\n"
+            },
+            "browser": {
+              "ok": true,
+              "url": "http://localhost:3000",
+              "title": "NEVEN — Autonomous Financial OS",
+              "blankScreen": false,
+              "hasNextError": false,
+              "consoleErrors": [
+                "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <InnerLayoutRouter url=\"/\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>\n      <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n        <SegmentTrieNode>\n        <HomePage>\n          <main data-testid=\"app-root\" className=\"min-h-scre...\">\n            <MobileNav>\n            <div>\n            <div className=\"flex min-h...\">\n              <aside>\n              <section className=\"flex-1 min...\">\n                <header>\n                <div className=\"mx-auto ma...\">\n                  <UIToggleWrapper>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                  <section>\n                    <div>\n                    <div>\n                    <div className=\"mt-3 grid ...\">\n                      <div className=\"xl:col-span-2\">\n                        <Card>\n                          <div className=\"rounded-2x...\">\n                            <AutonomousTaskComposer suggestedGoal=\"Validation...\">\n                              <div className=\"space-y-4\">\n                                <div>\n                                <div>\n                                <div>\n                                  <div>\n                                  <textarea\n                                    value=\"Validation Pass: Run full autonomous validation — npm run build, browser ch...\"\n                                    onChange={function onChange}\n                                    placeholder=\"Describe the build goal — or pick a Task Template above…\"\n                                    rows={4}\n                                    className=\"w-full rounded-xl border bg-white/[0.04] px-4 py-3 text-xs text-white/8...\"\n-                                   style={{caret-color:\"transparent\"}}\n                                  >\n                                ...\n                      ...\n                    ...\n                  ...\n      ...\n"
+              ],
+              "pageErrors": [],
+              "screenshotPath": "C:\\Users\\summe\\liberva\\.ai\\validate-and-repair.png",
+              "bodyTextPreview": "Autonomous AI Runtime Active — Supervisor online • 10 agents nominal • Multi-agent v2\n\nAutonomous financial operating system\n\nOverview\nTransactions\nSubscriptions\nFinancial Intelligence\nAI Copilot\nAnalytics\nRoadmap\nTelemetry\nDeployment\nRemote Control\nBuild Automation\nArchitecture Governance\nSettings\nAB\nAlex Becker\nOwner · Premium Plan\nUI v3 — Attention Flow\nToggle UI\n01  /  FINANCIAL IDENTITY\n\nNEVEN FINANCIAL OS — SUNDAY 31 MAY 2026\n\nNET WORTH\n$1.84M\n↑\n+4.2% this month\n·\nGood morning, Alex\nCASH FLOW\n+$6,420\nSAVINGS RATE\n31%\nRUNWAY\n8.4 mo\nAI SCORE\n96%\nFINANCIAL HEALTH\n93\nStrong\nPORTFOLIO ALLOCATION\nProperty\n58%\nEquities\n22%\nCash\n12%\nOther\n8%\nHEALTH INDICATORS\nLIQUIDITY\n92\nStrong\nDIVERSIFICATION\n74\nModerate\nDEBT COVERAGE\n88\nHealthy\nSAVINGS HABIT\n95\nExcellent\n02  /  INTELLIGENCE WORKSPACE\nSIGNALS\n5 active\n01\n\nOffset mortgage by $800/month to save $2,400/year in interest.\n\n02\n\nAI detected $138/month in recurring cost opportunities.\n\n03\n\nProperty exposure remains your largest concentration r"
+            },
+            "gitStatus": " M .ai/architecture/map.json\n M .ai/claude-report.json\n M .ai/daemon-state.json\n M .ai/releases/latest.json\n M .ai/tasks/current-task.md\n M .ai/tasks/daemon-prompt.md\n M .ai/validate-and-repair.png\n M scripts/local-daemon.mjs\n M src/app/page.tsx\n?? .gitattributes\n?? AGENTS.md\n?? CLAUDE.md\n?? README.md\n?? README_AUTOMATION.md\n?? eslint.config.mjs\n?? neven_logo1.png\n?? package-lock.json\n?? postcss.config.mjs\n?? prisma/\n?? public/\n?? screenshot/\n?? tests/\n",
+            "diffStat": " .ai/architecture/map.json   |   2 +-\n .ai/claude-report.json      |  21 ++++---\n .ai/daemon-state.json       |  90 ++++++++++++++++++++++++++-\n .ai/releases/latest.json    |   4 +-\n .ai/tasks/current-task.md   | 144 ++++++++++++++++++++++++++++++++-----------\n .ai/tasks/daemon-prompt.md  | 146 +++++++++++++++++++++++++++++++++-----------\n .ai/validate-and-repair.png | Bin 2646195 -> 2650789 bytes\n scripts/local-daemon.mjs    |  21 ++++++-\n src/app/page.tsx            |  29 ++++++---\n 9 files changed, 363 insertions(+), 94 deletions(-)\n",
+            "repairTask": null,
+            "nextAction": "Validation passed. Review git diff and decide whether to commit.",
+            "checkedAt": "2026-05-31T09:00:52.228Z"
+          },
+          "interaction": {
+            "ok": true,
+            "url": "http://localhost:3000",
+            "clickResults": [
+              {
+                "item": "Overview",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Transactions",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Subscriptions",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Financial Intelligence",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "AI Copilot",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Analytics",
+                "found": true,
+                "clicked": true
+              },
+              {
+                "item": "Aggregation",
+                "found": false,
+                "clicked": false
+              },
+              {
+                "item": "Settings",
+                "found": true,
+                "clicked": true
+              }
+            ],
+            "consoleErrors": [],
+            "pageErrors": [],
+            "screenshotPath": "C:\\Users\\summe\\liberva\\.ai\\browser-interaction-check.png",
+            "bodyTextPreview": "Autonomous AI Runtime Active — Supervisor online • 10 agents nominal • Multi-agent v2\n\nAutonomous financial operating system\n\nOverview\nTransactions\nSubscriptions\nFinancial Intelligence\nAI Copilot\nAnalytics\nRoadmap\nTelemetry\nDeployment\nRemote Control\nBuild Automation\nArchitecture Governance\nSettings\nAB\nAlex Becker\nOwner · Premium Plan\nUI v3 — Attention Flow\nToggle UI\n01  /  FINANCIAL IDENTITY\n\nNEVEN FINANCIAL OS — SUNDAY 31 MAY 2026\n\nNET WORTH\n$1.84M\n↑\n+4.2% this month\n·\nGood morning, Alex\nCASH FLOW\n+$6,420\nSAVINGS RATE\n31%\nRUNWAY\n8.4 mo\nAI SCORE\n96%\nFINANCIAL HEALTH\n93\nStrong\nPORTFOLIO ALLOCATION\nProperty\n58%\nEquities\n22%\nCash\n12%\nOther\n8%\nHEALTH INDICATORS\nLIQUIDITY\n92\nStrong\nDIVERSIFICATION\n74\nModerate\nDEBT COVERAGE\n88\nHealthy\nSAVINGS HABIT\n95\nExcellent\n02  /  INTELLIGENCE WORKSPACE\nSIGNALS\n5 active\n01\n\nOffset mortgage by $800/month to save $2,400/year in interest.\n\n02\n\nAI detected $138/month in recurring cost opportunities.\n\n03\n\nProperty exposure remains your largest concentration r",
+            "checkedAt": "2026-05-31T09:02:01.192Z"
+          }
+        },
+        "completedAt": "2026-05-31T09:02:01.193Z"
+      }
+    ]
   },
   "runs": [
     {

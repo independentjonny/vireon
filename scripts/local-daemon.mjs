@@ -9,14 +9,22 @@ const AI_DIR = join(ROOT, ".ai");
 const TASK_PATH = join(AI_DIR, "tasks", "current-task.md");
 const STATE_PATH = join(AI_DIR, "daemon-state.json");
 const QUOTA_PATH = join(AI_DIR, "operations", "quota-pause.json");
+const HEARTBEAT_PATH = join(AI_DIR, "operations", "daemon.json");
 const POLL_MS = Number(process.env.NEVEN_DAEMON_POLL_MS || 10000);
 const MAX_ATTEMPTS = Number(process.env.NEVEN_DAEMON_MAX_ATTEMPTS || 3);
+const HEARTBEAT_INTERVAL_MS = 30000;
 
 mkdirSync(join(AI_DIR, "tasks"), { recursive: true });
 mkdirSync(join(AI_DIR, "operations"), { recursive: true });
 
 let processing = false;
 let lastTaskHash = "";
+
+function writeHeartbeat(patch = {}) {
+  let existing = {};
+  try { if (existsSync(HEARTBEAT_PATH)) existing = JSON.parse(readFileSync(HEARTBEAT_PATH, "utf8")); } catch {}
+  writeFileSync(HEARTBEAT_PATH, JSON.stringify({ ...existing, ...patch, lastBeat: new Date().toISOString(), pid: process.pid }, null, 2));
+}
 
 function readTask() {
   if (!existsSync(TASK_PATH)) return null;
@@ -61,29 +69,36 @@ async function processTask(task) {
   const startedAt = new Date().toISOString();
   const attempts = [];
   writeState({ activeRun: { runId, goal: task.text, startedAt, attempts }, paused: false });
+  writeHeartbeat({ paused: false, activeRunId: runId });
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const result = await runAutomation(task.text);
-    attempts.push({ attempt, ok: result.ok, code: result.code, outputTail: (result.outputTail ?? "").slice(-2000), completedAt: new Date().toISOString() });
+    const attemptEntry = { attempt, ok: result.ok ?? false, code: result.code, outputTail: (result.outputTail ?? "").slice(-2000), completedAt: new Date().toISOString() };
+    attempts.push(attemptEntry);
 
     if (/session limit|quota|rate limit/i.test(result.outputTail ?? "")) {
       writeFileSync(QUOTA_PATH, JSON.stringify({ paused: true, reason: "Claude/session quota or rate limit detected", runId, attempt, at: new Date().toISOString() }, null, 2));
       writeCompletedRun({ activeRun: null, paused: true }, { runId, goal: task.text, status: "paused", startedAt, attempts });
+      writeHeartbeat({ paused: true, activeRunId: null });
       processing = false;
       return;
     }
 
     if (result.ok) {
       writeCompletedRun({ activeRun: null, paused: false }, { runId, goal: task.text, status: "green", startedAt, attempts, completedAt: new Date().toISOString() });
+      writeHeartbeat({ paused: false, activeRunId: null });
       processing = false;
       return;
     }
   }
 
   writeCompletedRun({ activeRun: null, paused: false }, { runId, goal: task.text, status: "failed", startedAt, attempts, completedAt: new Date().toISOString() });
+  writeHeartbeat({ paused: false, activeRunId: null });
   processing = false;
 }
 
+writeHeartbeat({ paused: false, activeRunId: null });
 console.log(`Neven local daemon watching ${TASK_PATH}`);
-setInterval(() => { processTask(readTask()).catch((error) => { processing = false; writeState({ activeRun: null, lastError: String(error) }); }); }, POLL_MS);
-processTask(readTask()).catch((error) => { processing = false; writeState({ activeRun: null, lastError: String(error) }); });
+setInterval(() => writeHeartbeat({}), HEARTBEAT_INTERVAL_MS);
+setInterval(() => { processTask(readTask()).catch((error) => { processing = false; writeState({ activeRun: null, lastError: String(error) }); writeHeartbeat({ paused: false, activeRunId: null }); }); }, POLL_MS);
+processTask(readTask()).catch((error) => { processing = false; writeState({ activeRun: null, lastError: String(error) }); writeHeartbeat({ paused: false, activeRunId: null }); });

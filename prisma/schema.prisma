@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Org {
+  id         String      @id @default(cuid())
+  name       String
+  plan       String      @default("free")
+  createdAt  DateTime    @default(now())
+  users      User[]
+  workspaces Workspace[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  orgId     String
+  org       Org      @relation(fields: [orgId], references: [id])
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Workspace {
+  id           String        @id @default(cuid())
+  orgId        String
+  org          Org           @relation(fields: [orgId], references: [id])
+  name         String
+  currency     String        @default("AUD")
+  timezone     String        @default("Australia/Sydney")
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+  subscriptions Subscription[]
+  insights     Insight[]
+  memoryNodes  MemoryNode[]
+  roadmapTasks RoadmapTask[]
+  telemetry    Telemetry[]
+  embeddings   Embedding[]
+}
+
+model Transaction {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace @relation(fields: [workspaceId], references: [id])
+  userId           String
+  merchant         String
+  merchantCanonical String
+  amount           Float
+  currency         String    @default("AUD")
+  category         String
+  subCategory      String    @default("")
+  date             DateTime
+  recurring        Boolean   @default(false)
+  recurringCadence String?
+  duplicate        Boolean   @default(false)
+  confidence       Float     @default(1.0)
+  rawDescription   String    @default("")
+  source           String    @default("csv")
+  createdAt        DateTime  @default(now())
+}
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  workspaceId          String
+  workspace            Workspace @relation(fields: [workspaceId], references: [id])
+  transactionId        String?
+  merchant             String
+  merchantCanonical    String
+  amount               Float
+  cadence              String    @default("monthly")
+  nextRenewalDate      DateTime?
+  cancellationScore    Float     @default(0.0)
+  pricingAnomalyScore  Float     @default(0.0)
+  savingsOpportunity   Float     @default(0.0)
+  active               Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model Insight {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  type        String
+  title       String
+  description String
+  impact      Float     @default(0.0)
+  confidence  Float     @default(0.8)
+  dismissed   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}
+
+model Embedding {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  sourceType  String
+  sourceId    String
+  content     String
+  vector      Json
+  model       String    @default("text-embedding-3-small")
+  createdAt   DateTime  @default(now())
+}
+
+model MemoryNode {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id])
+  type            String
+  content         String
+  linkedIds       Json      @default("[]")
+  embeddingId     String?
+  importance      Float     @default(0.5)
+  createdAt       DateTime  @default(now())
+  lastAccessedAt  DateTime  @default(now())
+}
+
+model RoadmapTask {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  title         String
+  description   String    @default("")
+  priority      String    @default("medium")
+  status        String    @default("backlog")
+  effort        String    @default("medium")
+  category      String    @default("engineering")
+  dependencyIds Json      @default("[]")
+  sprintId      String?
+  assignedAgent String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Telemetry {
+  id          String    @id @default(cuid())
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+  event       String
+  level       String    @default("info")
+  agent       String
+  payload     Json      @default("{}")
+  errorClass  String?
+  resolved    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}

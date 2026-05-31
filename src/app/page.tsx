@@ -38,6 +38,7 @@ import {
   getDefects,
   getFinalGreenReport,
 } from "@/lib/runtimeControl";
+import { getActiveRun } from "@/lib/daemonRuntime";
 import { getBuildHistory, getLatestBuildStatus } from "@/lib/buildPipeline";
 import { scanDependencyHealth } from "@/lib/dependencyScanner";
 import { generateArchitectureMap, persistArchitectureMap } from "@/lib/architectureMapper";
@@ -315,6 +316,7 @@ export default async function HomePage() {
   const runtimeStatus = getRuntimeStatus();
   const runtimeLogs = getRuntimeLogs();
   const runtimeQueue = getRuntimeQueue();
+  const activeRun = getActiveRun();
   const gitState = getGitState();
   const screenshotMeta = getScreenshotMeta();
   const heartbeat = getHeartbeat();
@@ -739,24 +741,30 @@ export default async function HomePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-xs font-semibold uppercase tracking-wide text-sky-400">Active Run</div>
-                      <div className="mt-1 font-mono text-[10px] text-white/35">1779703026132-da1b3f193e844</div>
+                      <div className="mt-1 font-mono text-[10px] text-white/35">
+                        {runtimeStatus.daemon.runId ?? (runtimeStatus.daemon.active ? "Starting…" : "No active run")}
+                      </div>
                     </div>
-                    <span className="flex shrink-0 items-center gap-1.5 rounded px-2 py-0.5 text-[10px] font-semibold bg-sky-400/10 text-sky-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse" />
-                      Running
+                    <span className={`flex shrink-0 items-center gap-1.5 rounded px-2 py-0.5 text-[10px] font-semibold ${runtimeStatus.daemon.active ? "bg-sky-400/10 text-sky-400" : "bg-white/5 text-white/30"}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${runtimeStatus.daemon.active ? "bg-sky-400 animate-pulse" : "bg-white/20"}`} />
+                      {runtimeStatus.daemon.active ? "Running" : "Idle"}
                     </span>
                   </div>
                   <div className="mt-2 text-xs text-white/55 leading-relaxed">
-                    AUTONOMOUS RUNTIME STABILIZATION PHASE — runId tracking, execution queue, structured logs, watchdog recovery
+                    {runtimeLogs.activeRunGoal ?? "AUTONOMOUS RUNTIME STABILIZATION PHASE — runId tracking, execution queue, structured logs, watchdog recovery"}
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2">
                       <div className="text-[10px] text-white/35">Attempts</div>
-                      <div className="mt-0.5 text-sm font-bold text-white/80">1</div>
+                      <div className="mt-0.5 text-sm font-bold text-white/80">{activeRun ? activeRun.attempts.length : runtimeStatus.daemon.totalRuns}</div>
                     </div>
                     <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/5 px-3 py-2">
                       <div className="text-[10px] text-emerald-400/70">Autonomous Health</div>
-                      <div className="mt-0.5 text-sm font-bold text-emerald-400">100% success</div>
+                      <div className="mt-0.5 text-sm font-bold text-emerald-400">
+                        {runtimeQueue.summary.total > 0
+                          ? `${Math.round((runtimeQueue.summary.completed / runtimeQueue.summary.total) * 100)}% success`
+                          : "100% success"}
+                      </div>
                     </div>
                   </div>
                   <div className="mt-2 flex items-center gap-2 text-[10px] text-white/30">
@@ -770,7 +778,12 @@ export default async function HomePage() {
                 <Card className="p-5">
                   <div className="text-xs font-semibold uppercase tracking-wide text-white/50">Execution Queue</div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    {runtimeOpsQueueStatus.map((s) => (
+                    {[
+                      { label: "Running", count: runtimeQueue.summary.running, color: "sky" as const },
+                      { label: "Completed", count: runtimeQueue.summary.completed, color: "emerald" as const },
+                      { label: "Failed", count: runtimeQueue.summary.failed, color: "red" as const },
+                      { label: "Queued", count: runtimeQueue.summary.queued, color: "amber" as const },
+                    ].map((s) => (
                       <RuntimeQueueStatusCard key={s.label} {...s} />
                     ))}
                   </div>

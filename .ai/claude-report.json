@@ -1,10 +1,15 @@
 {
-  "goal": "Repair failed autonomous loop: Repair validate-and-repair endpoint failure",
-  "status": "assigned",
-  "filesChanged": [],
-  "commandsRun": [],
-  "buildPassed": null,
+  "goal": "Repair failed autonomous task: Stabilise local autonomous execution loop — make Neven reliably execute one UI-submitted task end-to-end.",
+  "filesChanged": [
+    "scripts/local-daemon.mjs",
+    "src/app/page.tsx"
+  ],
+  "commandsRun": [
+    "npm run build",
+    "git diff --stat"
+  ],
+  "buildPassed": true,
   "errors": [],
-  "summary": "",
-  "nextRecommendedStep": ""
+  "summary": "Root cause: (1) local-daemon.mjs never wrote to .ai/operations/daemon.json, so getHeartbeat() always returned stale/empty data — the UI's AutonomousTaskComposer polling /api/runtime/heartbeat could never detect daemon alive/paused state, making quota-pause detection invisible. (2) The 'Autonomous Runtime Operations' card in page.tsx showed hardcoded run ID '1779703026132-da1b3f193e844', static goal text, and hardcoded queue counts instead of live runtimeStatus/runtimeQueue data. Fixes: (1) Added writeHeartbeat() to local-daemon.mjs that writes {lastBeat, pid, paused, activeRunId} to .ai/operations/daemon.json on startup, every 30s (HEARTBEAT_INTERVAL_MS), on task start, on quota-pause (paused:true), and on task complete/fail (paused:false). Also guarded null attempts with explicit ok:false fallback. (2) In src/app/page.tsx: added getActiveRun import from daemonRuntime, replaced hardcoded Active Run card with live runtimeStatus.daemon.runId / runtimeLogs.activeRunGoal / activeRun.attempts.length, replaced hardcoded Running/Idle badge with conditional on runtimeStatus.daemon.active, replaced hardcoded 'runtimeOpsQueueStatus' counts with inline array reading runtimeQueue.summary live values. Build passes clean with all 79 routes compiled.",
+  "nextRecommendedStep": "Start the daemon with 'npm run daemon' and submit a task via the UI Build Automation section. The heartbeat will now update .ai/operations/daemon.json every 30s, the UI will reflect live daemon state, and quota pauses will be visible in AutonomousTaskComposer."
 }
