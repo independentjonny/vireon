@@ -1,34 +1,62 @@
 # Claude Task
 
-STATUS: RUNNING
-ATTEMPT: 1
+STATUS: ASSIGNED
 ATTEMPT: 1
 
 GOAL:
-Stage 2: Stabilise autonomous execution runtime.
+1. Introduce collapsible sections
 
-Goal:
-Make Neven’s automation reliable, bounded, and repeatable.
+Huge priority.
 
-Fix these issues in order:
+Examples:
 
-1. Git validation
-- If .git does not exist, do not fail validation.
-- Show warning: "Git repository not initialised"
-- Continue validation.
-- Optional: add setup guidance to initialise Git.
+Build Automation
+Autonomous Execution
+Import History
+Runtime Logs
+AI Validation
+Telemetry
 
-2. Fetch/ECONNABORTED retry
-- Add retry logic around validation API calls.
-- Retry 3 times.
-- Use 1s, 3s, 5s backoff.
-- If still failing, write clear failure reason.
+should default collapsed.
 
-3. Full-page screenshots
-- Capture full page, not viewport only.
-- Save to:
-  screenshot/
-  .ai/sc
+Use:
+
+expandable accordions
+summary rows
+“show details”
+pinned insights
+2. Create “Executive Mode”
+
+Right now every user sees:
+
+engineering internals
+daemon systems
+validation telemetry
+orchestration queues
+
+Need:
+
+Executive
+Operator
+Engineering
+Autonomous Runtime
+
+view modes.
+
+3. Compress repetitive card systems
+
+Many areas repeat:
+
+status
+counts
+health
+labels
+metrics
+
+Move to:
+
+compact inline rows
+grouped summaries
 
 PROJECT:
 C:\Users\summe\liberva
@@ -42,7 +70,7 @@ INSTRUCTIONS:
 
 REPORT JSON:
 {
-  "goal": "Stage 2: Stabilise autonomous execution runtime.\n\nGoal:\nMake Neven’s automation reliable, bounded, and repeatable.\n\nFix these issues in order:\n\n1. Git validation\n- If .git does not exist, do not fail validation.\n- Show warning: \"Git repository not initialised\"\n- Continue validation.\n- Optional: add setup guidance to initialise Git.\n\n2. Fetch/ECONNABORTED retry\n- Add retry logic around validation API calls.\n- Retry 3 times.\n- Use 1s, 3s, 5s backoff.\n- If still failing, write clear failure reason.\n\n3. Full-page screenshots\n- Capture full page, not viewport only.\n- Save to:\n  screenshot/\n  .ai/sc",
+  "goal": "1. Introduce collapsible sections\n\nHuge priority.\n\nExamples:\n\nBuild Automation\nAutonomous Execution\nImport History\nRuntime Logs\nAI Validation\nTelemetry\n\nshould default collapsed.\n\nUse:\n\nexpandable accordions\nsummary rows\n“show details”\npinned insights\n2. Create “Executive Mode”\n\nRight now every user sees:\n\nengineering internals\ndaemon systems\nvalidation telemetry\norchestration queues\n\nNeed:\n\nExecutive\nOperator\nEngineering\nAutonomous Runtime\n\nview modes.\n\n3. Compress repetitive card systems\n\nMany areas repeat:\n\nstatus\ncounts\nhealth\nlabels\nmetrics\n\nMove to:\n\ncompact inline rows\ngrouped summaries",
   "filesChanged": [],
   "commandsRun": [],
   "buildPassed": false,
@@ -70,6 +98,6 @@ AUTONOMOUS EXECUTION REQUIREMENTS:
 - Do not touch .env files.
 - Do not delete files.
 
-RUN ID: 1780218543051-vzo1juk005i
-ASSIGNED AT: 2026-05-31T09:09:03.051Z
+RUN ID: 1780219208198-ijp66salujk
+ASSIGNED AT: 2026-05-31T09:20:08.198Z
 FORCE NEW: true
