@@ -1,6 +1,8 @@
 import MobileNav from "./components/MobileNav";
 import OverviewV3 from "./components/OverviewV3";
 import AutonomousTaskComposer from "./components/AutonomousTaskComposer";
+import TransactionsSection from "./components/sections/TransactionsSection";
+import SubscriptionsSection from "./components/sections/SubscriptionsSection";
 
 export const dynamic = "force-dynamic";
 
@@ -166,9 +168,13 @@ export default async function HomePage() {
               dateStr="Sunday 31 May 2026"
             />
 
-            <SectionShell id="transactions" title="Transactions" subtitle="Local transaction intelligence" />
+            <SectionShell id="transactions" title="Transactions" subtitle="Local transaction intelligence">
+              <TransactionsSection />
+            </SectionShell>
 
-            <SectionShell id="subscriptions" title="Subscriptions" subtitle="Recurring payments and renewal tracking" />
+            <SectionShell id="subscriptions" title="Subscriptions" subtitle="Recurring payments and renewal tracking">
+              <SubscriptionsSection />
+            </SectionShell>
 
             <SectionShell id="financial-intelligence" title="Financial Intelligence" subtitle="Signals, health, and recommendations" />
 
