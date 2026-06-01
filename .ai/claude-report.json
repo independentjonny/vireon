@@ -1,18 +1,10 @@
 {
-  "goal": "Stage 2: Stabilise autonomous execution runtime.\n\nGoal:\nMake Neven's automation reliable, bounded, and repeatable.\n\nFix these issues in order:\n\n1. Git validation\n- If .git does not exist, do not fail validation.\n- Show warning: \"Git repository not initialised\"\n- Continue validation.\n- Optional: add setup guidance to initialise Git.\n\n2. Fetch/ECONNABORTED retry\n- Add retry logic around validation API calls.\n- Retry 3 times.\n- Use 1s, 3s, 5s backoff.\n- If still failing, write clear failure reason.\n\n3. Full-page screenshots\n- Capture full page, not viewport only.\n- Save to:\n  screenshot/\n  .ai/sc",
-  "filesChanged": [
-    "scripts/doctor.js",
-    "scripts/fullpage-screenshot.mjs",
-    "scripts/local-automation.mjs",
-    "src/lib/agents/databaseAgent.ts",
-    "tests/smoke.spec.ts"
-  ],
-  "commandsRun": [
-    "npm run build",
-    "git diff --stat"
-  ],
-  "buildPassed": true,
+  "goal": "Repair failed autonomous loop: Repair failed build",
+  "status": "assigned",
+  "filesChanged": [],
+  "commandsRun": [],
+  "buildPassed": null,
   "errors": [],
-  "summary": "All three issues fixed. (1) Added checkGitRepository() to scripts/doctor.js: warns 'Git repository not initialised' with setup guidance if .git is absent, then continues — does not fail validation. (2) Added fetchWithRetry() to src/lib/agents/databaseAgent.ts with 1s/3s/5s backoff (up to 4 total attempts); probeSupabaseConnection() now uses it and writes a clear failure message including attempt count if all retries are exhausted. (3) Updated scripts/fullpage-screenshot.mjs to save AI-dir screenshots to .ai/sc (was .ai/screenshots); updated scripts/local-automation.mjs to pre-create .ai/sc; changed tests/smoke.spec.ts regression screenshot from fullPage: false to fullPage: true. Build passed with 0 TypeScript errors, 79 routes compiled.",
-  "nextRecommendedStep": "Run npm run doctor to verify the git warning appears correctly. Run npm run automate to exercise the full validation loop and confirm screenshots land in screenshot/ and .ai/sc."
+  "summary": "",
+  "nextRecommendedStep": ""
 }
