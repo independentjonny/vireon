@@ -40,5 +40,10 @@ test.describe("Neven mobile navigation", () => {
 
     await expect(hamburger).toHaveAttribute("aria-expanded", "false");
     await expect(drawer).toHaveCSS("pointer-events", "none");
+
+    await hamburger.tap();
+
+    await expect(hamburger).toHaveAttribute("aria-expanded", "true");
+    await expect(drawer).toHaveCSS("pointer-events", "auto");
   });
 });

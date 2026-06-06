@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const NAV_ITEMS = [
   ["Overview", "#overview"],
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
 
 export default function MobileNav() {
   const [open, setOpen] = useState(false);
+  const suppressNextClickRef = useRef(false);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -49,10 +50,25 @@ export default function MobileNav() {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
+          if (suppressNextClickRef.current) {
+            suppressNextClickRef.current = false;
+            return;
+          }
           setOpen((v) => !v);
         }}
         onTouchStart={(e) => {
           e.stopPropagation();
+          if (!open) {
+            suppressNextClickRef.current = true;
+            setOpen(true);
+          }
+        }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          if (e.pointerType !== "mouse" && !open) {
+            suppressNextClickRef.current = true;
+            setOpen(true);
+          }
         }}
         className={[
           "fixed right-4 top-4 z-[2147483647] flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-[#07111f] text-white shadow-2xl transition-opacity lg:hidden",
