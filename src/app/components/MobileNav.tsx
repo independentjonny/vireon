@@ -23,8 +23,20 @@ export default function MobileNav() {
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
     return () => {
       document.body.style.overflow = "";
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
 
@@ -42,9 +54,12 @@ export default function MobileNav() {
         onTouchStart={(e) => {
           e.stopPropagation();
         }}
-        className="fixed right-4 top-4 z-[2147483647] flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-[#07111f] text-white shadow-2xl lg:hidden"
+        className={[
+          "fixed right-4 top-4 z-[2147483647] flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-[#07111f] text-white shadow-2xl transition-opacity lg:hidden",
+          open ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100",
+        ].join(" ")}
         style={{
-          pointerEvents: "auto",
+          pointerEvents: open ? "none" : "auto",
           touchAction: "manipulation",
           WebkitTapHighlightColor: "transparent",
         }}
@@ -57,7 +72,7 @@ export default function MobileNav() {
           <button
             type="button"
             aria-label="Close navigation menu"
-            className="absolute inset-0 h-full w-full cursor-default"
+            className="absolute inset-y-0 left-0 w-[calc(100%-min(20rem,86vw))] cursor-default"
             onClick={() => setOpen(false)}
           />
         </div>
