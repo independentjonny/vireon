@@ -108,12 +108,12 @@ export default function ImportWorkflow() {
   const recurring = previewResult?.recurringCandidates ?? [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Input Area */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-5 shadow-xl shadow-black/20">
-        <div className="flex flex-wrap items-baseline justify-between gap-3 mb-3">
+      <div className="rounded-2xl border border-white/[0.1] bg-white/[0.045] p-4 shadow-xl shadow-black/20 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h3 className="text-base font-semibold">Import Transactions</h3>
+            <h3 className="text-lg font-semibold text-white">Import Transactions</h3>
             <span className="text-xs text-white/35">Paste CSV — columns: date, description, amount</span>
           </div>
           <button
@@ -124,15 +124,15 @@ export default function ImportWorkflow() {
           </button>
         </div>
         <textarea
-          className="w-full rounded-xl border border-white/[0.1] bg-white/[0.03] px-4 py-3 text-xs font-mono text-white/75 placeholder:text-white/25 focus:outline-none focus:border-emerald-400/40 resize-none"
-          rows={6}
+          className="w-full rounded-xl border border-white/[0.12] bg-black/20 px-4 py-3 text-sm font-mono leading-6 text-white/82 placeholder:text-white/32 focus:outline-none focus:border-emerald-300/50 resize-none"
+          rows={7}
           placeholder={"date,description,amount\n2026-05-01,Salary,6420.00\n2026-05-02,Woolworths,-85.00\n2026-05-03,Netflix,-23.99"}
           value={csvText}
           onChange={(e) => { setCsvText(e.target.value); setPreviewResult(null); setSuccessMessage(null); }}
         />
-        <div className="mt-3 flex gap-2 flex-wrap">
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <button
-            className="rounded-2xl bg-white/10 px-5 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/15 disabled:opacity-50"
+            className="rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-[#07111f] transition hover:bg-emerald-300 disabled:opacity-50"
             onClick={handlePreview}
             disabled={loading || !csvText.trim()}
           >
@@ -140,7 +140,7 @@ export default function ImportWorkflow() {
           </button>
           {previewResult && (
             <button
-              className="rounded-2xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-[#07111f] transition hover:bg-emerald-300 disabled:opacity-50"
+              className="rounded-2xl border border-white/[0.12] bg-white/10 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/15 disabled:opacity-50"
               onClick={handlePersist}
               disabled={loading}
             >
@@ -151,7 +151,7 @@ export default function ImportWorkflow() {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-xs text-red-300">{error}</div>
+        <div className="rounded-xl border border-red-400/25 bg-red-400/[0.08] px-4 py-3 text-sm text-red-200">{error}</div>
       )}
       {successMessage && (
         <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/5 px-4 py-3 text-xs text-emerald-300">✓ {successMessage}</div>
@@ -159,10 +159,10 @@ export default function ImportWorkflow() {
 
       {/* Preview Results */}
       {ing && (
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-5 shadow-xl shadow-black/20 space-y-4">
+        <div className="rounded-2xl border border-white/[0.1] bg-white/[0.045] p-4 shadow-xl shadow-black/20 space-y-5 sm:p-5">
           <div>
             <div className="flex flex-wrap items-baseline gap-2 mb-3">
-              <h4 className="text-sm font-semibold">Preview Results</h4>
+              <h4 className="text-base font-semibold text-white">Preview Results</h4>
               <span className="text-xs text-white/35">{ing.processedRows} rows processed · Grade {ing.healthGrade} · Score {ing.healthScore}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -172,9 +172,9 @@ export default function ImportWorkflow() {
                 { label: "Duplicates", value: ing.duplicateCount, cls: ing.duplicateCount > 0 ? "border-amber-400/20 bg-amber-400/5" : "border-white/[0.07] bg-white/[0.03]", vc: ing.duplicateCount > 0 ? "text-amber-400" : "text-white/80" },
                 { label: "Recurring", value: ing.recurringCount, cls: "border-sky-400/20 bg-sky-400/5", vc: "text-sky-400" },
               ].map((s) => (
-                <div key={s.label} className={`rounded-xl border px-3 py-2 ${s.cls}`}>
-                  <div className="text-[10px] text-white/35">{s.label}</div>
-                  <div className={`mt-0.5 text-lg font-bold ${s.vc}`}>{s.value}</div>
+                <div key={s.label} className={`rounded-xl border px-3 py-3 ${s.cls}`}>
+                  <div className="text-xs text-white/55">{s.label}</div>
+                  <div className={`mt-1 text-2xl font-bold ${s.vc}`}>{s.value}</div>
                 </div>
               ))}
             </div>
@@ -219,26 +219,26 @@ export default function ImportWorkflow() {
 
           {txs.length > 0 && (
             <div>
-              <div className="text-xs font-semibold text-white/50 mb-2">Transaction Preview ({txs.length} rows)</div>
+              <div className="text-sm font-semibold text-white/72 mb-3">Transaction Preview ({txs.length} rows)</div>
               <div className="overflow-x-auto rounded-xl border border-white/[0.07] bg-white/[0.02]">
-                <table className="min-w-full text-xs">
+                <table className="min-w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/[0.07]">
                       {["Merchant", "Amount", "Category", "Date", "Flags"].map((h) => (
-                        <th key={h} className="px-3 py-2 text-left text-[10px] font-semibold text-white/30 uppercase tracking-wide">{h}</th>
+                        <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-white/52">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {txs.slice(0, 12).map((t, i) => (
-                      <tr key={i} className={`border-b border-white/[0.04] ${t.duplicate ? "bg-amber-400/5" : ""}`}>
-                        <td className="px-3 py-2 text-white/70">{t.merchant}</td>
-                        <td className={`px-3 py-2 tabular-nums font-medium ${t.amount >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      <tr key={i} className={`border-b border-white/[0.05] ${t.duplicate ? "bg-amber-400/5" : ""}`}>
+                        <td className="px-3 py-3 font-semibold text-white/82">{t.merchant}</td>
+                        <td className={`px-3 py-3 tabular-nums font-bold ${t.amount >= 0 ? "text-emerald-300" : "text-red-300"}`}>
                           {t.amount >= 0 ? "+" : ""}${Math.abs(t.amount).toFixed(2)}
                         </td>
-                        <td className="px-3 py-2 text-white/40">{t.category}</td>
-                        <td className="px-3 py-2 text-white/35 font-mono">{new Date(t.date).toLocaleDateString()}</td>
-                        <td className="px-3 py-2 space-x-1">
+                        <td className="px-3 py-3 text-white/55">{t.category}</td>
+                        <td className="px-3 py-3 text-white/50 font-mono">{new Date(t.date).toLocaleDateString()}</td>
+                        <td className="px-3 py-3 space-x-1">
                           {t.recurring && <span className="rounded px-1 py-0.5 text-[9px] font-semibold bg-sky-400/10 text-sky-400">recurring</span>}
                           {t.duplicate && <span className="rounded px-1 py-0.5 text-[9px] font-semibold bg-amber-400/10 text-amber-400">duplicate</span>}
                         </td>

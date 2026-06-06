@@ -24,7 +24,7 @@ interface OverviewV3Props {
 }
 
 const LAYER_LABEL =
-  "text-[8px] font-semibold uppercase tracking-[0.32em] text-white/14";
+  "text-xs font-semibold uppercase tracking-[0.18em] text-white/45";
 
 export default function OverviewV3({
   netWorth,
@@ -47,7 +47,7 @@ export default function OverviewV3({
   nextTask = null,
   totalRuns = 0,
 }: OverviewV3Props) {
-  const [runtimeOpen, setRuntimeOpen] = useState(true);
+  const [runtimeOpen, setRuntimeOpen] = useState(false);
 
   const healthColor =
     healthScore >= 90
@@ -103,21 +103,21 @@ export default function OverviewV3({
   ];
 
   return (
-    <div id="overview" className="space-y-20">
+    <div id="overview" className="space-y-12 sm:space-y-14">
 
       {/* ══════════════════════════════════════════════════════════════
           LAYER 1 — Financial Identity
       ══════════════════════════════════════════════════════════════ */}
       <div>
-        <div className={`${LAYER_LABEL} mb-8`}>
-          01 &nbsp;/&nbsp; Financial Identity
+        <div className={`${LAYER_LABEL} mb-4`}>
+          Dashboard Snapshot
         </div>
 
         <section className="relative backdrop-blur-xl">
           {/* Background atmosphere */}
           <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-[#040f1e] via-[#060d18] to-[#030a12]" />
-          <div className="absolute -top-24 -right-24 h-[600px] w-[600px] rounded-full bg-emerald-500/[0.08] blur-[140px] pointer-events-none" />
-          <div className="absolute bottom-0 left-1/4 h-[400px] w-[400px] rounded-full bg-sky-500/[0.05] blur-[120px] pointer-events-none" />
+          <div className="absolute -top-24 -right-24 hidden h-[600px] w-[600px] rounded-full bg-emerald-500/[0.08] blur-[140px] pointer-events-none" />
+          <div className="absolute bottom-0 left-1/4 hidden h-[400px] w-[400px] rounded-full bg-sky-500/[0.05] blur-[120px] pointer-events-none" />
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent rounded-t-3xl" />
           <div
             className="absolute inset-0 rounded-3xl pointer-events-none"
@@ -128,19 +128,19 @@ export default function OverviewV3({
             }}
           />
 
-          <div className="relative px-8 pt-14 pb-16 sm:px-14 sm:pt-18">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-emerald-400/45">
+          <div className="relative px-5 py-7 sm:px-8 sm:py-9 lg:px-10">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/75">
               Neven Financial OS &mdash; {dateStr}
             </p>
 
             {/* Net Worth — dominant anchor */}
-            <div className="mt-10">
-              <div className="text-[9px] uppercase tracking-[0.2em] text-white/15 font-semibold mb-3">
+            <div className="mt-6">
+              <div className="mb-2 text-sm font-semibold text-white/55">
                 Net Worth
               </div>
               <h1
                 className="font-bold leading-none tracking-tight text-white"
-                style={{ fontSize: "clamp(5rem, 13vw, 13rem)" }}
+                style={{ fontSize: "clamp(3.5rem, 9vw, 7.5rem)" }}
               >
                 {netWorth}
               </h1>
@@ -154,19 +154,19 @@ export default function OverviewV3({
               </div>
             </div>
 
-            <div className="mt-14 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+            <div className="mt-8 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
 
             {/* Secondary metrics: Runway / Savings / Portfolio / AI Score + Health */}
-            <div className="mt-10 flex flex-col gap-10 xl:flex-row xl:items-end xl:justify-between">
-              <div className="grid grid-cols-2 gap-x-12 gap-y-8 sm:grid-cols-4">
+            <div className="mt-7 flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {secondaryMetrics.map((m) => (
-                  <div key={m.label}>
-                    <div className="text-[8px] uppercase tracking-[0.22em] text-white/18 font-semibold mb-2">
+                  <div key={m.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
+                    <div className="mb-2 text-xs font-medium text-white/55">
                       {m.label}
                     </div>
                     <div
                       className={`font-bold tabular-nums leading-none ${accentClass[m.accent]}`}
-                      style={{ fontSize: "clamp(1.5rem, 3.5vw, 2.25rem)" }}
+                      style={{ fontSize: "clamp(1.65rem, 3.5vw, 2.35rem)" }}
                     >
                       {m.value}
                     </div>
@@ -175,8 +175,8 @@ export default function OverviewV3({
               </div>
 
               {/* Financial Health — right anchor */}
-              <div className="xl:text-right xl:shrink-0">
-                <div className="text-[8px] uppercase tracking-[0.22em] text-white/15 font-semibold mb-1">
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 xl:text-right xl:shrink-0">
+                <div className="mb-1 text-xs font-medium text-white/55">
                   Financial Health
                 </div>
                 <div className={`text-7xl font-bold tabular-nums leading-none ${healthColor}`}>
@@ -197,24 +197,24 @@ export default function OverviewV3({
         </section>
 
         {/* Portfolio + Health sub-scores below hero */}
-        <div className="mt-10 grid gap-10 xl:grid-cols-2">
-          <div>
-            <h2 className="text-[9px] uppercase tracking-[0.28em] text-white/20 font-semibold pb-5 border-b border-white/[0.06]">
+        <div className="mt-7 grid gap-6 xl:grid-cols-2">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
+            <h2 className="pb-4 text-sm font-semibold text-white border-b border-white/[0.08]">
               Portfolio Allocation
             </h2>
-            <div className="mt-7 space-y-6">
+            <div className="mt-5 space-y-5">
               {portfolioAllocation.map((item) => (
                 <div key={item.label}>
                   <div className="flex items-center justify-between mb-2.5">
                     <div className="flex items-center gap-2.5">
-                      <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${item.color}`} />
-                      <span className="text-xs text-white/45">{item.label}</span>
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${item.color}`} />
+                      <span className="text-sm font-medium text-white/68">{item.label}</span>
                     </div>
-                    <span className="text-xs font-bold tabular-nums text-white/55">{item.pct}%</span>
+                    <span className="text-sm font-bold tabular-nums text-white/78">{item.pct}%</span>
                   </div>
-                  <div className="h-px w-full bg-white/[0.05]">
+                  <div className="h-1.5 w-full rounded-full bg-white/[0.06]">
                     <div
-                      className={`h-full ${item.color} opacity-60`}
+                      className={`h-full rounded-full ${item.color} opacity-80`}
                       style={{ width: `${item.pct}%` }}
                     />
                   </div>
@@ -223,11 +223,11 @@ export default function OverviewV3({
             </div>
           </div>
 
-          <div>
-            <h2 className="text-[9px] uppercase tracking-[0.28em] text-white/20 font-semibold pb-5 border-b border-white/[0.06]">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
+            <h2 className="pb-4 text-sm font-semibold text-white border-b border-white/[0.08]">
               Health Indicators
             </h2>
-            <div className="mt-6 grid grid-cols-2 gap-7">
+            <div className="mt-5 grid grid-cols-2 gap-3">
               {healthScores.map((item) => {
                 const borderCol =
                   item.score >= 90 ? "border-emerald-400/35" :
@@ -238,14 +238,14 @@ export default function OverviewV3({
                   item.score >= 75 ? "text-sky-400" :
                   item.score >= 60 ? "text-amber-400" : "text-red-400";
                 return (
-                  <div key={item.label} className={`border-l-2 pl-4 ${borderCol}`}>
-                    <div className="text-[8px] text-white/25 font-medium uppercase tracking-wide">
+                  <div key={item.label} className={`rounded-xl border-l-2 bg-white/[0.025] p-3 ${borderCol}`}>
+                    <div className="text-xs font-medium text-white/55">
                       {item.label}
                     </div>
-                    <div className={`text-3xl font-bold mt-1 tabular-nums leading-none ${numCol}`}>
+                    <div className={`mt-2 text-3xl font-bold tabular-nums leading-none ${numCol}`}>
                       {item.score}
                     </div>
-                    <div className="text-[9px] text-white/20 mt-1.5">{item.note}</div>
+                    <div className="mt-1.5 text-xs text-white/42">{item.note}</div>
                   </div>
                 );
               })}
@@ -258,8 +258,8 @@ export default function OverviewV3({
           LAYER 2 — Intelligence Workspace
       ══════════════════════════════════════════════════════════════ */}
       <div>
-        <div className={`${LAYER_LABEL} mb-8`}>
-          02 &nbsp;/&nbsp; Intelligence Workspace
+        <div className={`${LAYER_LABEL} mb-5`}>
+          Intelligence Workspace
         </div>
 
         <div className="space-y-12">
@@ -270,10 +270,10 @@ export default function OverviewV3({
             {/* Intelligence Signals */}
             <div>
               <div className="flex items-baseline gap-3 pb-5 border-b border-white/[0.06]">
-                <h2 className="text-[9px] uppercase tracking-[0.28em] text-white/20 font-semibold">
+                <h2 className="text-sm font-semibold text-white">
                   Signals
                 </h2>
-                <span className="text-[9px] text-white/12">{insights.length} active</span>
+                <span className="text-xs text-white/45">{insights.length} active</span>
               </div>
               <div>
                 {insights.map((item, i) => (
@@ -284,7 +284,7 @@ export default function OverviewV3({
                     <span className="shrink-0 text-emerald-400 font-bold text-sm leading-none mt-0.5">
                       {String(i + 1).padStart(2, "0")}
                     </span>
-                    <p className="text-sm text-white/55 leading-relaxed">{item}</p>
+                    <p className="text-sm text-white/68 leading-relaxed">{item}</p>
                   </div>
                 ))}
               </div>
@@ -292,7 +292,7 @@ export default function OverviewV3({
 
             {/* Recommendations */}
             <div>
-              <h2 className="text-[9px] uppercase tracking-[0.28em] text-white/20 font-semibold pb-5 border-b border-white/[0.06]">
+              <h2 className="pb-5 text-sm font-semibold text-white border-b border-white/[0.08]">
                 Recommendations
               </h2>
               <div className="mt-5 space-y-5">
@@ -302,7 +302,7 @@ export default function OverviewV3({
                       <span className="text-[8px] font-bold text-emerald-400/60">{i + 1}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-white/60">{r.title}</div>
+                      <div className="text-sm font-medium text-white/72">{r.title}</div>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-[10px] text-emerald-400 font-semibold">{r.impact}</span>
                         <span className="text-[9px] text-white/20">{r.confidence}% confidence</span>
@@ -319,7 +319,7 @@ export default function OverviewV3({
 
             {/* Opportunities */}
             <div>
-              <h2 className="text-[9px] uppercase tracking-[0.28em] text-white/20 font-semibold pb-5 border-b border-white/[0.06]">
+              <h2 className="pb-5 text-sm font-semibold text-white border-b border-white/[0.08]">
                 Opportunities
               </h2>
               <div className="mt-5 space-y-3">
@@ -327,7 +327,7 @@ export default function OverviewV3({
                   <div key={i} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className="h-1 w-4 rounded-full bg-emerald-400/30" />
-                      <span className="text-xs text-white/45">{o.label}</span>
+                      <span className="text-sm text-white/65">{o.label}</span>
                     </div>
                     <span className="text-xs font-bold text-emerald-400 tabular-nums">{o.saving}</span>
                   </div>
@@ -337,13 +337,13 @@ export default function OverviewV3({
 
             {/* Predictions */}
             <div>
-              <h2 className="text-[9px] uppercase tracking-[0.28em] text-white/20 font-semibold pb-5 border-b border-white/[0.06]">
+              <h2 className="pb-5 text-sm font-semibold text-white border-b border-white/[0.08]">
                 Predictions
               </h2>
               <div className="mt-5 space-y-3">
                 {predictions.map((p, i) => (
                   <div key={i} className="flex items-center justify-between">
-                    <span className="text-xs text-white/40">{p.label}</span>
+                    <span className="text-sm text-white/62">{p.label}</span>
                     <div className="flex items-center gap-2">
                       {p.trend === "up" && <span className="text-[10px] text-emerald-400">↑</span>}
                       <span className="text-xs font-semibold text-white/60 tabular-nums">{p.value}</span>

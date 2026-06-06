@@ -13,7 +13,7 @@ test.describe("Neven mobile navigation", () => {
     await expect(hamburger).toHaveAttribute("aria-expanded", "false");
     await expect(drawer).toHaveCSS("pointer-events", "none");
 
-    await page.screenshot({ path: "mobile-before-click.png", fullPage: true });
+    await page.screenshot({ path: "mobile-before-click.png" });
 
     await hamburger.click();
 
@@ -21,7 +21,7 @@ test.describe("Neven mobile navigation", () => {
     await expect(drawer).toHaveCSS("pointer-events", "auto");
     await expect(drawer.getByRole("link", { name: "Overview" })).toBeVisible();
 
-    await page.screenshot({ path: "mobile-after-click.png", fullPage: true });
+    await page.screenshot({ path: "mobile-after-click.png" });
 
     await page.keyboard.press("Escape");
 

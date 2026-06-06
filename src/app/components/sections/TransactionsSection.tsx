@@ -41,20 +41,47 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function TransactionsSection() {
   const [data, setData] = useState<TransactionsData | null>(null);
-  const [showImport, setShowImport] = useState(false);
+  const [showImport, setShowImport] = useState(true);
+  const [removingAll, setRemovingAll] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
-  useEffect(() => {
+  function refresh() {
     fetch("/api/transactions")
       .then((r) => r.json())
       .then(setData)
       .catch(() => null);
+  }
+
+  useEffect(() => {
+    refresh();
   }, []);
+
+  async function handleRemoveAll() {
+    if (txs.length === 0 || removingAll) return;
+    if (!window.confirm(`Remove all ${txs.length} transaction(s)?`)) return;
+
+    setRemovingAll(true);
+    setStatusMsg(null);
+    try {
+      const res = await fetch("/api/transactions", { method: "DELETE" });
+      const json = await res.json();
+      if (json.ok) {
+        setStatusMsg(json.message ?? "Removed all transactions.");
+        refresh();
+      } else {
+        setStatusMsg("Failed to remove transactions");
+      }
+    } catch {
+      setStatusMsg("Failed to remove transactions");
+    }
+    setRemovingAll(false);
+  }
 
   const txs = data?.transactions ?? [];
   const summary = data?.summary;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Summary row */}
       {summary && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -64,58 +91,81 @@ export default function TransactionsSection() {
             { label: "Net", value: `$${summary.net.toLocaleString()}`, color: summary.net >= 0 ? "text-emerald-400" : "text-red-400", bg: "border-white/[0.07] bg-white/[0.03]" },
             { label: "Transactions", value: String(summary.transactionCount), color: "text-white/80", bg: "border-white/[0.07] bg-white/[0.03]" },
           ].map((s) => (
-            <div key={s.label} className={`rounded-xl border px-4 py-3 ${s.bg}`}>
-              <div className="text-[10px] text-white/35 uppercase tracking-wide">{s.label}</div>
-              <div className={`mt-1 text-lg font-bold tabular-nums ${s.color}`}>{s.value}</div>
+            <div key={s.label} className={`rounded-xl border px-4 py-4 ${s.bg}`}>
+              <div className="text-xs font-medium text-white/55">{s.label}</div>
+              <div className={`mt-2 text-2xl font-bold tabular-nums ${s.color}`}>{s.value}</div>
             </div>
           ))}
         </div>
       )}
 
       {/* Transaction list */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-5 shadow-xl shadow-black/20">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-white/40">
-            Recent Transactions
+      <div className="rounded-2xl border border-white/[0.1] bg-white/[0.045] p-4 shadow-xl shadow-black/20 sm:p-5">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="text-base font-semibold text-white">
+              Recent transactions
+            </div>
+            <p className="mt-1 text-sm text-white/55">
+              Review imported activity, recurring charges, and cash-flow changes.
+            </p>
             {data?.dataSource && (
-              <span className="ml-2 rounded px-1.5 py-0.5 text-[9px] bg-white/5 text-white/25 border border-white/10">
+              <span className="mt-2 inline-flex rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/45">
                 {data.dataSource}
               </span>
             )}
           </div>
-          <button
-            className="rounded-xl border border-sky-400/30 bg-sky-400/10 px-3 py-1.5 text-xs font-medium text-sky-300 hover:bg-sky-400/20 transition"
-            onClick={() => setShowImport((v) => !v)}
-          >
-            {showImport ? "Hide Import" : "Import CSV"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={handleRemoveAll}
+              disabled={txs.length === 0 || removingAll}
+            >
+              {removingAll ? "Removing..." : "Remove All Transactions"}
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-sky-400/30 bg-sky-400/10 px-3 py-1.5 text-xs font-medium text-sky-300 hover:bg-sky-400/20 transition"
+              onClick={() => setShowImport((v) => !v)}
+            >
+              {showImport ? "Hide Import" : "Import CSV"}
+            </button>
+          </div>
         </div>
 
+        {statusMsg && <div className="mb-3 text-xs text-emerald-300">{statusMsg}</div>}
+
         {txs.length === 0 ? (
-          <p className="text-sm text-white/35 text-center py-6">No transactions yet. Import a CSV to get started.</p>
+          <div className="rounded-2xl border border-dashed border-white/[0.14] bg-black/10 px-4 py-8 text-center">
+            <div className="text-base font-semibold text-white">No transactions imported yet</div>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/55">
+              Import a CSV to populate cash flow, recurring detection, and subscription insights.
+            </p>
+          </div>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-2">
             {txs.slice(0, 12).map((tx) => (
               <div
                 key={tx.id}
-                className="flex items-center justify-between rounded-xl px-3 py-2.5 transition hover:bg-white/[0.04]"
+                className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.025] px-4 py-3.5 transition hover:bg-white/[0.055]"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm text-white/80 truncate">{tx.merchant}</span>
+                      <span className="truncate text-base font-semibold text-white/88">{tx.merchant}</span>
                       {tx.recurring && (
-                        <span className="rounded px-1 py-0.5 text-[9px] font-semibold bg-violet-400/10 text-violet-400 border border-violet-400/20 shrink-0">
+                        <span className="shrink-0 rounded-full border border-violet-300/30 bg-violet-300/[0.12] px-2 py-0.5 text-xs font-semibold text-violet-200">
                           recurring
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-white/30 mt-0.5">
+                    <div className="text-xs text-white/48 mt-1">
                       {tx.category} · {tx.date}
                     </div>
                   </div>
                 </div>
-                <div className={`tabular-nums text-sm font-semibold shrink-0 ml-4 ${tx.amount >= 0 ? "text-emerald-400" : CATEGORY_COLORS[tx.category] ?? "text-white/70"}`}>
+                <div className={`ml-4 shrink-0 text-right text-lg font-bold tabular-nums ${tx.amount >= 0 ? "text-emerald-300" : CATEGORY_COLORS[tx.category] ?? "text-white/82"}`}>
                   {tx.amount >= 0 ? "+" : ""}${Math.abs(tx.amount).toFixed(2)}
                 </div>
               </div>
