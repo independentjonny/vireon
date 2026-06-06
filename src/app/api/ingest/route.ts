@@ -38,6 +38,7 @@ export async function POST(req: Request) {
 
   let persisted = false;
   let persistedCount = 0;
+  let persistWarning: string | null = null;
   let persistMessage = "dryRun mode — pass mode=persist to write to database";
   const storageMode = getStorageMode();
 
@@ -45,7 +46,9 @@ export async function POST(req: Request) {
     if (process.env.DATABASE_URL) {
       persistMessage =
         "DATABASE_URL present — install @prisma/client and call transactionRepository.bulkCreate() to persist";
-    } else {
+    }
+
+    {
       const transactionRecords: TransactionRecord[] = result.transactions.map((t) => ({
         id: t.id,
         workspaceId: resolvedWorkspaceId,
@@ -120,6 +123,11 @@ export async function POST(req: Request) {
 
       persisted = true;
       persistMessage = `local-persistent mode — ${persistedCount} new transactions written to .ai/local-data/transactions.json`;
+      if (process.env.DATABASE_URL) {
+        persistWarning =
+          "DATABASE_URL is present, but DB persistence is not implemented. Saved import to local JSON fallback.";
+        persistMessage = `local JSON fallback - ${persistedCount} new transactions written to .ai/local-data/transactions.json`;
+      }
     }
   }
 
@@ -134,6 +142,7 @@ export async function POST(req: Request) {
     persisted,
     persistedCount,
     persistMessage,
+    persistWarning,
     ingestion: {
       totalRows: result.totalRows,
       processedRows: result.processedRows,
