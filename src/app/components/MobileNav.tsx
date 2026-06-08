@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Menu, X } from "lucide-react";
 
 const NAV_ITEMS = [
   ["Overview", "#overview"],
@@ -71,7 +72,7 @@ export default function MobileNav() {
           }
         }}
         className={[
-          "fixed right-4 top-4 z-[2147483647] flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-[#07111f] text-white shadow-2xl transition-opacity lg:hidden",
+          "fixed right-4 top-4 z-[2147483647] flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-[#07111f] text-white shadow-2xl transition-opacity lg:hidden [&>span]:hidden",
           open ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100",
         ].join(" ")}
         style={{
@@ -80,6 +81,7 @@ export default function MobileNav() {
           WebkitTapHighlightColor: "transparent",
         }}
       >
+        <Menu aria-hidden="true" className="h-6 w-6" strokeWidth={2.25} />
         <span className="text-2xl leading-none">☰</span>
       </button>
 
@@ -109,9 +111,11 @@ export default function MobileNav() {
 
           <button
             type="button"
+            aria-label="Close navigation menu"
             onClick={() => setOpen(false)}
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white"
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-[0] text-white"
           >
+            <X aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
             ✕
           </button>
         </div>
