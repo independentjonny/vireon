@@ -136,7 +136,7 @@ export default async function HomePage() {
         <Sidebar />
 
         <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10">
-          <div className="mx-auto max-w-7xl space-y-12">
+          <div className="mx-auto max-w-[1600px] space-y-12">
             <OverviewV3
               netWorth="$1.84M"
               netWorthTrend="+4.2% this month"

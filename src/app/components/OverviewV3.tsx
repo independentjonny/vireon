@@ -197,8 +197,8 @@ export default function OverviewV3({
         </section>
 
         {/* Portfolio + Health sub-scores below hero */}
-        <div className="mt-7 grid gap-6 xl:grid-cols-2">
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
+        <div className="mt-7 grid gap-6 xl:grid-cols-3">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 xl:col-span-2">
             <h2 className="pb-4 text-sm font-semibold text-white border-b border-white/[0.08]">
               Portfolio Allocation
             </h2>
