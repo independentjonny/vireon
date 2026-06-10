@@ -197,6 +197,7 @@ function runStructuredAction(request: AgentRequest) {
 
     case "autofix": {
       const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
+      const typecheck = summarizeOutput(run("npx tsc --noEmit", 60_000));
       const screenshots = takeScreenshots();
       const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
 
@@ -204,6 +205,9 @@ function runStructuredAction(request: AgentRequest) {
         [
           "Git status:",
           gitStatus,
+          "",
+          "Typecheck:",
+          typecheck,
           "",
           "Screenshot capture:",
           screenshots,
