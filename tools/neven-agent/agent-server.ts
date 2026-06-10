@@ -257,8 +257,12 @@ function quotePowerShellPath(filePath: string) {
   return `'${filePath.replaceAll("'", "''")}'`;
 }
 
-function evaluateFix() {
+function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "") {
   const diffStat = run("git diff --shortstat", 15_000).trim();
+  const changedFiles = run("git diff --name-only", 15_000)
+    .split(/\r?\n/)
+    .map((file) => file.trim().replaceAll("\\", "/"))
+    .filter(Boolean);
   const typecheck = run("npx tsc --noEmit", 60_000);
   const screenshotsExist =
     fs.existsSync(path.join(REPO, ".ai-agent-runs", "latest-desktop.png")) &&
@@ -266,6 +270,19 @@ function evaluateFix() {
 
   const typecheckSucceeded = !typecheck.includes("COMMAND FAILED OR TIMED OUT");
   if (!typecheckSucceeded) return "FAIL";
+  const changedOnlyPage =
+    changedFiles.length === 1 &&
+    (changedFiles[0] === "src/app/page.tsx" || changedFiles[0] === "app/page.tsx");
+  const changedOverviewV3 = changedFiles.includes("src/app/components/OverviewV3.tsx");
+  const targetsOverviewV3HeroDensity =
+    recommendedTask.toLowerCase().includes("overviewv3") &&
+    recommendedTask.toLowerCase().includes("hero") &&
+    recommendedTask.toLowerCase().includes("density");
+  if (targetsOverviewV3HeroDensity) {
+    if (changedOnlyPage) return "FAIL";
+    if (screenshotsExist && diffStat.length > 0 && changedOverviewV3) return "PASS";
+    return "UNKNOWN";
+  }
   if (screenshotsExist && diffStat.length > 0) return "PASS";
   return "UNKNOWN";
 }
@@ -366,7 +383,7 @@ async function runStructuredAction(request: AgentRequest) {
             ? run(`git restore -- ${filesToRestore.map(quotePowerShellPath).join(" ")}`, 20_000)
             : "No new modified tracked files to restore.";
         const postRollbackGitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
-        const evaluation = evaluateFix();
+        const evaluation = evaluateFix(task);
 
         return summarizeOutput(
           [
@@ -402,7 +419,7 @@ async function runStructuredAction(request: AgentRequest) {
       }
       const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
       const screenshots = takeScreenshots();
-      const evaluation = evaluateFix();
+      const evaluation = evaluateFix(task);
 
       return summarizeOutput(
         [
