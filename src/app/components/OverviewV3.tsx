@@ -157,8 +157,8 @@ export default function OverviewV3({
             <div className="mt-8 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
 
             {/* Secondary metrics: Runway / Savings / Portfolio / AI Score + Health */}
-            <div className="mt-7 flex flex-col gap-7 xl:flex-row xl:items-end xl:justify-between">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-7 grid gap-7 xl:grid-cols-3 xl:items-end">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2">
                 {secondaryMetrics.map((m) => (
                   <div key={m.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
                     <div className="mb-2 text-xs font-medium text-white/55">
@@ -175,7 +175,7 @@ export default function OverviewV3({
               </div>
 
               {/* Financial Health — right anchor */}
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 xl:text-right xl:shrink-0">
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 xl:col-start-3 xl:justify-self-end xl:text-right xl:shrink-0">
                 <div className="mb-1 text-xs font-medium text-white/55">
                   Financial Health
                 </div>
