@@ -1,0 +1,401 @@
+import http from "node:http";
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+
+const PORT = 4002;
+const REPO = "C:\\Users\\summe\\liberva";
+const LOG_DIR = path.join(REPO, ".ai-agent-runs");
+
+fs.mkdirSync(LOG_DIR, { recursive: true });
+
+type AgentMode = "auto" | "inspect" | "codex";
+type AgentAction = "health" | "gitStatus" | "gitDiff" | "readFile" | "writeFile" | "replaceText" | "typecheck" | "screenshot";
+
+type AgentRequest = {
+  action?: AgentAction;
+  goal?: string;
+  mode?: AgentMode;
+  runValidation?: boolean;
+  path?: string;
+  content?: string;
+  from?: string;
+  to?: string;
+};
+
+function run(command: string, timeoutMs = 60_000) {
+  try {
+    return execSync(command, {
+      cwd: REPO,
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024 * 50,
+      shell: "powershell.exe",
+      timeout: timeoutMs,
+    });
+  } catch (err: any) {
+    return [
+      `COMMAND FAILED OR TIMED OUT: ${command}`,
+      err.stdout?.toString() ?? "",
+      err.stderr?.toString() ?? "",
+      err.message ?? "",
+    ].join("\n");
+  }
+}
+
+function save(name: string, content: string) {
+  fs.writeFileSync(path.join(LOG_DIR, name), content, "utf8");
+}
+
+function json(res: http.ServerResponse, statusCode: number, payload: unknown) {
+  res.statusCode = statusCode;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify(payload, null, 2));
+}
+
+function safePath(input: string) {
+  const normalized = input.replaceAll("/", "\\").trim();
+  const full = path.resolve(REPO, normalized);
+  const repoRoot = path.resolve(REPO);
+  const relative = path.relative(repoRoot, full);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(`Unsafe path outside repo: ${input}`);
+  }
+  return full;
+}
+
+function stripQuotes(input: string) {
+  return input.trim().replace(/^["'`]|["'`]$/g, "");
+}
+
+function extractQuotedPath(goal: string) {
+  const quoted = goal.match(/["'`](.+?)["'`]/);
+  return quoted?.[1]?.trim() ?? "";
+}
+
+function extractLikelyPath(goal: string) {
+  const quoted = extractQuotedPath(goal);
+  if (quoted) return quoted;
+  const pathMatch = goal.match(/([A-Za-z0-9_.\-\\/ ]+?\.(tsx|ts|js|jsx|json|css|md|txt|mjs|cjs|png|jpg|jpeg|webp))/i);
+  return pathMatch?.[1]?.trim() ?? "";
+}
+
+function createFile(goal: string) {
+  const match = goal.match(/^create file\s+(.+?)\s+containing exactly:\s*([\s\S]*)$/i);
+  if (!match) return "";
+  const target = stripQuotes(match[1]);
+  const content = match[2];
+  const fullPath = safePath(target);
+  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+  fs.writeFileSync(fullPath, content, "utf8");
+  return `Created file: ${target}`;
+}
+
+function replaceFile(goal: string) {
+  const match = goal.match(/^replace file\s+(.+?)\s+with exactly:\s*([\s\S]*)$/i);
+  if (!match) return "";
+  const target = stripQuotes(match[1]);
+  const content = match[2];
+  const fullPath = safePath(target);
+  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+  fs.writeFileSync(fullPath, content, "utf8");
+  return `Replaced file: ${target}`;
+}
+
+function replaceText(goal: string) {
+  const match = goal.match(/^replace text in file\s+(.+?)\s+from exactly:\s*([\s\S]*?)\s+to exactly:\s*([\s\S]*)$/i);
+  if (!match) return "";
+
+  const target = stripQuotes(match[1]);
+  const oldText = match[2];
+  const newText = match[3];
+  const fullPath = safePath(target);
+
+  const current = fs.readFileSync(fullPath, "utf8");
+  if (!current.includes(oldText)) {
+    return `Text not found in ${target}`;
+  }
+
+  fs.writeFileSync(fullPath, current.replace(oldText, newText), "utf8");
+  return `Replaced text in file: ${target}`;
+}
+
+function takeScreenshots() {
+  const desktopPath = ".ai-agent-runs/latest-desktop.png";
+  const mobilePath = ".ai-agent-runs/latest-mobile.png";
+
+  const desktop = run(`npx playwright screenshot --timeout=30000 --viewport-size=1440,1200 http://localhost:3000 ${desktopPath}`, 35_000);
+  const mobile = run(`npx playwright screenshot --timeout=30000 --viewport-size=390,1200 http://localhost:3000 ${mobilePath}`, 35_000);
+
+  return [
+    "Screenshots captured:",
+    desktopPath,
+    mobilePath,
+    "",
+    "Desktop output:",
+    desktop,
+    "",
+    "Mobile output:",
+    mobile,
+  ].join("\n");
+}
+
+function requireString(value: unknown, name: string) {
+  if (typeof value !== "string") throw new Error(`Missing ${name}`);
+  return value;
+}
+
+function summarizeOutput(output: string, maxLength = 12_000) {
+  const trimmed = output.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  return `${trimmed.slice(0, maxLength)}\n... truncated ${trimmed.length - maxLength} characters`;
+}
+
+function runStructuredAction(request: AgentRequest) {
+  switch (request.action) {
+    case "health":
+      return "OK";
+
+    case "gitStatus":
+      return summarizeOutput(run("git status --short", 15_000)) || "No changes";
+
+    case "gitDiff":
+      return summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
+
+    case "readFile": {
+      const target = requireString(request.path, "path");
+      return summarizeOutput(fs.readFileSync(safePath(target), "utf8"));
+    }
+
+    case "writeFile": {
+      const target = requireString(request.path, "path");
+      const content = requireString(request.content, "content");
+      const fullPath = safePath(target);
+      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+      fs.writeFileSync(fullPath, content, "utf8");
+      return `Wrote file: ${target}`;
+    }
+
+    case "replaceText": {
+      const target = requireString(request.path, "path");
+      const oldText = requireString(request.from, "from");
+      const newText = requireString(request.to, "to");
+      const fullPath = safePath(target);
+      const current = fs.readFileSync(fullPath, "utf8");
+      if (!current.includes(oldText)) return `Text not found in ${target}`;
+      fs.writeFileSync(fullPath, current.replace(oldText, newText), "utf8");
+      return `Replaced text in file: ${target}`;
+    }
+
+    case "typecheck":
+      return summarizeOutput(run("npx tsc --noEmit", 60_000));
+
+    case "screenshot": {
+      const output = takeScreenshots();
+      if (output.includes("COMMAND FAILED OR TIMED OUT")) return summarizeOutput(output, 4_000);
+      return "Screenshots captured: .ai-agent-runs/latest-desktop.png, .ai-agent-runs/latest-mobile.png";
+    }
+
+    default:
+      throw new Error(`Unsupported action: ${request.action}`);
+  }
+}
+
+function directInspect(goal: string) {
+  const lower = goal.toLowerCase();
+
+  if (lower.startsWith("create file")) return createFile(goal);
+  if (lower.startsWith("replace file")) return replaceFile(goal);
+  if (lower.startsWith("replace text in file")) return replaceText(goal);
+  if (lower.includes("screenshot") || lower.includes("capture")) return takeScreenshots();
+  if (lower.includes("git status")) return run("git status --short");
+  if (lower.includes("git diff")) return run("git diff --stat; git diff");
+  if (lower.includes("git log")) return run("git log --oneline -10");
+  if (lower.includes("typescript") || lower.includes("tsc") || lower.includes("typecheck") || lower.includes("type check")) return run("npx tsc --noEmit");
+
+  if (lower.startsWith("dir") || lower.includes("list files") || lower.includes("show files") || lower.includes("list directory") || lower.includes("show directory")) {
+    const possiblePath = extractQuotedPath(goal);
+    if (possiblePath) return run(`Get-ChildItem -Force "${safePath(possiblePath)}"`);
+    return run("Get-ChildItem -Force");
+  }
+
+  if (lower.includes("read file") || lower.includes("show file") || lower.includes("type file") || lower.includes("output file") || lower.includes("contents of")) {
+    const filePath = extractLikelyPath(goal);
+    if (!filePath) return `No file path found. Use: Read file "src/app/page.tsx"`;
+    return run(`Get-Content -Raw "${safePath(filePath)}"`);
+  }
+
+  if (lower.includes("find ") || lower.includes("search ")) {
+    const quoted = [...goal.matchAll(/["'`](.+?)["'`]/g)].map((m) => m[1]);
+    const needle = quoted[0];
+    if (!needle) return `No search text found. Use: Search "AppleHome"`;
+
+    return run(
+      `Get-ChildItem -Path "${REPO}" -Recurse -File -Include *.ts,*.tsx,*.js,*.jsx,*.json,*.css,*.md | ` +
+        `Where-Object { $_.FullName -notlike "*\\.next\\*" -and $_.FullName -notlike "*\\node_modules\\*" } | ` +
+        `Select-String "${needle.replaceAll('"', '\\"')}"`
+    );
+  }
+
+  return "";
+}
+
+function shouldInspectDirectly(goal: string, mode: AgentMode) {
+  if (mode === "inspect") return true;
+  if (mode === "codex") return false;
+
+  const lower = goal.toLowerCase();
+
+  return (
+    lower.startsWith("create file") ||
+    lower.startsWith("replace file") ||
+    lower.startsWith("replace text in file") ||
+    lower.includes("screenshot") ||
+    lower.includes("capture") ||
+    lower.includes("git status") ||
+    lower.includes("git diff") ||
+    lower.includes("git log") ||
+    lower.includes("typescript") ||
+    lower.includes("tsc") ||
+    lower.includes("typecheck") ||
+    lower.includes("type check") ||
+    lower.startsWith("dir") ||
+    lower.includes("list files") ||
+    lower.includes("show files") ||
+    lower.includes("list directory") ||
+    lower.includes("show directory") ||
+    lower.includes("read file") ||
+    lower.includes("show file") ||
+    lower.includes("type file") ||
+    lower.includes("output file") ||
+    lower.includes("contents of") ||
+    lower.includes("find ") ||
+    lower.includes("search ")
+  );
+}
+
+async function runCodex(goal: string, runValidation: boolean) {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const promptPath = path.join(LOG_DIR, `${timestamp}-codex-prompt.txt`);
+
+  const codexPrompt = `
+You are working in the Neven repo at C:\\Users\\summe\\liberva.
+
+Goal:
+${goal}
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.
+`;
+
+  fs.writeFileSync(promptPath, codexPrompt, "utf8");
+
+  const codexOutput = run(`Get-Content -Raw "${promptPath}" | codex exec -s workspace-write -`, 90_000);
+
+  let validation = "";
+  if (runValidation) {
+    validation = run("npx tsc --noEmit", 60_000);
+  }
+
+  return { codexOutput, validation };
+}
+
+async function runAgent(request: AgentRequest) {
+  const goal = String(request.goal || "").trim();
+  const mode = request.mode ?? "auto";
+  const runValidation = Boolean(request.runValidation);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+  if (request.action) {
+    const summary = runStructuredAction(request);
+    save(`${timestamp}-${request.action}-summary.txt`, summary);
+    return { ok: true, summary };
+  }
+
+  if (!goal) throw new Error("Missing goal");
+
+  save(`${timestamp}-goal.txt`, goal);
+
+  if (shouldInspectDirectly(goal, mode)) {
+    const output = directInspect(goal);
+    save(`${timestamp}-direct-output.txt`, output);
+
+    return {
+      ok: true,
+      summary: summarizeOutput(output),
+    };
+  }
+
+  const { codexOutput, validation } = await runCodex(goal, runValidation);
+  save(`${timestamp}-codex-output.txt`, codexOutput);
+
+  const gitStatus = run("git status --short", 15_000);
+  const gitDiff = run("git diff --stat; git diff", 20_000);
+
+  save(`${timestamp}-git-status.txt`, gitStatus);
+  save(`${timestamp}-git-diff.patch`, gitDiff);
+  if (validation) save(`${timestamp}-validation.txt`, validation);
+
+  return {
+    ok: true,
+    summary: summarizeOutput([codexOutput, validation, gitStatus, gitDiff].filter(Boolean).join("\n\n")),
+  };
+}
+
+const server = http.createServer(async (req, res) => {
+  req.setTimeout(125_000, () => {
+    json(res, 408, { ok: false, summary: "Request timed out" });
+    req.destroy();
+  });
+
+  if (req.method === "GET" && req.url === "/health") {
+    json(res, 200, { ok: true, summary: "OK" });
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/run-agent") {
+    let body = "";
+    let responded = false;
+
+    req.on("data", (chunk) => {
+      if (responded) return;
+      body += chunk.toString();
+      if (body.length > 1024 * 1024 * 5) {
+        responded = true;
+        json(res, 413, { ok: false, summary: "Request body too large" });
+        req.destroy();
+      }
+    });
+
+    req.on("end", async () => {
+      if (responded) return;
+      try {
+        const parsed = JSON.parse(body || "{}") as AgentRequest;
+        const result = await runAgent(parsed);
+        responded = true;
+        json(res, 200, result);
+      } catch (err: any) {
+        responded = true;
+        json(res, 500, { ok: false, summary: err.message });
+      }
+    });
+
+    return;
+  }
+
+  json(res, 404, { ok: false, summary: "Not found" });
+});
+
+server.headersTimeout = 130_000;
+server.requestTimeout = 130_000;
+
+server.listen(PORT, () => {
+  console.log(`Neven agent server running on http://localhost:${PORT}`);
+  console.log(`POST tasks to http://localhost:${PORT}/run-agent`);
+});
