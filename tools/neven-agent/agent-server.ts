@@ -22,6 +22,7 @@ type AgentAction =
   | "reviewUI"
   | "autoImproveUI"
   | "planFix"
+  | "executeFix"
   | "autofix";
 
 type AgentRequest = {
@@ -220,7 +221,7 @@ function summarizeOutput(output: string, maxLength = 12_000) {
   return `${trimmed.slice(0, maxLength)}\n... truncated ${trimmed.length - maxLength} characters`;
 }
 
-function runStructuredAction(request: AgentRequest) {
+async function runStructuredAction(request: AgentRequest) {
   switch (request.action) {
     case "health":
       return "OK";
@@ -285,6 +286,38 @@ function runStructuredAction(request: AgentRequest) {
     case "planFix": {
       const [topFinding] = generateUIReviewPlaceholder();
       return topFinding.recommendedTask;
+    }
+
+    case "executeFix": {
+      const [topFinding] = generateUIReviewPlaceholder();
+      const task = topFinding.recommendedTask;
+      const { codexOutput, validation } = await runCodex(task, true);
+      const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
+      const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
+      const screenshots = takeScreenshots();
+
+      return summarizeOutput(
+        [
+          "Executed fix task:",
+          task,
+          "",
+          "Codex output:",
+          codexOutput,
+          "",
+          "Validation:",
+          validation,
+          "",
+          "Git status:",
+          gitStatus,
+          "",
+          "Git diff:",
+          gitDiff,
+          "",
+          "Screenshot capture:",
+          screenshots,
+        ].join("\n"),
+        20_000
+      );
     }
 
     case "autofix": {
@@ -429,7 +462,7 @@ async function runAgent(request: AgentRequest) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 
   if (request.action) {
-    const summary = runStructuredAction(request);
+    const summary = await runStructuredAction(request);
     save(`${timestamp}-${request.action}-summary.txt`, summary);
     return { ok: true, summary };
   }
