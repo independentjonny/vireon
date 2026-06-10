@@ -10,7 +10,7 @@ const LOG_DIR = path.join(REPO, ".ai-agent-runs");
 fs.mkdirSync(LOG_DIR, { recursive: true });
 
 type AgentMode = "auto" | "inspect" | "codex";
-type AgentAction = "health" | "gitStatus" | "gitDiff" | "readFile" | "writeFile" | "replaceText" | "typecheck" | "screenshot";
+type AgentAction = "health" | "gitStatus" | "gitDiff" | "readFile" | "writeFile" | "replaceText" | "typecheck" | "screenshot" | "autofix";
 
 type AgentRequest = {
   action?: AgentAction;
@@ -193,6 +193,26 @@ function runStructuredAction(request: AgentRequest) {
       const output = takeScreenshots();
       if (output.includes("COMMAND FAILED OR TIMED OUT")) return summarizeOutput(output, 4_000);
       return "Screenshots captured: .ai-agent-runs/latest-desktop.png, .ai-agent-runs/latest-mobile.png";
+    }
+
+    case "autofix": {
+      const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
+      const screenshots = takeScreenshots();
+      const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
+
+      return summarizeOutput(
+        [
+          "Git status:",
+          gitStatus,
+          "",
+          "Screenshot capture:",
+          screenshots,
+          "",
+          "Git diff:",
+          gitDiff,
+        ].join("\n"),
+        20_000
+      );
     }
 
     default:
