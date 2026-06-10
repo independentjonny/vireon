@@ -150,6 +150,16 @@ function takeScreenshots() {
   ].join("\n");
 }
 
+function reviewUI() {
+  takeScreenshots();
+  return [
+    "UI review screenshots ready.",
+    "Desktop: .ai-agent-runs/latest-desktop.png",
+    "Mobile: .ai-agent-runs/latest-mobile.png",
+    "Screenshot vision review is not implemented yet. Inspect these screenshots manually for now.",
+  ].join("\n");
+}
+
 function requireString(value: unknown, name: string) {
   if (typeof value !== "string") throw new Error(`Missing ${name}`);
   return value;
@@ -207,22 +217,18 @@ function runStructuredAction(request: AgentRequest) {
     }
 
     case "reviewUI": {
-      takeScreenshots();
-      return [
-        "UI review screenshots ready.",
-        "Desktop: .ai-agent-runs/latest-desktop.png",
-        "Mobile: .ai-agent-runs/latest-mobile.png",
-        "Screenshot vision review is not implemented yet. Inspect these screenshots manually for now.",
-      ].join("\n");
+      return reviewUI();
     }
 
     case "autoImproveUI": {
-      takeScreenshots();
+      reviewUI();
       return [
-        "Auto UI improvement screenshots ready.",
+        "Auto UI improvement review ready.",
         "Desktop: .ai-agent-runs/latest-desktop.png",
         "Mobile: .ai-agent-runs/latest-mobile.png",
-        "Recommended next task: Review screenshots manually and provide one targeted UI improvement.",
+        "Top UI issue: TODO - replace with screenshot review finding.",
+        "Likely file: TODO - replace with likely UI source file.",
+        "Recommended Codex task: TODO - replace with targeted implementation task.",
       ].join("\n");
     }
 
