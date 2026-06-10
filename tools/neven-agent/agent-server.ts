@@ -19,6 +19,7 @@ type AgentAction =
   | "replaceText"
   | "typecheck"
   | "screenshot"
+  | "evaluateFix"
   | "reviewUI"
   | "autoImproveUI"
   | "planFix"
@@ -221,6 +222,32 @@ function summarizeOutput(output: string, maxLength = 12_000) {
   return `${trimmed.slice(0, maxLength)}\n... truncated ${trimmed.length - maxLength} characters`;
 }
 
+function trackedModifiedFilesFromStatus(status: string) {
+  return status
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line && !line.startsWith("??"))
+    .map((line) => line.slice(3).replace(/^.* -> /, ""))
+    .filter(Boolean);
+}
+
+function quotePowerShellPath(filePath: string) {
+  return `'${filePath.replaceAll("'", "''")}'`;
+}
+
+function evaluateFix() {
+  const diffStat = run("git diff --shortstat", 15_000).trim();
+  const typecheck = run("npx tsc --noEmit", 60_000);
+  const screenshotsExist =
+    fs.existsSync(path.join(REPO, ".ai-agent-runs", "latest-desktop.png")) &&
+    fs.existsSync(path.join(REPO, ".ai-agent-runs", "latest-mobile.png"));
+
+  const typecheckSucceeded = !typecheck.includes("COMMAND FAILED OR TIMED OUT");
+  if (!typecheckSucceeded) return "FAIL";
+  if (screenshotsExist && diffStat.length > 0) return "PASS";
+  return "UNKNOWN";
+}
+
 async function runStructuredAction(request: AgentRequest) {
   switch (request.action) {
     case "health":
@@ -266,6 +293,9 @@ async function runStructuredAction(request: AgentRequest) {
       return "Screenshots captured: .ai-agent-runs/latest-desktop.png, .ai-agent-runs/latest-mobile.png";
     }
 
+    case "evaluateFix":
+      return evaluateFix();
+
     case "reviewUI": {
       return reviewUI();
     }
@@ -291,10 +321,54 @@ async function runStructuredAction(request: AgentRequest) {
     case "executeFix": {
       const [topFinding] = generateUIReviewPlaceholder();
       const task = topFinding.recommendedTask;
+      const beforeGitStatus = run("git status --short", 15_000);
       const { codexOutput, validation } = await runCodex(task, true);
       const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
+      if (validation.includes("COMMAND FAILED OR TIMED OUT")) {
+        const beforeModified = new Set(trackedModifiedFilesFromStatus(beforeGitStatus));
+        const filesToRestore = trackedModifiedFilesFromStatus(gitStatus).filter((file) => !beforeModified.has(file));
+        const rollbackOutput =
+          filesToRestore.length > 0
+            ? run(`git restore -- ${filesToRestore.map(quotePowerShellPath).join(" ")}`, 20_000)
+            : "No new modified tracked files to restore.";
+        const postRollbackGitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
+        const evaluation = evaluateFix();
+
+        return summarizeOutput(
+          [
+            "Executed fix task:",
+            task,
+            "",
+            "Codex output:",
+            codexOutput,
+            "",
+            "Validation:",
+            validation,
+            "",
+            "Evaluation:",
+            evaluation,
+            "",
+            "Rollback occurred: validation command failed or timed out.",
+            "Rollback restored modified tracked files only; untracked files were not deleted.",
+            "",
+            "Initial git status:",
+            summarizeOutput(beforeGitStatus) || "No changes",
+            "",
+            "Restored files:",
+            filesToRestore.length > 0 ? filesToRestore.join("\n") : "None",
+            "",
+            "Rollback output:",
+            rollbackOutput,
+            "",
+            "Git status after rollback:",
+            postRollbackGitStatus,
+          ].join("\n"),
+          20_000
+        );
+      }
       const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
       const screenshots = takeScreenshots();
+      const evaluation = evaluateFix();
 
       return summarizeOutput(
         [
@@ -307,6 +381,9 @@ async function runStructuredAction(request: AgentRequest) {
           "Validation:",
           validation,
           "",
+          "Initial git status:",
+          summarizeOutput(beforeGitStatus) || "No changes",
+          "",
           "Git status:",
           gitStatus,
           "",
@@ -315,6 +392,9 @@ async function runStructuredAction(request: AgentRequest) {
           "",
           "Screenshot capture:",
           screenshots,
+          "",
+          "Evaluation:",
+          evaluation,
         ].join("\n"),
         20_000
       );
