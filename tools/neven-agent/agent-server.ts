@@ -21,6 +21,7 @@ type AgentAction =
   | "screenshot"
   | "reviewUI"
   | "autoImproveUI"
+  | "planFix"
   | "autofix";
 
 type AgentRequest = {
@@ -160,6 +161,54 @@ function reviewUI() {
   ].join("\n");
 }
 
+type UIReviewFinding = {
+  issue: string;
+  likelyFile: string;
+  recommendedTask: string;
+};
+
+function generateUIReviewPlaceholder(): UIReviewFinding[] {
+  const desktopPath = path.join(REPO, ".ai-agent-runs", "latest-desktop.png");
+  const mobilePath = path.join(REPO, ".ai-agent-runs", "latest-mobile.png");
+  const likelyFileCandidates = [
+    "src/app/page.tsx",
+    "app/page.tsx",
+    "src/components/dashboard.tsx",
+    "src/components/Dashboard.tsx",
+    "src/app/globals.css",
+    "app/globals.css",
+  ];
+  const likelyFile = likelyFileCandidates.find((candidate) => fs.existsSync(path.join(REPO, candidate))) ?? "src/app/page.tsx";
+
+  const findings: UIReviewFinding[] = [];
+
+  if (fs.existsSync(desktopPath)) {
+    findings.push({
+      issue: "Content is likely not using the full desktop width, leaving excessive whitespace around the main dashboard area.",
+      likelyFile,
+      recommendedTask: `Review ${likelyFile} and widen the main layout container or grid so dashboard content uses available desktop space without oversized side gutters.`,
+    });
+  }
+
+  if (fs.existsSync(mobilePath)) {
+    findings.push({
+      issue: "Mobile card density may be too high, making dashboard cards feel stacked and hard to scan on narrow screens.",
+      likelyFile,
+      recommendedTask: `Review ${likelyFile} mobile breakpoints and adjust card spacing, stacking, and summary density for a 390px viewport.`,
+    });
+  }
+
+  if (findings.length === 0) {
+    findings.push({
+      issue: "Dashboard cards may be too narrow or constrained by the current layout container.",
+      likelyFile,
+      recommendedTask: `Capture desktop and mobile screenshots, then review ${likelyFile} for container width, grid columns, and card sizing issues.`,
+    });
+  }
+
+  return findings;
+}
+
 function requireString(value: unknown, name: string) {
   if (typeof value !== "string") throw new Error(`Missing ${name}`);
   return value;
@@ -222,14 +271,20 @@ function runStructuredAction(request: AgentRequest) {
 
     case "autoImproveUI": {
       reviewUI();
+      const [topFinding] = generateUIReviewPlaceholder();
       return [
         "Auto UI improvement review ready.",
         "Desktop: .ai-agent-runs/latest-desktop.png",
         "Mobile: .ai-agent-runs/latest-mobile.png",
-        "Top UI issue: TODO - replace with screenshot review finding.",
-        "Likely file: TODO - replace with likely UI source file.",
-        "Recommended Codex task: TODO - replace with targeted implementation task.",
+        `Top UI issue: ${topFinding.issue}`,
+        `Likely file: ${topFinding.likelyFile}`,
+        `Recommended Codex task: ${topFinding.recommendedTask}`,
       ].join("\n");
+    }
+
+    case "planFix": {
+      const [topFinding] = generateUIReviewPlaceholder();
+      return topFinding.recommendedTask;
     }
 
     case "autofix": {
