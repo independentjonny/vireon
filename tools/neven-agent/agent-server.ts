@@ -10,7 +10,18 @@ const LOG_DIR = path.join(REPO, ".ai-agent-runs");
 fs.mkdirSync(LOG_DIR, { recursive: true });
 
 type AgentMode = "auto" | "inspect" | "codex";
-type AgentAction = "health" | "gitStatus" | "gitDiff" | "readFile" | "writeFile" | "replaceText" | "typecheck" | "screenshot" | "reviewUI" | "autofix";
+type AgentAction =
+  | "health"
+  | "gitStatus"
+  | "gitDiff"
+  | "readFile"
+  | "writeFile"
+  | "replaceText"
+  | "typecheck"
+  | "screenshot"
+  | "reviewUI"
+  | "autoImproveUI"
+  | "autofix";
 
 type AgentRequest = {
   action?: AgentAction;
@@ -202,6 +213,16 @@ function runStructuredAction(request: AgentRequest) {
         "Desktop: .ai-agent-runs/latest-desktop.png",
         "Mobile: .ai-agent-runs/latest-mobile.png",
         "Screenshot vision review is not implemented yet. Inspect these screenshots manually for now.",
+      ].join("\n");
+    }
+
+    case "autoImproveUI": {
+      takeScreenshots();
+      return [
+        "Auto UI improvement screenshots ready.",
+        "Desktop: .ai-agent-runs/latest-desktop.png",
+        "Mobile: .ai-agent-runs/latest-mobile.png",
+        "Recommended next task: Review screenshots manually and provide one targeted UI improvement.",
       ].join("\n");
     }
 
