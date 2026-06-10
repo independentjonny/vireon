@@ -24,7 +24,8 @@ type AgentAction =
   | "autoImproveUI"
   | "planFix"
   | "executeFix"
-  | "autofix";
+  | "autofix"
+  | "autoLoop";
 
 type AgentRequest = {
   action?: AgentAction;
@@ -295,6 +296,18 @@ async function runStructuredAction(request: AgentRequest) {
 
     case "evaluateFix":
       return evaluateFix();
+
+    case "autoLoop": {
+      const stages = ["autoImproveUI", "planFix", "executeFix", "evaluateFix"] as const;
+      const report: string[] = [];
+
+      for (const action of stages) {
+        const output = await runStructuredAction({ ...request, action });
+        report.push([`## ${action}`, output].join("\n"));
+      }
+
+      return summarizeOutput(report.join("\n\n"), 30_000);
+    }
 
     case "reviewUI": {
       return reviewUI();
