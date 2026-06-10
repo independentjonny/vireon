@@ -10,7 +10,7 @@ const LOG_DIR = path.join(REPO, ".ai-agent-runs");
 fs.mkdirSync(LOG_DIR, { recursive: true });
 
 type AgentMode = "auto" | "inspect" | "codex";
-type AgentAction = "health" | "gitStatus" | "gitDiff" | "readFile" | "writeFile" | "replaceText" | "typecheck" | "screenshot" | "autofix";
+type AgentAction = "health" | "gitStatus" | "gitDiff" | "readFile" | "writeFile" | "replaceText" | "typecheck" | "screenshot" | "reviewUI" | "autofix";
 
 type AgentRequest = {
   action?: AgentAction;
@@ -193,6 +193,16 @@ function runStructuredAction(request: AgentRequest) {
       const output = takeScreenshots();
       if (output.includes("COMMAND FAILED OR TIMED OUT")) return summarizeOutput(output, 4_000);
       return "Screenshots captured: .ai-agent-runs/latest-desktop.png, .ai-agent-runs/latest-mobile.png";
+    }
+
+    case "reviewUI": {
+      takeScreenshots();
+      return [
+        "UI review screenshots ready.",
+        "Desktop: .ai-agent-runs/latest-desktop.png",
+        "Mobile: .ai-agent-runs/latest-mobile.png",
+        "Screenshot vision review is not implemented yet. Inspect these screenshots manually for now.",
+      ].join("\n");
     }
 
     case "autofix": {
