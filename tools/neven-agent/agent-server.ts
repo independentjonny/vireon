@@ -253,11 +253,72 @@ function trackedModifiedFilesFromStatus(status: string) {
     .filter(Boolean);
 }
 
+function modifiedFilesFromStatus(status: string) {
+  return status
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map((line) => line.slice(3).replace(/^.* -> /, "").replaceAll("\\", "/"))
+    .filter(Boolean);
+}
+
+function targetFilesFromTask(task: string) {
+  const matches = task.matchAll(/(?:^|\s)([A-Za-z0-9_.\-\\/]+\.(?:tsx|ts|js|jsx|json|css|md|txt|mjs|cjs|png|jpg|jpeg|webp))/gi);
+  return Array.from(matches, (match) => match[1].replaceAll("\\", "/"));
+}
+
 function quotePowerShellPath(filePath: string) {
   return `'${filePath.replaceAll("'", "''")}'`;
 }
 
-function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "") {
+function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "", executeFixOutput = "") {
+  if (executeFixOutput.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
+
+  const gitStatusOutput = run("git status --short", 15_000);
+  const diffStat = run("git diff --shortstat", 15_000).trim();
+  const diffNameOutput = run("git diff --name-only", 15_000);
+  if (
+    gitStatusOutput.includes("COMMAND FAILED OR TIMED OUT") ||
+    diffStat.includes("COMMAND FAILED OR TIMED OUT") ||
+    diffNameOutput.includes("COMMAND FAILED OR TIMED OUT")
+  ) {
+    return "FAIL";
+  }
+
+  const changedFiles = Array.from(
+    new Set([
+      ...diffNameOutput
+        .split(/\r?\n/)
+        .map((file) => file.trim().replaceAll("\\", "/"))
+        .filter(Boolean),
+      ...modifiedFilesFromStatus(gitStatusOutput),
+    ])
+  );
+  const targetFiles = targetFilesFromTask(recommendedTask);
+  const relevantTargetModified =
+    targetFiles.length > 0 && targetFiles.some((targetFile) => changedFiles.includes(targetFile));
+  const typecheck = run("npx tsc --noEmit", 60_000);
+  if (typecheck.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
+  const screenshotsExist =
+    fs.existsSync(path.join(REPO, ".ai-agent-runs", "latest-desktop.png")) &&
+    fs.existsSync(path.join(REPO, ".ai-agent-runs", "latest-mobile.png"));
+
+  if (!screenshotsExist || !relevantTargetModified) return "FAIL";
+
+  const changedOnlyPage =
+    changedFiles.length === 1 &&
+    (changedFiles[0] === "src/app/page.tsx" || changedFiles[0] === "app/page.tsx");
+  const changedOverviewV3 = changedFiles.includes("src/app/components/OverviewV3.tsx");
+  const targetsOverviewV3HeroDensity =
+    recommendedTask.toLowerCase().includes("overviewv3") &&
+    recommendedTask.toLowerCase().includes("hero") &&
+    recommendedTask.toLowerCase().includes("density");
+  if (targetsOverviewV3HeroDensity && (changedOnlyPage || !changedOverviewV3)) return "FAIL";
+  if (diffStat.length > 0) return "PASS";
+  return "FAIL";
+}
+
+function evaluateFixOld(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "") {
   const diffStat = run("git diff --shortstat", 15_000).trim();
   const changedFiles = run("git diff --name-only", 15_000)
     .split(/\r?\n/)
