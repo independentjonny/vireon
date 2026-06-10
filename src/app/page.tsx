@@ -135,7 +135,7 @@ export default async function HomePage() {
       <div className="flex min-h-screen lg:pl-64">
         <Sidebar />
 
-        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10">
+        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-6">
           <div className="w-full space-y-12">
             <OverviewV3
               netWorth="$1.84M"
