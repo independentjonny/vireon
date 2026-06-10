@@ -173,6 +173,7 @@ type UIReviewFinding = {
 function generateUIReviewPlaceholder(): UIReviewFinding[] {
   const desktopPath = path.join(REPO, ".ai-agent-runs", "latest-desktop.png");
   const mobilePath = path.join(REPO, ".ai-agent-runs", "latest-mobile.png");
+  const pagePathCandidates = ["src/app/page.tsx", "app/page.tsx"];
   const likelyFileCandidates = [
     "src/app/page.tsx",
     "app/page.tsx",
@@ -181,16 +182,32 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
     "src/app/globals.css",
     "app/globals.css",
   ];
+  const pagePath = pagePathCandidates.find((candidate) => fs.existsSync(path.join(REPO, candidate))) ?? "src/app/page.tsx";
   const likelyFile = likelyFileCandidates.find((candidate) => fs.existsSync(path.join(REPO, candidate))) ?? "src/app/page.tsx";
+  const overviewFile = fs.existsSync(path.join(REPO, "src/app/components/OverviewV3.tsx"))
+    ? "src/app/components/OverviewV3.tsx"
+    : likelyFile;
+  const pageSource = fs.existsSync(path.join(REPO, pagePath))
+    ? fs.readFileSync(path.join(REPO, pagePath), "utf8")
+    : "";
+  const pageAlreadyUsesDesktopWidth = /\bw-full\b/.test(pageSource) && /\blg:px-(?:0|1|2|3|4)\b/.test(pageSource);
 
   const findings: UIReviewFinding[] = [];
 
   if (fs.existsSync(desktopPath)) {
-    findings.push({
-      issue: "Content is likely not using the full desktop width, leaving excessive whitespace around the main dashboard area.",
-      likelyFile,
-      recommendedTask: `Review ${likelyFile} and widen the main layout container or grid so dashboard content uses available desktop space without oversized side gutters.`,
-    });
+    if (pageAlreadyUsesDesktopWidth) {
+      findings.push({
+        issue: "The page layout already uses full width with compact desktop gutters, so the hero dashboard likely needs denser information grouping rather than more width.",
+        likelyFile: overviewFile,
+        recommendedTask: `Review ${overviewFile} and improve hero dashboard density by tightening the primary metric, secondary metrics, and supporting insight sections without expanding the page width.`,
+      });
+    } else {
+      findings.push({
+        issue: "Content is likely not using the full desktop width, leaving excessive whitespace around the main dashboard area.",
+        likelyFile,
+        recommendedTask: `Review ${likelyFile} and widen the main layout container or grid so dashboard content uses available desktop space without oversized side gutters.`,
+      });
+    }
   }
 
   if (fs.existsSync(mobilePath)) {
@@ -203,9 +220,13 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
 
   if (findings.length === 0) {
     findings.push({
-      issue: "Dashboard cards may be too narrow or constrained by the current layout container.",
-      likelyFile,
-      recommendedTask: `Capture desktop and mobile screenshots, then review ${likelyFile} for container width, grid columns, and card sizing issues.`,
+      issue: pageAlreadyUsesDesktopWidth
+        ? "Hero dashboard density may need refinement now that the page layout already uses full width with compact desktop gutters."
+        : "Dashboard cards may be too narrow or constrained by the current layout container.",
+      likelyFile: pageAlreadyUsesDesktopWidth ? overviewFile : likelyFile,
+      recommendedTask: pageAlreadyUsesDesktopWidth
+        ? `Capture desktop and mobile screenshots, then review ${overviewFile} for hero dashboard density, metric grouping, and scan efficiency.`
+        : `Capture desktop and mobile screenshots, then review ${likelyFile} for container width, grid columns, and card sizing issues.`,
     });
   }
 
