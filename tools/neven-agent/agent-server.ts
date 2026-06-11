@@ -197,9 +197,9 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
   if (fs.existsSync(desktopPath)) {
     if (pageAlreadyUsesDesktopWidth) {
       findings.push({
-        issue: "The page layout already uses full width with compact desktop gutters, so the hero dashboard likely needs denser information grouping rather than more width.",
+        issue: "The page layout already uses full width with compact desktop gutters, so OverviewV3 needs a specific hero layout pass rather than more width.",
         likelyFile: overviewFile,
-        recommendedTask: `Review ${overviewFile} and improve hero dashboard density by tightening the primary metric, secondary metrics, and supporting insight sections without expanding the page width.`,
+        recommendedTask: `Review ${overviewFile} and move Financial Health into the KPI row, creating a 5-card KPI grid while reducing hero vertical spacing without expanding the page width.`,
       });
     } else {
       findings.push({
@@ -221,11 +221,11 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
   if (findings.length === 0) {
     findings.push({
       issue: pageAlreadyUsesDesktopWidth
-        ? "Hero dashboard density may need refinement now that the page layout already uses full width with compact desktop gutters."
+        ? "OverviewV3 may need a specific hero layout pass now that the page layout already uses full width with compact desktop gutters."
         : "Dashboard cards may be too narrow or constrained by the current layout container.",
       likelyFile: pageAlreadyUsesDesktopWidth ? overviewFile : likelyFile,
       recommendedTask: pageAlreadyUsesDesktopWidth
-        ? `Capture desktop and mobile screenshots, then review ${overviewFile} for hero dashboard density, metric grouping, and scan efficiency.`
+        ? `Capture desktop and mobile screenshots, then review ${overviewFile} to move Financial Health into the KPI row, create a 5-card KPI grid, and reduce hero vertical spacing.`
         : `Capture desktop and mobile screenshots, then review ${likelyFile} for container width, grid columns, and card sizing issues.`,
     });
   }
@@ -285,18 +285,19 @@ function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recomme
     return "FAIL";
   }
 
+  const diffChangedFiles = diffNameOutput
+    .split(/\r?\n/)
+    .map((file) => file.trim().replaceAll("\\", "/"))
+    .filter(Boolean);
   const changedFiles = Array.from(
     new Set([
-      ...diffNameOutput
-        .split(/\r?\n/)
-        .map((file) => file.trim().replaceAll("\\", "/"))
-        .filter(Boolean),
+      ...diffChangedFiles,
       ...modifiedFilesFromStatus(gitStatusOutput),
     ])
   );
   const targetFiles = targetFilesFromTask(recommendedTask);
   const relevantTargetModified =
-    targetFiles.length > 0 && targetFiles.some((targetFile) => changedFiles.includes(targetFile));
+    targetFiles.length > 0 && targetFiles.some((targetFile) => diffChangedFiles.includes(targetFile));
   const typecheck = run("npx tsc --noEmit", 60_000);
   if (typecheck.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
   const screenshotsExist =
