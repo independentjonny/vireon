@@ -58,11 +58,24 @@ export default function OverviewV3({
       ? "text-amber-400"
       : "text-red-400";
 
-  const secondaryMetrics = [
+  const secondaryMetrics: {
+    label: string;
+    value: string;
+    accent: string;
+    detail?: string;
+    progress?: number;
+  }[] = [
     { label: "Cash Flow", value: cashFlow, accent: "emerald" },
     { label: "Savings Rate", value: savingsRate, accent: "sky" },
     { label: "Runway", value: runway, accent: "white" },
     { label: "AI Score", value: aiConfidence, accent: "violet" },
+    {
+      label: "Financial Health",
+      value: String(healthScore),
+      accent: "health",
+      detail: healthLabel,
+      progress: healthScore,
+    },
   ];
 
   const accentClass: Record<string, string> = {
@@ -70,6 +83,7 @@ export default function OverviewV3({
     sky: "text-sky-400",
     white: "text-white/70",
     violet: "text-violet-400",
+    health: healthColor,
   };
 
   const levelColor: Record<string, string> = {
@@ -128,13 +142,13 @@ export default function OverviewV3({
             }}
           />
 
-          <div className="relative px-5 py-7 sm:px-8 sm:py-9 lg:px-10">
+          <div className="relative px-5 py-6 sm:px-8 sm:py-7 lg:px-10">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/75">
               Neven Financial OS &mdash; {dateStr}
             </p>
 
             {/* Net Worth — dominant anchor */}
-            <div className="mt-6">
+            <div className="mt-5">
               <div className="mb-2 text-sm font-semibold text-white/55">
                 Net Worth
               </div>
@@ -144,7 +158,7 @@ export default function OverviewV3({
               >
                 {netWorth}
               </h1>
-              <div className="mt-4 flex items-center gap-4 flex-wrap">
+              <div className="mt-3 flex items-center gap-4 flex-wrap">
                 <span className="flex items-center gap-1.5 text-emerald-400 font-bold text-base">
                   <span>↑</span>
                   {netWorthTrend}
@@ -154,11 +168,11 @@ export default function OverviewV3({
               </div>
             </div>
 
-            <div className="mt-8 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+            <div className="mt-6 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
 
-            {/* Secondary metrics: Runway / Savings / Portfolio / AI Score + Health */}
-            <div className="mt-7 grid gap-7 xl:grid-cols-3 xl:items-end">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2">
+            {/* KPI row */}
+            <div className="mt-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
                 {secondaryMetrics.map((m) => (
                   <div key={m.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
                     <div className="mb-2 text-xs font-medium text-white/55">
@@ -170,28 +184,23 @@ export default function OverviewV3({
                     >
                       {m.value}
                     </div>
+                    {m.detail && (
+                      <div className={`mt-1.5 text-xs font-semibold ${accentClass[m.accent]} opacity-60`}>
+                        {m.detail}
+                      </div>
+                    )}
+                    {m.progress !== undefined && (
+                      <div className="mt-2 h-[2px] w-20 rounded-full bg-white/[0.06]">
+                        <div
+                          className="h-full rounded-full bg-emerald-400"
+                          style={{ width: `${m.progress}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
 
-              {/* Financial Health — right anchor */}
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 xl:col-start-3 xl:justify-self-end xl:text-right xl:shrink-0">
-                <div className="mb-1 text-xs font-medium text-white/55">
-                  Financial Health
-                </div>
-                <div className={`text-7xl font-bold tabular-nums leading-none ${healthColor}`}>
-                  {healthScore}
-                </div>
-                <div className={`text-xs font-semibold mt-1.5 ${healthColor} opacity-60`}>
-                  {healthLabel}
-                </div>
-                <div className="mt-2 w-20 h-[2px] rounded-full bg-white/[0.06] xl:ml-auto">
-                  <div
-                    className="h-full rounded-full bg-emerald-400"
-                    style={{ width: `${healthScore}%` }}
-                  />
-                </div>
-              </div>
             </div>
           </div>
         </section>
