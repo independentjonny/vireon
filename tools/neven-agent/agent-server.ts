@@ -19,6 +19,7 @@ type AgentAction =
   | "replaceText"
   | "typecheck"
   | "screenshot"
+  | "aiReviewUI"
   | "evaluateFix"
   | "reviewUI"
   | "autoImproveUI"
@@ -168,7 +169,106 @@ type UIReviewFinding = {
   issue: string;
   likelyFile: string;
   recommendedTask: string;
+  confidence?: number;
 };
+
+function screenshotInputImage(fileName: string) {
+  const fullPath = path.join(REPO, ".ai-agent-runs", fileName);
+  if (!fs.existsSync(fullPath)) return null;
+  const base64 = fs.readFileSync(fullPath).toString("base64");
+  return {
+    type: "input_image",
+    image_url: `data:image/png;base64,${base64}`,
+  };
+}
+
+function responseTextFromOpenAI(payload: any) {
+  if (typeof payload.output_text === "string") return payload.output_text;
+
+  const parts: string[] = [];
+  for (const item of payload.output ?? []) {
+    for (const content of item.content ?? []) {
+      if (typeof content.text === "string") parts.push(content.text);
+    }
+  }
+  return parts.join("\n").trim();
+}
+
+async function aiReviewUI() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return "OPENAI_API_KEY is missing. Set OPENAI_API_KEY in the environment before running aiReviewUI.";
+  }
+
+  const screenshotOutput = takeScreenshots();
+  const gitStatus = summarizeOutput(run("git status --short", 15_000), 4_000) || "No changes";
+  const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000), 16_000) || "No diff";
+  const desktopImage = screenshotInputImage("latest-desktop.png");
+  const mobileImage = screenshotInputImage("latest-mobile.png");
+  const images = [desktopImage, mobileImage].filter(Boolean);
+
+  const prompt = [
+    "Review the attached desktop and mobile UI screenshots plus git status/diff.",
+    "Return only compact JSON with these fields: issue, likelyFile, recommendedTask, confidence.",
+    "Use confidence as a number from 0 to 1. Keep recommendedTask concrete and scoped to one likely file.",
+    "",
+    "Git status:",
+    gitStatus,
+    "",
+    "Git diff:",
+    gitDiff,
+    "",
+    "Screenshot capture output:",
+    summarizeOutput(screenshotOutput, 4_000),
+  ].join("\n");
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
+      input: [
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: prompt },
+            ...images,
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "ui_review",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              issue: { type: "string" },
+              likelyFile: { type: "string" },
+              recommendedTask: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["issue", "likelyFile", "recommendedTask", "confidence"],
+          },
+        },
+      },
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return `OpenAI Responses API failed: ${response.status} ${response.statusText}\n${summarizeOutput(JSON.stringify(payload), 2_000)}`;
+  }
+
+  const text = responseTextFromOpenAI(payload);
+  if (!text) return "OpenAI Responses API returned no review text.";
+  return text;
+}
 
 function generateUIReviewPlaceholder(): UIReviewFinding[] {
   const desktopPath = path.join(REPO, ".ai-agent-runs", "latest-desktop.png");
@@ -425,6 +525,9 @@ async function runStructuredAction(request: AgentRequest) {
       if (output.includes("COMMAND FAILED OR TIMED OUT")) return summarizeOutput(output, 4_000);
       return "Screenshots captured: .ai-agent-runs/latest-desktop.png, .ai-agent-runs/latest-mobile.png";
     }
+
+    case "aiReviewUI":
+      return aiReviewUI();
 
     case "evaluateFix":
       return evaluateFix();
