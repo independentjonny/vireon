@@ -269,31 +269,20 @@ async function aiReviewUI() {
     return "OPENAI_API_KEY is missing. Set OPENAI_API_KEY in the environment before running aiReviewUI.";
   }
 
-  const screenshotOutput = takeScreenshots();
-  const gitStatus = summarizeOutput(run("git status --short", 15_000), 4_000) || "No changes";
-  const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000), 16_000) || "No diff";
+  takeScreenshots();
   const prompt = [
     "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
-    "Ignore git diff unless needed to choose likelyFile.",
-    "Do not summarize recent code changes.",
+    "Use only the screenshot images, screenshot paths, and valid likelyFile values below.",
     "Identify the single highest-impact visible UI issue.",
     "Valid likelyFile values are src/app/page.tsx, src/app/components/OverviewV3.tsx, src/app/components/MobileNav.tsx, src/app/components/sections/TransactionsSection.tsx, src/app/components/sections/SubscriptionsSection.tsx, src/app/components/ImportWorkflow.tsx.",
     "Prefer OverviewV3 for dashboard hero/cards/portfolio/health issues.",
+    "Do not mention recent code changes, git diff, git status, commits, or screenshots being generated.",
     "Return strict JSON only with issue, likelyFile, recommendedTask, confidence.",
     "Return summary only.",
     "",
     "Screenshot paths:",
     ".ai-agent-runs/latest-desktop.png",
     ".ai-agent-runs/latest-mobile.png",
-    "",
-    "Git status:",
-    gitStatus,
-    "",
-    "Git diff:",
-    gitDiff,
-    "",
-    "Screenshot capture output:",
-    summarizeOutput(screenshotOutput, 4_000),
   ].join("\n");
 
   const desktopImage = screenshotInputImage("latest-desktop.png");
@@ -314,7 +303,7 @@ async function aiReviewUI() {
 
   const fallbackPrompt = prompt.replace(
     "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
-    "You are a senior product designer reviewing the Neven dashboard screenshot paths.\nDo not assume screenshot image contents are available yet; use the paths and command output as context."
+    "You are a senior product designer reviewing the Neven dashboard screenshot paths.\nDo not assume screenshot image contents are available yet."
   );
 
   try {
