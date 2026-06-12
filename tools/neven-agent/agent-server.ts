@@ -169,8 +169,11 @@ function reviewUI() {
 type UIReviewFinding = {
   issue: string;
   likelyFile: string;
+  targetArea: string;
   recommendedTask: string;
-  confidence?: number;
+  confidence: number;
+  currentScore: number;
+  successCriteria: string;
 };
 
 function screenshotInputImage(fileName: string) {
@@ -217,10 +220,21 @@ function uiReviewJsonFormat() {
               "src/app/components/ImportWorkflow.tsx",
             ],
           },
+          targetArea: { type: "string" },
           recommendedTask: { type: "string" },
           confidence: { type: "number" },
+          currentScore: { type: "number" },
+          successCriteria: { type: "string" },
         },
-        required: ["issue", "likelyFile", "recommendedTask", "confidence"],
+        required: [
+          "issue",
+          "likelyFile",
+          "targetArea",
+          "recommendedTask",
+          "confidence",
+          "currentScore",
+          "successCriteria",
+        ],
       },
     },
   };
@@ -263,21 +277,44 @@ async function requestUIReview(apiKey: string, content: any[]) {
   return text;
 }
 
-async function aiReviewUI() {
+function fallbackUIReviewJson(issue: string): string {
+  const overviewFile = fs.existsSync(path.join(REPO, "src/app/components/OverviewV3.tsx"))
+    ? "src/app/components/OverviewV3.tsx"
+    : "src/app/page.tsx";
+
+  return JSON.stringify(
+    {
+      issue,
+      likelyFile: overviewFile,
+      targetArea: "dashboard-spacing",
+      recommendedTask: `Review ${overviewFile} against the captured desktop and mobile screenshots and make the smallest visible spacing or hierarchy improvement.`,
+      confidence: 0,
+      currentScore: 1,
+      successCriteria: "The next desktop and mobile screenshots show a clearer dashboard hierarchy with no new visible layout regressions.",
+    },
+    null,
+    2
+  );
+}
+
+async function aiReviewUI(captureScreenshots = true) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return "OPENAI_API_KEY is missing. Set OPENAI_API_KEY in the environment before running aiReviewUI.";
+    return fallbackUIReviewJson("OPENAI_API_KEY is missing, so screenshot vision review could not run.");
   }
 
-  takeScreenshots();
+  if (captureScreenshots) takeScreenshots();
   const prompt = [
     "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
     "Use only the screenshot images, screenshot paths, and valid likelyFile values below.",
     "Identify the single highest-impact visible UI issue.",
+    "Set currentScore to a number from 1 to 10 based only on the visible screenshots.",
+    "Set targetArea to a short stable UI area key such as hero-kpi-row, mobile-navigation, dashboard-spacing, portfolio-health-section, or import-workflow.",
+    "Set successCriteria to one concise sentence that can be judged from the next desktop and mobile screenshots.",
     "Valid likelyFile values are src/app/page.tsx, src/app/components/OverviewV3.tsx, src/app/components/MobileNav.tsx, src/app/components/sections/TransactionsSection.tsx, src/app/components/sections/SubscriptionsSection.tsx, src/app/components/ImportWorkflow.tsx.",
     "Prefer OverviewV3 for dashboard hero/cards/portfolio/health issues.",
     "Do not mention recent code changes, git diff, git status, commits, or screenshots being generated.",
-    "Return strict JSON only with issue, likelyFile, recommendedTask, confidence.",
+    "Return strict JSON only with issue, likelyFile, targetArea, recommendedTask, confidence, currentScore, successCriteria.",
     "Return summary only.",
     "",
     "Screenshot paths:",
@@ -309,7 +346,7 @@ async function aiReviewUI() {
   try {
     return await requestUIReview(apiKey, [{ type: "input_text", text: fallbackPrompt }]);
   } catch (err: any) {
-    return err.message ?? "OpenAI Responses API failed.";
+    return fallbackUIReviewJson(err.message ?? "OpenAI Responses API failed.");
   }
 }
 
@@ -335,7 +372,11 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
     findings.push({
       issue: "OverviewV3 needs a specific hero layout pass with a denser KPI row.",
       likelyFile: overviewFile,
+      targetArea: "hero-kpi-row",
       recommendedTask: `Review ${overviewFile} and move Financial Health into the KPI row, creating a 5-card KPI grid while reducing hero vertical spacing.`,
+      confidence: 0.5,
+      currentScore: 5,
+      successCriteria: "The hero KPI row is denser on desktop and remains readable on mobile without crowding or overlap.",
     });
   }
 
@@ -343,7 +384,11 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
     findings.push({
       issue: "Mobile card density may be too high, making dashboard cards feel stacked and hard to scan on narrow screens.",
       likelyFile,
+      targetArea: "dashboard-spacing",
       recommendedTask: `Review ${likelyFile} mobile breakpoints and adjust card spacing, stacking, and summary density for a 390px viewport.`,
+      confidence: 0.5,
+      currentScore: 5,
+      successCriteria: "The 390px mobile screenshot shows clearer stacked dashboard sections with comfortable spacing and no clipped text.",
     });
   }
 
@@ -351,7 +396,11 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
     findings.push({
       issue: "OverviewV3 may need a specific hero layout pass with a denser KPI row.",
       likelyFile: overviewFile,
+      targetArea: "hero-kpi-row",
       recommendedTask: `Capture desktop and mobile screenshots, then review ${overviewFile} to move Financial Health into the KPI row, create a 5-card KPI grid, and reduce hero vertical spacing.`,
+      confidence: 0.25,
+      currentScore: 5,
+      successCriteria: "The captured screenshots show a denser hero KPI row with balanced spacing on desktop and mobile.",
     });
   }
 
@@ -361,10 +410,27 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
 function parseUIReviewFinding(output: string) {
   try {
     const parsed = JSON.parse(output.trim()) as Partial<UIReviewFinding>;
-    if (typeof parsed.recommendedTask !== "string" || parsed.recommendedTask.trim().length === 0) {
+    if (
+      typeof parsed.issue !== "string" ||
+      typeof parsed.likelyFile !== "string" ||
+      typeof parsed.targetArea !== "string" ||
+      typeof parsed.recommendedTask !== "string" ||
+      typeof parsed.confidence !== "number" ||
+      typeof parsed.currentScore !== "number" ||
+      typeof parsed.successCriteria !== "string" ||
+      parsed.recommendedTask.trim().length === 0
+    ) {
       return null;
     }
-    return parsed;
+    return {
+      issue: parsed.issue,
+      likelyFile: parsed.likelyFile,
+      targetArea: parsed.targetArea,
+      recommendedTask: parsed.recommendedTask,
+      confidence: parsed.confidence,
+      currentScore: Math.min(10, Math.max(1, parsed.currentScore)),
+      successCriteria: parsed.successCriteria,
+    };
   } catch {
     return null;
   }
@@ -406,6 +472,63 @@ function targetFilesFromTask(task: string) {
 
 function quotePowerShellPath(filePath: string) {
   return `'${filePath.replaceAll("'", "''")}'`;
+}
+
+function copyLatestScreenshots(label: string) {
+  const paths = {
+    desktop: `.ai-agent-runs/${label}-desktop.png`,
+    mobile: `.ai-agent-runs/${label}-mobile.png`,
+  };
+  for (const [source, target] of [
+    ["latest-desktop.png", paths.desktop],
+    ["latest-mobile.png", paths.mobile],
+  ] as const) {
+    const sourcePath = path.join(REPO, ".ai-agent-runs", source);
+    if (fs.existsSync(sourcePath)) {
+      fs.copyFileSync(sourcePath, path.join(REPO, target));
+    }
+  }
+  return paths;
+}
+
+function isTrackedAppFile(filePath: string) {
+  const normalized = filePath.replaceAll("\\", "/");
+  return (
+    normalized !== "tools/neven-agent/agent-server.ts" &&
+    (normalized.startsWith("src/app/") || normalized.startsWith("app/"))
+  );
+}
+
+function trackedAppFileSnapshot() {
+  const files = run("git ls-files -- src/app app", 15_000)
+    .split(/\r?\n/)
+    .map((file) => file.trim().replaceAll("\\", "/"))
+    .filter(Boolean)
+    .filter(isTrackedAppFile);
+  const snapshot = new Map<string, string>();
+  for (const file of files) {
+    const fullPath = path.join(REPO, file);
+    if (fs.existsSync(fullPath)) snapshot.set(file, fs.readFileSync(fullPath, "utf8"));
+  }
+  return snapshot;
+}
+
+function restoreTrackedAppFiles(snapshot: Map<string, string>) {
+  const modifiedTrackedAppFiles = trackedModifiedFilesFromStatus(run("git status --short", 15_000))
+    .map((file) => file.replaceAll("\\", "/"))
+    .filter(isTrackedAppFile);
+  const restored: string[] = [];
+
+  for (const file of modifiedTrackedAppFiles) {
+    const previousContent = snapshot.get(file);
+    if (previousContent === undefined) continue;
+    const fullPath = path.join(REPO, file);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, previousContent, "utf8");
+    restored.push(file);
+  }
+
+  return restored;
 }
 
 function changedDiffLines(diffHunk: string) {
@@ -585,39 +708,72 @@ async function runStructuredAction(request: AgentRequest) {
       return aiReviewUI();
 
     case "aiAutoLoop": {
+      const loopId = new Date().toISOString().replace(/[:.]/g, "-");
+      const appFileSnapshot = trackedAppFileSnapshot();
       const reviewOutput = await aiReviewUI();
-      const parsedReview = parseUIReviewFinding(reviewOutput);
-      const recommendedTask =
-        parsedReview?.recommendedTask?.trim() ||
-        generateUIReviewPlaceholder()[0].recommendedTask;
-      const { codexOutput } = await runCodex(recommendedTask, false);
-      const typecheck = run("npx tsc --noEmit", 60_000);
-      const screenshots = takeScreenshots();
-      const executeOutput = [
-        "Codex output:",
-        codexOutput,
+      const beforeScreenshots = copyLatestScreenshots(`${loopId}-before`);
+      const parsedReview = parseUIReviewFinding(reviewOutput) ?? generateUIReviewPlaceholder()[0];
+      const selectedTask = [
+        "Improve the Neven UI based on this screenshot-only AI review.",
+        `Likely file: ${parsedReview.likelyFile}`,
+        `Target area: ${parsedReview.targetArea}`,
+        `Recommended task: ${parsedReview.recommendedTask}`,
+        `Success criteria: ${parsedReview.successCriteria}`,
         "",
-        "Typecheck:",
-        typecheck,
-        "",
-        "Screenshot capture:",
-        screenshots,
+        "Rules:",
+        "- Make the smallest targeted UI change needed to satisfy the success criteria.",
+        "- Modify only the likely file unless the requested UI area clearly requires a directly related component file.",
+        "- Do not modify API routes, package files, Next config, Playwright config, or .ai files.",
+        "- Do not commit changes.",
       ].join("\n");
-      const evaluation = evaluateFix(recommendedTask, executeOutput);
+      const { codexOutput } = await runCodex(selectedTask, false);
+      const afterScreenshotOutput = takeScreenshots();
+      const afterScreenshots = copyLatestScreenshots(`${loopId}-after`);
+      const afterReviewOutput = await aiReviewUI(false);
+      const parsedAfterReview = parseUIReviewFinding(afterReviewOutput);
+      const beforeScore = parsedReview.currentScore;
+      const afterScore = parsedAfterReview?.currentScore ?? beforeScore;
+      const improved = afterScore > beforeScore;
+      const typecheck = run("npx tsc --noEmit", 60_000);
+      const restoredFiles = afterScore < beforeScore ? restoreTrackedAppFiles(appFileSnapshot) : [];
+      const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
 
       return summarizeOutput(
-        [
-          "AI review:",
-          reviewOutput,
-          "",
-          "Selected task:",
-          recommendedTask,
-          "",
-          executeOutput,
-          "",
-          "Evaluation:",
-          evaluation,
-        ].join("\n"),
+        JSON.stringify(
+          {
+            beforeScore,
+            afterScore,
+            improved,
+            selectedTask: {
+              likelyFile: parsedReview.likelyFile,
+              targetArea: parsedReview.targetArea,
+              recommendedTask: parsedReview.recommendedTask,
+              successCriteria: parsedReview.successCriteria,
+            },
+            codexOutput: summarizeOutput(codexOutput, 10_000),
+            typecheck: summarizeOutput(typecheck, 6_000),
+            gitDiff,
+            screenshotPaths: {
+              before: beforeScreenshots,
+              after: afterScreenshots,
+            },
+            afterScreenshotCapture: summarizeOutput(afterScreenshotOutput, 3_000),
+            rollback:
+              afterScore < beforeScore
+                ? {
+                    occurred: true,
+                    reason: "afterScore is lower than beforeScore",
+                    restoredTrackedAppFiles: restoredFiles,
+                    excluded: "tools/neven-agent/agent-server.ts",
+                  }
+                : {
+                    occurred: false,
+                    restoredTrackedAppFiles: [],
+                  },
+          },
+          null,
+          2
+        ),
         30_000
       );
     }
