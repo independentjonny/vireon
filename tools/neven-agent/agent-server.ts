@@ -1,4 +1,3 @@
-// TEST-CODEX-RUN
 import http from "node:http";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
