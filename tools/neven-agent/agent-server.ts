@@ -7,6 +7,27 @@ const PORT = 4002;
 const REPO = "C:\\Users\\summe\\liberva";
 const LOG_DIR = path.join(REPO, ".ai-agent-runs");
 
+function loadLocalEnv() {
+  const envPath = path.join(REPO, ".env.local");
+  if (!fs.existsSync(envPath)) return;
+
+  const content = fs.readFileSync(envPath, "utf8");
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const separator = trimmed.indexOf("=");
+    if (separator <= 0) continue;
+
+    const key = trimmed.slice(0, separator).trim();
+    const value = trimmed.slice(separator + 1).trim();
+    if (!key || process.env[key] !== undefined) continue;
+
+    process.env[key] = value.replace(/^["']|["']$/g, "");
+  }
+}
+
+loadLocalEnv();
 fs.mkdirSync(LOG_DIR, { recursive: true });
 
 type AgentMode = "auto" | "inspect" | "codex";
