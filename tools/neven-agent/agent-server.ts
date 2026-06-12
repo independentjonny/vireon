@@ -194,10 +194,47 @@ type UIReviewFinding = {
   likelyFile: string;
   targetArea: string;
   recommendedTask: string;
+  category: UIReviewCategory;
   confidence: number;
   currentScore: number;
   successCriteria: string;
 };
+
+type UIReviewCategory =
+  | "information_hierarchy"
+  | "navigation"
+  | "workflow"
+  | "feature_gap"
+  | "dashboard_insight"
+  | "accessibility"
+  | "responsiveness"
+  | "layout";
+
+const UI_REVIEW_CATEGORIES: UIReviewCategory[] = [
+  "information_hierarchy",
+  "navigation",
+  "workflow",
+  "feature_gap",
+  "dashboard_insight",
+  "accessibility",
+  "responsiveness",
+  "layout",
+];
+
+const UI_REVIEW_CATEGORY_PRIORITY: UIReviewCategory[] = [
+  "feature_gap",
+  "workflow",
+  "information_hierarchy",
+  "navigation",
+  "dashboard_insight",
+  "accessibility",
+  "responsiveness",
+  "layout",
+];
+
+function isUIReviewCategory(value: unknown): value is UIReviewCategory {
+  return typeof value === "string" && UI_REVIEW_CATEGORIES.includes(value as UIReviewCategory);
+}
 
 function screenshotInputImage(fileName: string) {
   const fullPath = path.join(REPO, ".ai-agent-runs", fileName);
@@ -245,6 +282,10 @@ function uiReviewJsonFormat() {
           },
           targetArea: { type: "string" },
           recommendedTask: { type: "string" },
+          category: {
+            type: "string",
+            enum: UI_REVIEW_CATEGORIES,
+          },
           confidence: { type: "number" },
           currentScore: { type: "number" },
           successCriteria: { type: "string" },
@@ -254,6 +295,7 @@ function uiReviewJsonFormat() {
           "likelyFile",
           "targetArea",
           "recommendedTask",
+          "category",
           "confidence",
           "currentScore",
           "successCriteria",
@@ -311,6 +353,7 @@ function fallbackUIReviewJson(issue: string): string {
       likelyFile: overviewFile,
       targetArea: "dashboard-spacing",
       recommendedTask: `Review ${overviewFile} against the captured desktop and mobile screenshots and make the smallest visible spacing or hierarchy improvement.`,
+      category: "layout",
       confidence: 0,
       currentScore: 1,
       successCriteria: "The next desktop and mobile screenshots show a clearer dashboard hierarchy with no new visible layout regressions.",
@@ -331,13 +374,17 @@ async function aiReviewUI(captureScreenshots = true) {
     "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
     "Use only the screenshot images, screenshot paths, and valid likelyFile values below.",
     "Identify the single highest-impact visible UI issue.",
+    "Assign category using exactly one of: information_hierarchy, navigation, workflow, feature_gap, dashboard_insight, accessibility, responsiveness, layout.",
+    `Use this priority order when multiple issues exist: ${UI_REVIEW_CATEGORY_PRIORITY.join(", ")}.`,
+    "Never recommend spacing, padding, margin, border radius, gap, or font-size changes if a hierarchy, navigation, workflow, information architecture, feature, dashboard insight, responsiveness, accessibility, or content issue exists.",
+    "Only use category=layout when no higher-priority category applies and confidence is at least 0.9.",
     "Set currentScore to a number from 1 to 10 based only on the visible screenshots.",
     "Set targetArea to a short stable UI area key such as hero-kpi-row, mobile-navigation, dashboard-spacing, portfolio-health-section, or import-workflow.",
     "Set successCriteria to one concise sentence that can be judged from the next desktop and mobile screenshots.",
     "Valid likelyFile values are src/app/page.tsx, src/app/components/OverviewV3.tsx, src/app/components/MobileNav.tsx, src/app/components/sections/TransactionsSection.tsx, src/app/components/sections/SubscriptionsSection.tsx, src/app/components/ImportWorkflow.tsx.",
     "Prefer OverviewV3 for dashboard hero/cards/portfolio/health issues.",
     "Do not mention recent code changes, git diff, git status, commits, or screenshots being generated.",
-    "Return strict JSON only with issue, likelyFile, targetArea, recommendedTask, confidence, currentScore, successCriteria.",
+    "Return strict JSON only with issue, likelyFile, targetArea, recommendedTask, category, confidence, currentScore, successCriteria.",
     "Return summary only.",
     "",
     "Screenshot paths:",
@@ -397,6 +444,7 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
       likelyFile: overviewFile,
       targetArea: "hero-kpi-row",
       recommendedTask: `Review ${overviewFile} and move Financial Health into the KPI row, creating a 5-card KPI grid while reducing hero vertical spacing.`,
+      category: "information_hierarchy",
       confidence: 0.5,
       currentScore: 5,
       successCriteria: "The hero KPI row is denser on desktop and remains readable on mobile without crowding or overlap.",
@@ -409,6 +457,7 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
       likelyFile,
       targetArea: "dashboard-spacing",
       recommendedTask: `Review ${likelyFile} mobile breakpoints and adjust card spacing, stacking, and summary density for a 390px viewport.`,
+      category: "responsiveness",
       confidence: 0.5,
       currentScore: 5,
       successCriteria: "The 390px mobile screenshot shows clearer stacked dashboard sections with comfortable spacing and no clipped text.",
@@ -421,6 +470,7 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
       likelyFile: overviewFile,
       targetArea: "hero-kpi-row",
       recommendedTask: `Capture desktop and mobile screenshots, then review ${overviewFile} to move Financial Health into the KPI row, create a 5-card KPI grid, and reduce hero vertical spacing.`,
+      category: "information_hierarchy",
       confidence: 0.25,
       currentScore: 5,
       successCriteria: "The captured screenshots show a denser hero KPI row with balanced spacing on desktop and mobile.",
@@ -438,6 +488,7 @@ function parseUIReviewFinding(output: string) {
       typeof parsed.likelyFile !== "string" ||
       typeof parsed.targetArea !== "string" ||
       typeof parsed.recommendedTask !== "string" ||
+      !isUIReviewCategory(parsed.category) ||
       typeof parsed.confidence !== "number" ||
       typeof parsed.currentScore !== "number" ||
       typeof parsed.successCriteria !== "string" ||
@@ -450,6 +501,7 @@ function parseUIReviewFinding(output: string) {
       likelyFile: parsed.likelyFile,
       targetArea: parsed.targetArea,
       recommendedTask: parsed.recommendedTask,
+      category: parsed.category,
       confidence: parsed.confidence,
       currentScore: Math.min(10, Math.max(1, parsed.currentScore)),
       successCriteria: parsed.successCriteria,
@@ -584,6 +636,66 @@ function diffHunks(diff: string) {
   return diff
     .split(/(?=^@@\s)/m)
     .filter((hunk) => hunk.startsWith("@@"));
+}
+
+function isLowValueUiChange(diff: string): boolean {
+  const changedLines = changedDiffLines(diff).filter((line) => line.slice(1).trim().length > 0);
+  if (changedLines.length < 5) return true;
+
+  const changedText = changedLines.map((line) => line.slice(1).trim());
+  const spacingClassPattern =
+    /\b(?:m[trblxy]?|p[trblxy]?|gap|space-x|space-y)-\[[^\]]+\]|\b(?:m[trblxy]?|p[trblxy]?|gap|space-x|space-y)-[A-Za-z0-9./-]+/g;
+  const layoutOnlyClassPattern =
+    /\b(?:m[trblxy]?|p[trblxy]?|gap|space-x|space-y|rounded(?:-[trbl]{1,2})?|w)-\[[^\]]+\]|\b(?:m[trblxy]?|p[trblxy]?|gap|space-x|space-y|rounded(?:-[trbl]{1,2})?|w)-[A-Za-z0-9./%()-]+|\btext-\[[^\]]+\]|\btext-(?:xs|sm|base|lg|xl|[2-9]xl)\b/g;
+  const cssLayoutOnlyPattern =
+    /\b(?:border-radius|padding(?:-[a-z]+)?|margin(?:-[a-z]+)?|gap|width|font-size)\s*:\s*[^;"']+;?/gi;
+  const hasSpacingClassPattern =
+    /\b(?:m[trblxy]?|p[trblxy]?|gap|space-x|space-y)-\[[^\]]+\]|\b(?:m[trblxy]?|p[trblxy]?|gap|space-x|space-y)-[A-Za-z0-9./-]+/;
+  const hasLayoutOnlyClassPattern =
+    /\b(?:m[trblxy]?|p[trblxy]?|gap|space-x|space-y|rounded(?:-[trbl]{1,2})?|w)-\[[^\]]+\]|\b(?:m[trblxy]?|p[trblxy]?|gap|space-x|space-y|rounded(?:-[trbl]{1,2})?|w)-[A-Za-z0-9./%()-]+|\btext-\[[^\]]+\]|\btext-(?:xs|sm|base|lg|xl|[2-9]xl)\b/;
+  const hasCssLayoutOnlyPattern =
+    /\b(?:border-radius|padding(?:-[a-z]+)?|margin(?:-[a-z]+)?|gap|width|font-size)\s*:\s*[^;"']+;?/i;
+  const jsxStructurePattern =
+    /^[+-]\s*(?:<\/?[A-Za-z][\w.:-]*\b|<>|<\/>)/;
+  const componentChangePattern =
+    /^[+-]\s*(?:export\s+default\s+)?(?:function\s+[A-Z][A-Za-z0-9_]*\b|const\s+[A-Z][A-Za-z0-9_]*\s*=|class\s+[A-Z][A-Za-z0-9_]*\s+extends\s+)/;
+
+  const normalizeLine = (line: string, pattern: RegExp) =>
+    line
+      .replace(pattern, "")
+      .replace(cssLayoutOnlyPattern, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const onlySpacingClassChanges = changedText.every((line) => {
+    if (!/(?:className|class=)/.test(line)) return false;
+    return normalizeLine(line, spacingClassPattern).length === 0 || normalizeLine(line, spacingClassPattern) === line.replace(spacingClassPattern, "").replace(/\s+/g, " ").trim();
+  });
+  if (
+    onlySpacingClassChanges &&
+    changedText.some((line) => hasSpacingClassPattern.test(line))
+  ) {
+    return true;
+  }
+
+  const onlyLayoutValueChanges = changedText.every((line) => {
+    const normalized = normalizeLine(line, layoutOnlyClassPattern);
+    return normalized.length === 0 || normalized === line.replace(layoutOnlyClassPattern, "").replace(cssLayoutOnlyPattern, "").replace(/\s+/g, " ").trim();
+  });
+  if (
+    onlyLayoutValueChanges &&
+    changedText.some((line) => hasLayoutOnlyClassPattern.test(line) || hasCssLayoutOnlyPattern.test(line))
+  ) {
+    return true;
+  }
+
+  const hasJsxStructureChange = changedLines.some((line) => jsxStructurePattern.test(line));
+  if (!hasJsxStructureChange) return true;
+
+  const hasComponentAddRemove = changedLines.some((line) => componentChangePattern.test(line));
+  if (!hasComponentAddRemove) return true;
+
+  return false;
 }
 
 function hasOverviewV3HeroStructuralChange(diff: string) {
@@ -760,11 +872,13 @@ async function runStructuredAction(request: AgentRequest) {
         "Improve the Neven UI based on this screenshot-only AI review.",
         `Likely file: ${parsedReview.likelyFile}`,
         `Target area: ${parsedReview.targetArea}`,
+        `Category: ${parsedReview.category}`,
         `Recommended task: ${parsedReview.recommendedTask}`,
         `Success criteria: ${parsedReview.successCriteria}`,
         "",
         "Rules:",
         "- Make the smallest targeted UI change needed to satisfy the success criteria.",
+        "- Never recommend or make spacing, padding, margin, border radius, gap, or font-size changes if a hierarchy, navigation, workflow, information architecture, feature, dashboard insight, responsiveness, accessibility, or content issue exists.",
         "- Modify only the likely file unless the requested UI area clearly requires a directly related component file.",
         "- Do not modify API routes, package files, Next config, Playwright config, or .ai files.",
         "- Do not commit changes.",
@@ -827,10 +941,12 @@ async function runStructuredAction(request: AgentRequest) {
         iteration: number;
         issue: string;
         file: string;
+        category: UIReviewCategory;
         task: string;
         beforeScore: number | null;
         afterScore: number | null;
         improved: boolean | null;
+        rejectionReason?: string;
         rollback: {
           occurred: boolean;
           restoredTrackedAppFiles: string[];
@@ -851,19 +967,56 @@ async function runStructuredAction(request: AgentRequest) {
       for (let iteration = 1; iteration <= requestedIterations; iteration += 1) {
         const iterationId = `${new Date().toISOString().replace(/[:.]/g, "-")}-autonomous-${iteration}`;
         const appFileSnapshot = trackedAppFileSnapshot();
-        const beforeReviewOutput = await aiReviewUI();
+        let beforeReviewOutput = await aiReviewUI();
         const beforeScreenshots = copyLatestScreenshots(`${iterationId}-before`);
-        const beforeReview = parseUIReviewFinding(beforeReviewOutput) ?? generateUIReviewPlaceholder()[0];
+        let beforeReview = parseUIReviewFinding(beforeReviewOutput) ?? generateUIReviewPlaceholder()[0];
+        if (beforeReview.category === "layout" && beforeReview.confidence < 0.9) {
+          beforeReviewOutput = await aiReviewUI(false);
+          beforeReview = parseUIReviewFinding(beforeReviewOutput) ?? generateUIReviewPlaceholder()[0];
+        }
+        if (beforeReview.category === "layout" && beforeReview.confidence < 0.9) {
+          const replacementReviewOutput = await aiReviewUI(false);
+          const replacementReview = parseUIReviewFinding(replacementReviewOutput);
+          const gitStatus = summarizeOutput(run("git status --short", 15_000), 2_000) || "No changes";
+
+          report.push({
+            iteration,
+            issue: beforeReview.issue,
+            file: beforeReview.likelyFile,
+            category: beforeReview.category,
+            task: beforeReview.recommendedTask,
+            beforeScore: beforeReview.currentScore,
+            afterScore: null,
+            improved: false,
+            rejectionReason: "Rejected category=layout review with confidence below 0.9 and requested another aiReviewUI task.",
+            rollback: {
+              occurred: false,
+              restoredTrackedAppFiles: [],
+            },
+            gitStatus,
+            screenshotPaths: {
+              before: beforeScreenshots,
+              after: beforeScreenshots,
+            },
+          });
+
+          if (replacementReview && replacementReview.category !== "layout") {
+            continue;
+          }
+          continue;
+        }
         const beforeScore = scoreFromReviewOutput(beforeReviewOutput) ?? beforeReview.currentScore ?? beforeReview.confidence ?? null;
         const selectedTask = [
           "Improve the Neven UI based on this screenshot-only AI review.",
           `Likely file: ${beforeReview.likelyFile}`,
           `Target area: ${beforeReview.targetArea}`,
+          `Category: ${beforeReview.category}`,
           `Recommended task: ${beforeReview.recommendedTask}`,
           `Success criteria: ${beforeReview.successCriteria}`,
           "",
           "Rules:",
           "- Make the smallest targeted UI change needed to satisfy the success criteria.",
+          "- Never recommend or make spacing, padding, margin, border radius, gap, or font-size changes if a hierarchy, navigation, workflow, information architecture, feature, dashboard insight, responsiveness, accessibility, or content issue exists.",
           "- Modify only the likely file unless the requested UI area clearly requires a directly related component file.",
           "- Do not modify API routes, package files, Next config, Playwright config, package files, or .ai files.",
           "- Do not commit changes.",
@@ -871,6 +1024,38 @@ async function runStructuredAction(request: AgentRequest) {
         ].join("\n");
 
         await runCodex(selectedTask, false);
+        const appDiff = run("git diff -- src/app app", 20_000);
+        if (appDiff.includes("COMMAND FAILED OR TIMED OUT") || isLowValueUiChange(appDiff)) {
+          const restoredTrackedAppFiles = restoreTrackedAppFiles(appFileSnapshot);
+          const replacementReviewOutput = await aiReviewUI(false);
+          const replacementReview = parseUIReviewFinding(replacementReviewOutput);
+          const gitStatus = summarizeOutput(run("git status --short", 15_000), 2_000) || "No changes";
+
+          report.push({
+            iteration,
+            issue: beforeReview.issue,
+            file: beforeReview.likelyFile,
+            category: beforeReview.category,
+            task: beforeReview.recommendedTask,
+            beforeScore,
+            afterScore: replacementReview?.currentScore ?? null,
+            improved: false,
+            rejectionReason: appDiff.includes("COMMAND FAILED OR TIMED OUT")
+              ? "Rejected because app diff could not be inspected."
+              : "Rejected low-value UI change and requested another aiReviewUI task.",
+            rollback: {
+              occurred: true,
+              restoredTrackedAppFiles,
+            },
+            gitStatus,
+            screenshotPaths: {
+              before: beforeScreenshots,
+              after: beforeScreenshots,
+            },
+          });
+
+          continue;
+        }
         run("npx tsc --noEmit", 60_000);
         takeScreenshots();
         const afterScreenshots = copyLatestScreenshots(`${iterationId}-after`);
@@ -891,6 +1076,7 @@ async function runStructuredAction(request: AgentRequest) {
           iteration,
           issue: beforeReview.issue,
           file: beforeReview.likelyFile,
+          category: beforeReview.category,
           task: beforeReview.recommendedTask,
           beforeScore,
           afterScore,
