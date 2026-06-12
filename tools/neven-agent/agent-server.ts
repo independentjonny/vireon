@@ -621,6 +621,20 @@ function restoreTrackedAppFiles(snapshot: Map<string, string>) {
   return restored;
 }
 
+function rollbackAppFiles(snapshot: Map<string, string>) {
+  const restored = restoreTrackedAppFiles(snapshot);
+  const createdAppFiles = modifiedFilesFromStatus(run("git status --short", 15_000))
+    .map((file) => file.replaceAll("\\", "/"))
+    .filter(isTrackedAppFile)
+    .filter((file) => !snapshot.has(file));
+
+  for (const file of createdAppFiles) {
+    fs.rmSync(path.join(REPO, file), { force: true, recursive: true });
+  }
+
+  return restored;
+}
+
 function normalizedIterations(value: unknown) {
   if (typeof value !== "number" || !Number.isFinite(value)) return 3;
   return Math.min(10, Math.max(1, Math.floor(value)));
@@ -950,6 +964,7 @@ async function runStructuredAction(request: AgentRequest) {
         rollback: {
           occurred: boolean;
           restoredTrackedAppFiles: string[];
+          rollbackError?: string;
         };
         gitStatus: string;
         screenshotPaths: {
@@ -978,6 +993,7 @@ async function runStructuredAction(request: AgentRequest) {
           const replacementReviewOutput = await aiReviewUI(false);
           const replacementReview = parseUIReviewFinding(replacementReviewOutput);
           const gitStatus = summarizeOutput(run("git status --short", 15_000), 2_000) || "No changes";
+          const afterScreenshots = copyLatestScreenshots(`${iterationId}-after`);
 
           report.push({
             iteration,
@@ -996,7 +1012,7 @@ async function runStructuredAction(request: AgentRequest) {
             gitStatus,
             screenshotPaths: {
               before: beforeScreenshots,
-              after: beforeScreenshots,
+              after: afterScreenshots,
             },
           });
 
@@ -1026,10 +1042,17 @@ async function runStructuredAction(request: AgentRequest) {
         await runCodex(selectedTask, false);
         const appDiff = run("git diff -- src/app app", 20_000);
         if (appDiff.includes("COMMAND FAILED OR TIMED OUT") || isLowValueUiChange(appDiff)) {
-          const restoredTrackedAppFiles = restoreTrackedAppFiles(appFileSnapshot);
+          let rollbackError: string | undefined;
+          let restoredTrackedAppFiles: string[] = [];
+          try {
+            restoredTrackedAppFiles = rollbackAppFiles(appFileSnapshot);
+          } catch (err: any) {
+            rollbackError = err.message ?? String(err);
+          }
           const replacementReviewOutput = await aiReviewUI(false);
           const replacementReview = parseUIReviewFinding(replacementReviewOutput);
           const gitStatus = summarizeOutput(run("git status --short", 15_000), 2_000) || "No changes";
+          const afterScreenshots = copyLatestScreenshots(`${iterationId}-after`);
 
           report.push({
             iteration,
@@ -1046,11 +1069,12 @@ async function runStructuredAction(request: AgentRequest) {
             rollback: {
               occurred: true,
               restoredTrackedAppFiles,
+              ...(rollbackError ? { rollbackError } : {}),
             },
             gitStatus,
             screenshotPaths: {
               before: beforeScreenshots,
-              after: beforeScreenshots,
+              after: afterScreenshots,
             },
           });
 
@@ -1069,7 +1093,15 @@ async function runStructuredAction(request: AgentRequest) {
           beforeScore !== null &&
           afterScore !== null &&
           afterScore < beforeScore;
-        const restoredTrackedAppFiles = rollbackOccurred ? restoreTrackedAppFiles(appFileSnapshot) : [];
+        let rollbackError: string | undefined;
+        let restoredTrackedAppFiles: string[] = [];
+        if (rollbackOccurred) {
+          try {
+            restoredTrackedAppFiles = rollbackAppFiles(appFileSnapshot);
+          } catch (err: any) {
+            rollbackError = err.message ?? String(err);
+          }
+        }
         const gitStatus = summarizeOutput(run("git status --short", 15_000), 2_000) || "No changes";
 
         report.push({
@@ -1084,6 +1116,7 @@ async function runStructuredAction(request: AgentRequest) {
           rollback: {
             occurred: rollbackOccurred,
             restoredTrackedAppFiles,
+            ...(rollbackError ? { rollbackError } : {}),
           },
           gitStatus,
           screenshotPaths: {
