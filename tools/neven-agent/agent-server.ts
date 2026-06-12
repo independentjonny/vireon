@@ -499,7 +499,7 @@ async function runStructuredAction(request: AgentRequest) {
             ? run(`git restore -- ${filesToRestore.map(quotePowerShellPath).join(" ")}`, 20_000)
             : "No new modified tracked files to restore.";
         const postRollbackGitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
-        const evaluation = evaluateFix(task);
+        const evaluation = evaluateFix();
 
         return summarizeOutput(
           [
@@ -535,7 +535,7 @@ async function runStructuredAction(request: AgentRequest) {
       }
       const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
       const screenshots = takeScreenshots();
-      const evaluation = evaluateFix(task);
+      const evaluation = evaluateFix();
 
       return summarizeOutput(
         [
