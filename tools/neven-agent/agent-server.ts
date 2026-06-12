@@ -173,7 +173,6 @@ type UIReviewFinding = {
 function generateUIReviewPlaceholder(): UIReviewFinding[] {
   const desktopPath = path.join(REPO, ".ai-agent-runs", "latest-desktop.png");
   const mobilePath = path.join(REPO, ".ai-agent-runs", "latest-mobile.png");
-  const pagePathCandidates = ["src/app/page.tsx", "app/page.tsx"];
   const likelyFileCandidates = [
     "src/app/page.tsx",
     "app/page.tsx",
@@ -182,32 +181,19 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
     "src/app/globals.css",
     "app/globals.css",
   ];
-  const pagePath = pagePathCandidates.find((candidate) => fs.existsSync(path.join(REPO, candidate))) ?? "src/app/page.tsx";
   const likelyFile = likelyFileCandidates.find((candidate) => fs.existsSync(path.join(REPO, candidate))) ?? "src/app/page.tsx";
   const overviewFile = fs.existsSync(path.join(REPO, "src/app/components/OverviewV3.tsx"))
     ? "src/app/components/OverviewV3.tsx"
     : likelyFile;
-  const pageSource = fs.existsSync(path.join(REPO, pagePath))
-    ? fs.readFileSync(path.join(REPO, pagePath), "utf8")
-    : "";
-  const pageAlreadyUsesDesktopWidth = /\bw-full\b/.test(pageSource) && /\blg:px-(?:0|1|2|3|4)\b/.test(pageSource);
 
   const findings: UIReviewFinding[] = [];
 
   if (fs.existsSync(desktopPath)) {
-    if (pageAlreadyUsesDesktopWidth) {
-      findings.push({
-        issue: "The page layout already uses full width with compact desktop gutters, so OverviewV3 needs a specific hero layout pass rather than more width.",
-        likelyFile: overviewFile,
-        recommendedTask: `Review ${overviewFile} and move Financial Health into the KPI row, creating a 5-card KPI grid while reducing hero vertical spacing without expanding the page width.`,
-      });
-    } else {
-      findings.push({
-        issue: "Content is likely not using the full desktop width, leaving excessive whitespace around the main dashboard area.",
-        likelyFile,
-        recommendedTask: `Review ${likelyFile} and widen the main layout container or grid so dashboard content uses available desktop space without oversized side gutters.`,
-      });
-    }
+    findings.push({
+      issue: "OverviewV3 needs a specific hero layout pass with a denser KPI row.",
+      likelyFile: overviewFile,
+      recommendedTask: `Review ${overviewFile} and move Financial Health into the KPI row, creating a 5-card KPI grid while reducing hero vertical spacing.`,
+    });
   }
 
   if (fs.existsSync(mobilePath)) {
@@ -220,13 +206,9 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
 
   if (findings.length === 0) {
     findings.push({
-      issue: pageAlreadyUsesDesktopWidth
-        ? "OverviewV3 may need a specific hero layout pass now that the page layout already uses full width with compact desktop gutters."
-        : "Dashboard cards may be too narrow or constrained by the current layout container.",
-      likelyFile: pageAlreadyUsesDesktopWidth ? overviewFile : likelyFile,
-      recommendedTask: pageAlreadyUsesDesktopWidth
-        ? `Capture desktop and mobile screenshots, then review ${overviewFile} to move Financial Health into the KPI row, create a 5-card KPI grid, and reduce hero vertical spacing.`
-        : `Capture desktop and mobile screenshots, then review ${likelyFile} for container width, grid columns, and card sizing issues.`,
+      issue: "OverviewV3 may need a specific hero layout pass with a denser KPI row.",
+      likelyFile: overviewFile,
+      recommendedTask: `Capture desktop and mobile screenshots, then review ${overviewFile} to move Financial Health into the KPI row, create a 5-card KPI grid, and reduce hero vertical spacing.`,
     });
   }
 
@@ -352,15 +334,11 @@ function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recomme
 
   if (!screenshotsExist || !relevantTargetModified) return "FAIL";
 
-  const changedOnlyPage =
-    changedFiles.length === 1 &&
-    (changedFiles[0] === "src/app/page.tsx" || changedFiles[0] === "app/page.tsx");
+  const changedPage = changedFiles.includes("src/app/page.tsx");
   const changedOverviewV3 = changedFiles.includes("src/app/components/OverviewV3.tsx");
-  const targetsOverviewV3Hero =
-    recommendedTask.toLowerCase().includes("overviewv3") &&
-    recommendedTask.toLowerCase().includes("hero");
-  if (targetsOverviewV3Hero) {
-    if (changedOnlyPage || !changedOverviewV3) return "FAIL";
+  const targetsOverviewV3 = targetFiles.includes("src/app/components/OverviewV3.tsx");
+  if (targetsOverviewV3) {
+    if (changedPage || !changedOverviewV3) return "FAIL";
     const overviewV3Diff = run("git diff -- src/app/components/OverviewV3.tsx", 15_000);
     if (
       overviewV3Diff.includes("COMMAND FAILED OR TIMED OUT") ||
