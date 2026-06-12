@@ -215,7 +215,6 @@ function uiReviewJsonFormat() {
               "src/app/components/sections/TransactionsSection.tsx",
               "src/app/components/sections/SubscriptionsSection.tsx",
               "src/app/components/ImportWorkflow.tsx",
-              "tools/neven-agent/agent-server.ts",
             ],
           },
           recommendedTask: { type: "string" },
@@ -274,12 +273,14 @@ async function aiReviewUI() {
   const gitStatus = summarizeOutput(run("git status --short", 15_000), 4_000) || "No changes";
   const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000), 16_000) || "No diff";
   const prompt = [
-    "Review the actual desktop and mobile UI screenshots plus git status/diff for this Next.js app.",
-    "Valid likelyFile values are only: src/app/page.tsx, src/app/components/OverviewV3.tsx, src/app/components/MobileNav.tsx, src/app/components/sections/TransactionsSection.tsx, src/app/components/sections/SubscriptionsSection.tsx, src/app/components/ImportWorkflow.tsx, tools/neven-agent/agent-server.ts.",
-    "Do not recommend committing screenshots or .ai-agent-runs.",
-    "If git diff is empty, still recommend a UI source file based on the screenshot images and dashboard context.",
-    "Return only strict compact JSON with these fields: issue, likelyFile, recommendedTask, confidence.",
-    "Use confidence as a number from 0 to 1. Keep recommendedTask concrete and scoped to one likely file.",
+    "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
+    "Ignore git diff unless needed to choose likelyFile.",
+    "Do not summarize recent code changes.",
+    "Identify the single highest-impact visible UI issue.",
+    "Valid likelyFile values are src/app/page.tsx, src/app/components/OverviewV3.tsx, src/app/components/MobileNav.tsx, src/app/components/sections/TransactionsSection.tsx, src/app/components/sections/SubscriptionsSection.tsx, src/app/components/ImportWorkflow.tsx.",
+    "Prefer OverviewV3 for dashboard hero/cards/portfolio/health issues.",
+    "Return strict JSON only with issue, likelyFile, recommendedTask, confidence.",
+    "Return summary only.",
     "",
     "Screenshot paths:",
     ".ai-agent-runs/latest-desktop.png",
@@ -312,8 +313,8 @@ async function aiReviewUI() {
   }
 
   const fallbackPrompt = prompt.replace(
-    "Review the actual desktop and mobile UI screenshots plus git status/diff for this Next.js app.",
-    "Review the desktop and mobile UI screenshot paths plus git status/diff for this Next.js app.\nDo not assume screenshot image contents are available yet; use the paths and command output as context."
+    "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
+    "You are a senior product designer reviewing the Neven dashboard screenshot paths.\nDo not assume screenshot image contents are available yet; use the paths and command output as context."
   );
 
   try {
