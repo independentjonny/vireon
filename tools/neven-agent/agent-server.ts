@@ -195,6 +195,75 @@ function responseTextFromOpenAI(payload: any) {
   return parts.join("\n").trim();
 }
 
+function uiReviewJsonFormat() {
+  return {
+    format: {
+      type: "json_schema",
+      name: "ui_review",
+      strict: true,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          issue: { type: "string" },
+          likelyFile: {
+            type: "string",
+            enum: [
+              "src/app/page.tsx",
+              "src/app/components/OverviewV3.tsx",
+              "src/app/components/MobileNav.tsx",
+              "src/app/components/sections/TransactionsSection.tsx",
+              "src/app/components/sections/SubscriptionsSection.tsx",
+              "src/app/components/ImportWorkflow.tsx",
+              "tools/neven-agent/agent-server.ts",
+            ],
+          },
+          recommendedTask: { type: "string" },
+          confidence: { type: "number" },
+        },
+        required: ["issue", "likelyFile", "recommendedTask", "confidence"],
+      },
+    },
+  };
+}
+
+async function requestUIReview(apiKey: string, content: any[]) {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
+      input: [
+        {
+          role: "user",
+          content,
+        },
+      ],
+      text: uiReviewJsonFormat(),
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      [
+        "OpenAI Responses API failed.",
+        `Status: ${response.status}`,
+        `Status text: ${response.statusText}`,
+        "JSON error body:",
+        summarizeOutput(JSON.stringify(payload), 2_000),
+      ].join("\n")
+    );
+  }
+
+  const text = responseTextFromOpenAI(payload);
+  if (!text) throw new Error("OpenAI Responses API returned no review text.");
+  return text;
+}
+
 async function aiReviewUI() {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -205,11 +274,10 @@ async function aiReviewUI() {
   const gitStatus = summarizeOutput(run("git status --short", 15_000), 4_000) || "No changes";
   const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000), 16_000) || "No diff";
   const prompt = [
-    "Review the desktop and mobile UI screenshot paths plus git status/diff for this Next.js app.",
-    "Do not assume screenshot image contents are available yet; use the paths and command output as context.",
+    "Review the actual desktop and mobile UI screenshots plus git status/diff for this Next.js app.",
     "Valid likelyFile values are only: src/app/page.tsx, src/app/components/OverviewV3.tsx, src/app/components/MobileNav.tsx, src/app/components/sections/TransactionsSection.tsx, src/app/components/sections/SubscriptionsSection.tsx, src/app/components/ImportWorkflow.tsx, tools/neven-agent/agent-server.ts.",
     "Do not recommend committing screenshots or .ai-agent-runs.",
-    "If git diff is empty, still recommend a UI source file based on screenshot paths and dashboard context.",
+    "If git diff is empty, still recommend a UI source file based on the screenshot images and dashboard context.",
     "Return only strict compact JSON with these fields: issue, likelyFile, recommendedTask, confidence.",
     "Use confidence as a number from 0 to 1. Keep recommendedTask concrete and scoped to one likely file.",
     "",
@@ -227,66 +295,32 @@ async function aiReviewUI() {
     summarizeOutput(screenshotOutput, 4_000),
   ].join("\n");
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
-      input: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "ui_review",
-          strict: true,
-          schema: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              issue: { type: "string" },
-              likelyFile: {
-                type: "string",
-                enum: [
-                  "src/app/page.tsx",
-                  "src/app/components/OverviewV3.tsx",
-                  "src/app/components/MobileNav.tsx",
-                  "src/app/components/sections/TransactionsSection.tsx",
-                  "src/app/components/sections/SubscriptionsSection.tsx",
-                  "src/app/components/ImportWorkflow.tsx",
-                  "tools/neven-agent/agent-server.ts",
-                ],
-              },
-              recommendedTask: { type: "string" },
-              confidence: { type: "number" },
-            },
-            required: ["issue", "likelyFile", "recommendedTask", "confidence"],
-          },
-        },
-      },
-    }),
-  });
+  const desktopImage = screenshotInputImage("latest-desktop.png");
+  const mobileImage = screenshotInputImage("latest-mobile.png");
+  const imageContent = [
+    { type: "input_text", text: prompt },
+    desktopImage,
+    mobileImage,
+  ].filter(Boolean) as any[];
 
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    return [
-      "OpenAI Responses API failed.",
-      `Status: ${response.status}`,
-      `Status text: ${response.statusText}`,
-      "JSON error body:",
-      summarizeOutput(JSON.stringify(payload), 2_000),
-    ].join("\n");
+  if (desktopImage && mobileImage) {
+    try {
+      return await requestUIReview(apiKey, imageContent);
+    } catch {
+      // Fall through to the current text-only review when vision input fails.
+    }
   }
 
-  const text = responseTextFromOpenAI(payload);
-  if (!text) return "OpenAI Responses API returned no review text.";
-  return text;
+  const fallbackPrompt = prompt.replace(
+    "Review the actual desktop and mobile UI screenshots plus git status/diff for this Next.js app.",
+    "Review the desktop and mobile UI screenshot paths plus git status/diff for this Next.js app.\nDo not assume screenshot image contents are available yet; use the paths and command output as context."
+  );
+
+  try {
+    return await requestUIReview(apiKey, [{ type: "input_text", text: fallbackPrompt }]);
+  } catch (err: any) {
+    return err.message ?? "OpenAI Responses API failed.";
+  }
 }
 
 function generateUIReviewPlaceholder(): UIReviewFinding[] {
