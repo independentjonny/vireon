@@ -1,3 +1,4 @@
+// TEST-CODEX-RUN
 import http from "node:http";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
@@ -271,6 +272,52 @@ function quotePowerShellPath(filePath: string) {
   return `'${filePath.replaceAll("'", "''")}'`;
 }
 
+function changedDiffLines(diffHunk: string) {
+  return diffHunk
+    .split(/\r?\n/)
+    .filter((line) => /^[+-](?![+-]{2})/.test(line));
+}
+
+function diffHunks(diff: string) {
+  return diff
+    .split(/(?=^@@\s)/m)
+    .filter((hunk) => hunk.startsWith("@@"));
+}
+
+function hasOverviewV3HeroStructuralChange(diff: string) {
+  return diffHunks(diff).some((hunk) => {
+    const changedLines = changedDiffLines(hunk);
+    if (changedLines.length === 0) return false;
+
+    const changesDataDeclaration =
+      /\bconst\s+secondaryMetrics\b/.test(hunk) ||
+      /\bconst\s+accentClass\b/.test(hunk);
+    const hasHeroKpiContext =
+      /Secondary metrics|secondaryMetrics\.map|Financial Health|healthScore|healthLabel/.test(hunk);
+    if (!hasHeroKpiContext || changesDataDeclaration) return false;
+
+    const hasGridClassNameChange = changedLines.some((line) =>
+      /className=/.test(line) && /\bgrid\b|grid-cols/.test(line)
+    );
+    const hasFinancialHealthJsxChange =
+      hunk.includes("Financial Health") &&
+      changedLines.some((line) => {
+        const text = line.slice(1).trim();
+        return (
+          text.includes("Financial Health") ||
+          text.includes("healthScore") ||
+          text.includes("healthLabel") ||
+          text.includes("healthColor") ||
+          text.includes("className=") ||
+          text.includes("style=") ||
+          /^<\/?[A-Za-z]/.test(text)
+        );
+      });
+
+    return hasGridClassNameChange || hasFinancialHealthJsxChange;
+  });
+}
+
 function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "", executeFixOutput = "") {
   if (executeFixOutput.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
 
@@ -310,11 +357,19 @@ function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recomme
     changedFiles.length === 1 &&
     (changedFiles[0] === "src/app/page.tsx" || changedFiles[0] === "app/page.tsx");
   const changedOverviewV3 = changedFiles.includes("src/app/components/OverviewV3.tsx");
-  const targetsOverviewV3HeroDensity =
+  const targetsOverviewV3Hero =
     recommendedTask.toLowerCase().includes("overviewv3") &&
-    recommendedTask.toLowerCase().includes("hero") &&
-    recommendedTask.toLowerCase().includes("density");
-  if (targetsOverviewV3HeroDensity && (changedOnlyPage || !changedOverviewV3)) return "FAIL";
+    recommendedTask.toLowerCase().includes("hero");
+  if (targetsOverviewV3Hero) {
+    if (changedOnlyPage || !changedOverviewV3) return "FAIL";
+    const overviewV3Diff = run("git diff -- src/app/components/OverviewV3.tsx", 15_000);
+    if (
+      overviewV3Diff.includes("COMMAND FAILED OR TIMED OUT") ||
+      !hasOverviewV3HeroStructuralChange(overviewV3Diff)
+    ) {
+      return "FAIL";
+    }
+  }
   if (diffStat.length > 0) return "PASS";
   return "FAIL";
 }
@@ -638,7 +693,7 @@ Rules:
 
   fs.writeFileSync(promptPath, codexPrompt, "utf8");
 
-  const codexOutput = run(`Get-Content -Raw "${promptPath}" | codex exec -s workspace-write -`, 90_000);
+  const codexOutput = run(`Get-Content -Raw "${promptPath}" | codex exec -s workspace-write -`, 240_000);
 
   let validation = "";
   if (runValidation) {
