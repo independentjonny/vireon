@@ -21,6 +21,7 @@ type AgentAction =
   | "screenshot"
   | "aiReviewUI"
   | "aiAutoLoop"
+  | "autonomousBuild"
   | "evaluateFix"
   | "reviewUI"
   | "autoImproveUI"
@@ -38,6 +39,7 @@ type AgentRequest = {
   content?: string;
   from?: string;
   to?: string;
+  iterations?: number;
 };
 
 function run(command: string, timeoutMs = 60_000) {
@@ -436,6 +438,21 @@ function parseUIReviewFinding(output: string) {
   }
 }
 
+function scoreFromReviewOutput(output: string) {
+  try {
+    const parsed = JSON.parse(output.trim()) as Partial<UIReviewFinding>;
+    if (typeof parsed.currentScore === "number") {
+      return Math.min(10, Math.max(1, parsed.currentScore));
+    }
+    if (typeof parsed.confidence === "number") {
+      return parsed.confidence;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function requireString(value: unknown, name: string) {
   if (typeof value !== "string") throw new Error(`Missing ${name}`);
   return value;
@@ -529,6 +546,11 @@ function restoreTrackedAppFiles(snapshot: Map<string, string>) {
   }
 
   return restored;
+}
+
+function normalizedIterations(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 3;
+  return Math.min(10, Math.max(1, Math.floor(value)));
 }
 
 function changedDiffLines(diffHunk: string) {
@@ -776,6 +798,97 @@ async function runStructuredAction(request: AgentRequest) {
         ),
         30_000
       );
+    }
+
+    case "autonomousBuild": {
+      const requestedIterations = normalizedIterations(request.iterations);
+      const report: Array<{
+        iteration: number;
+        issue: string;
+        file: string;
+        task: string;
+        beforeScore: number | null;
+        afterScore: number | null;
+        improved: boolean | null;
+        rollback: {
+          occurred: boolean;
+          restoredTrackedAppFiles: string[];
+        };
+        gitStatus: string;
+        screenshotPaths: {
+          before: {
+            desktop: string;
+            mobile: string;
+          };
+          after: {
+            desktop: string;
+            mobile: string;
+          };
+        };
+      }> = [];
+
+      for (let iteration = 1; iteration <= requestedIterations; iteration += 1) {
+        const iterationId = `${new Date().toISOString().replace(/[:.]/g, "-")}-autonomous-${iteration}`;
+        const appFileSnapshot = trackedAppFileSnapshot();
+        const beforeReviewOutput = await aiReviewUI();
+        const beforeScreenshots = copyLatestScreenshots(`${iterationId}-before`);
+        const beforeReview = parseUIReviewFinding(beforeReviewOutput) ?? generateUIReviewPlaceholder()[0];
+        const beforeScore = scoreFromReviewOutput(beforeReviewOutput) ?? beforeReview.currentScore ?? beforeReview.confidence ?? null;
+        const selectedTask = [
+          "Improve the Neven UI based on this screenshot-only AI review.",
+          `Likely file: ${beforeReview.likelyFile}`,
+          `Target area: ${beforeReview.targetArea}`,
+          `Recommended task: ${beforeReview.recommendedTask}`,
+          `Success criteria: ${beforeReview.successCriteria}`,
+          "",
+          "Rules:",
+          "- Make the smallest targeted UI change needed to satisfy the success criteria.",
+          "- Modify only the likely file unless the requested UI area clearly requires a directly related component file.",
+          "- Do not modify API routes, package files, Next config, Playwright config, package files, or .ai files.",
+          "- Do not commit changes.",
+          "- Return summary only.",
+        ].join("\n");
+
+        await runCodex(selectedTask, false);
+        run("npx tsc --noEmit", 60_000);
+        takeScreenshots();
+        const afterScreenshots = copyLatestScreenshots(`${iterationId}-after`);
+        const afterReviewOutput = await aiReviewUI(false);
+        const afterScore = scoreFromReviewOutput(afterReviewOutput);
+        const improved =
+          beforeScore === null || afterScore === null
+            ? null
+            : afterScore > beforeScore;
+        const rollbackOccurred =
+          beforeScore !== null &&
+          afterScore !== null &&
+          afterScore < beforeScore;
+        const restoredTrackedAppFiles = rollbackOccurred ? restoreTrackedAppFiles(appFileSnapshot) : [];
+        const gitStatus = summarizeOutput(run("git status --short", 15_000), 2_000) || "No changes";
+
+        report.push({
+          iteration,
+          issue: beforeReview.issue,
+          file: beforeReview.likelyFile,
+          task: beforeReview.recommendedTask,
+          beforeScore,
+          afterScore,
+          improved,
+          rollback: {
+            occurred: rollbackOccurred,
+            restoredTrackedAppFiles,
+          },
+          gitStatus,
+          screenshotPaths: {
+            before: beforeScreenshots,
+            after: afterScreenshots,
+          },
+        });
+
+        if (afterScore !== null && afterScore >= 8.5) break;
+      }
+
+      return summarizeOutput(JSON.stringify({ iterations: report }, null, 2), 30_000);
     }
 
     case "evaluateFix":
