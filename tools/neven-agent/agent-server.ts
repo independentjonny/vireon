@@ -486,8 +486,8 @@ async function runStructuredAction(request: AgentRequest) {
     }
 
     case "executeFix": {
-      const [topFinding] = generateUIReviewPlaceholder();
-      const task = topFinding.recommendedTask;
+      // executeFix and planFix must share the same task source.
+      const task = generateUIReviewPlaceholder()[0].recommendedTask;
       const beforeGitStatus = run("git status --short", 15_000);
       const { codexOutput, validation } = await runCodex(task, true);
       const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
