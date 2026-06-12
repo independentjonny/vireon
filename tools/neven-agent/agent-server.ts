@@ -203,14 +203,15 @@ async function aiReviewUI() {
   const screenshotOutput = takeScreenshots();
   const gitStatus = summarizeOutput(run("git status --short", 15_000), 4_000) || "No changes";
   const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000), 16_000) || "No diff";
-  const desktopImage = screenshotInputImage("latest-desktop.png");
-  const mobileImage = screenshotInputImage("latest-mobile.png");
-  const images = [desktopImage, mobileImage].filter(Boolean);
-
   const prompt = [
-    "Review the attached desktop and mobile UI screenshots plus git status/diff.",
-    "Return only compact JSON with these fields: issue, likelyFile, recommendedTask, confidence.",
+    "Review the desktop and mobile UI screenshot paths plus git status/diff.",
+    "Do not assume screenshot image contents are available yet; use the paths and command output as context.",
+    "Return only strict compact JSON with these fields: issue, likelyFile, recommendedTask, confidence.",
     "Use confidence as a number from 0 to 1. Keep recommendedTask concrete and scoped to one likely file.",
+    "",
+    "Screenshot paths:",
+    ".ai-agent-runs/latest-desktop.png",
+    ".ai-agent-runs/latest-mobile.png",
     "",
     "Git status:",
     gitStatus,
@@ -233,10 +234,7 @@ async function aiReviewUI() {
       input: [
         {
           role: "user",
-          content: [
-            { type: "input_text", text: prompt },
-            ...images,
-          ],
+          content: prompt,
         },
       ],
       text: {
@@ -262,7 +260,13 @@ async function aiReviewUI() {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    return `OpenAI Responses API failed: ${response.status} ${response.statusText}\n${summarizeOutput(JSON.stringify(payload), 2_000)}`;
+    return [
+      "OpenAI Responses API failed.",
+      `Status: ${response.status}`,
+      `Status text: ${response.statusText}`,
+      "JSON error body:",
+      summarizeOutput(JSON.stringify(payload), 2_000),
+    ].join("\n");
   }
 
   const text = responseTextFromOpenAI(payload);
