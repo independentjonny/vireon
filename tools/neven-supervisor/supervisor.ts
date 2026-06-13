@@ -891,14 +891,18 @@ function sendJson(res: http.ServerResponse, statusCode: number, payload: unknown
   res.statusCode = statusCode;
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.end(JSON.stringify(payload, null, 2));
 }
 
 async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
   if (req.method === "OPTIONS") {
-    sendJson(res, 204, {});
+    res.statusCode = 204;
+    res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.end();
     return;
   }
 
@@ -1047,7 +1051,7 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "127.0.0.1", () => {
   appendLog("supervisor.started", { port: PORT, repo: REPO });
   console.log(`Neven Supervisor running on http://localhost:${PORT}`);
   console.log(`POST /task {"goal":"Improve Neven onboarding"}`);

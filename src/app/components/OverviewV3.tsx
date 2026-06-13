@@ -25,6 +25,14 @@ interface OverviewV3Props {
 
 const LAYER_LABEL =
   "text-xs font-semibold uppercase tracking-[0.18em] text-white/45";
+const RESPONSIVE_EYEBROW =
+  "text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/45 sm:text-xs sm:tracking-[0.18em]";
+const RESPONSIVE_LABEL =
+  "text-[0.95rem] font-semibold leading-snug text-white/74 sm:text-sm";
+const RESPONSIVE_COPY =
+  "text-[0.8rem] leading-relaxed text-white/48 sm:text-xs";
+const RESPONSIVE_VALUE =
+  "font-bold tabular-nums leading-none tracking-normal";
 
 export default function OverviewV3({
   netWorth,
@@ -280,7 +288,7 @@ export default function OverviewV3({
           />
 
           <div className="relative px-5 py-6 sm:px-8 sm:py-7 lg:px-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/75">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-emerald-300/75 sm:text-xs sm:tracking-[0.18em]">
               Neven Financial OS &mdash; {dateStr}
             </p>
 
@@ -291,7 +299,7 @@ export default function OverviewV3({
               </div>
               <h1
                 className="font-bold leading-none tracking-tight text-white"
-                style={{ fontSize: "clamp(3.5rem, 9vw, 7.5rem)" }}
+                style={{ fontSize: "clamp(3.1rem, 16vw, 7.5rem)" }}
               >
                 {netWorth}
               </h1>
@@ -309,11 +317,11 @@ export default function OverviewV3({
 
             {/* KPI row */}
             <div className="mt-6">
-              <div className="mb-3 flex items-center justify-between gap-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+              <div className="mb-3 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <div className={RESPONSIVE_EYEBROW}>
                   Key metrics
                 </div>
-                <div className="hidden text-[11px] font-medium text-white/30 sm:block">
+                <div className="text-[0.76rem] font-medium leading-relaxed text-white/35 sm:block sm:text-[11px] sm:text-white/30">
                   Cash flow, resilience, and health at a glance
                 </div>
               </div>
@@ -322,7 +330,7 @@ export default function OverviewV3({
                 {secondaryMetrics.map((m) => (
                   <div
                     key={m.label}
-                    className={`relative flex h-full min-h-[152px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_16px_36px_rgba(0,0,0,0.16)] ${
+                    className={`relative flex h-full min-h-[168px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_16px_36px_rgba(0,0,0,0.16)] sm:min-h-[152px] ${
                       m.priority === "status"
                         ? "border-emerald-400/25 bg-emerald-400/[0.07] sm:col-span-2 lg:col-span-1"
                         : "border-white/[0.1] bg-white/[0.045]"
@@ -331,10 +339,10 @@ export default function OverviewV3({
                     <div className={`absolute inset-x-0 top-0 h-0.5 ${accentBarClass[m.accent]}`} />
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                        <div className={RESPONSIVE_EYEBROW}>
                           {priorityLabel[m.priority]}
                         </div>
-                        <div className="mt-1 text-sm font-semibold leading-tight text-white/72">
+                        <div className={`mt-1 ${RESPONSIVE_LABEL}`}>
                           {m.label}
                         </div>
                       </div>
@@ -352,17 +360,17 @@ export default function OverviewV3({
                       </span>
                     </div>
                     <div
-                      className={`font-bold tabular-nums leading-none tracking-normal ${accentClass[m.accent]}`}
-                      style={{ fontSize: "clamp(1.9rem, 4vw, 2.45rem)" }}
+                      className={`${RESPONSIVE_VALUE} ${accentClass[m.accent]}`}
+                      style={{ fontSize: "clamp(2.2rem, 12vw, 2.65rem)" }}
                     >
                       {m.value}
                     </div>
                     {m.detail && (
-                      <div className={`mt-2 text-xs font-semibold ${accentClass[m.accent]} opacity-75`}>
+                      <div className={`mt-2 text-[0.82rem] font-semibold sm:text-xs ${accentClass[m.accent]} opacity-75`}>
                         {m.detail}
                       </div>
                     )}
-                    <p className="mt-3 flex-1 text-[11px] leading-snug text-white/45">
+                    <p className={`mt-3 flex-1 ${RESPONSIVE_COPY}`}>
                       {m.explanation}
                     </p>
                     {m.progress !== undefined && (
@@ -384,18 +392,18 @@ export default function OverviewV3({
         {/* Portfolio + Health sub-scores below hero */}
         <div className="mt-7 grid gap-6 xl:grid-cols-3">
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 xl:col-span-2">
-            <h2 className="pb-4 text-sm font-semibold text-white border-b border-white/[0.08]">
+            <h2 className="border-b border-white/[0.08] pb-4 text-base font-semibold leading-snug text-white sm:text-sm">
               Portfolio Allocation
             </h2>
             <div className="mt-5 space-y-5">
               {portfolioAllocation.map((item) => (
                 <div key={item.label}>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <div className="flex items-center gap-2.5">
+                  <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                    <div className="flex min-w-0 items-center gap-2.5">
                       <span className={`h-2 w-2 rounded-full shrink-0 ${item.color}`} />
-                      <span className="text-sm font-medium text-white/68">{item.label}</span>
+                      <span className="text-[0.95rem] font-medium leading-snug text-white/70 sm:text-sm">{item.label}</span>
                     </div>
-                    <span className="text-sm font-bold tabular-nums text-white/78">{item.pct}%</span>
+                    <span className="text-base font-bold tabular-nums leading-none text-white/80 sm:text-sm">{item.pct}%</span>
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-white/[0.06]">
                     <div
@@ -409,23 +417,23 @@ export default function OverviewV3({
           </div>
 
           <div className="rounded-2xl border border-emerald-400/15 bg-white/[0.03] p-5 shadow-[0_0_42px_rgba(16,185,129,0.06)]">
-            <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
+            <div className="flex flex-col gap-4 border-b border-white/[0.08] pb-4 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-white">
+                <h2 className="text-base font-semibold leading-snug text-white sm:text-sm">
                   Health Indicators
                 </h2>
-                <p className="mt-1 text-xs text-white/42">
+                <p className={RESPONSIVE_COPY}>
                   Drivers behind the Financial Health score
                 </p>
               </div>
-              <div className={`rounded-xl border px-3 py-2 text-right ${healthScoreTone}`}>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] opacity-70">
+              <div className={`self-start rounded-xl border px-3 py-2 text-left min-[420px]:text-right ${healthScoreTone}`}>
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] opacity-70 sm:text-[10px] sm:tracking-[0.16em]">
                   Financial Health
                 </div>
-                <div className="mt-1 text-2xl font-bold tabular-nums leading-none">
+                <div className="mt-1 text-[2rem] font-bold tabular-nums leading-none sm:text-2xl">
                   {healthScore}
                 </div>
-                <div className="mt-1 text-[10px] font-semibold opacity-70">
+                <div className="mt-1 text-[0.72rem] font-semibold opacity-70 sm:text-[10px]">
                   {healthLabel}
                 </div>
               </div>
@@ -433,23 +441,23 @@ export default function OverviewV3({
 
             {healthFocus && (
               <div className="mt-4 rounded-xl border border-white/[0.08] bg-black/10 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <span className={RESPONSIVE_EYEBROW}>
                     Focus area
                   </span>
-                  <span className="text-xs font-semibold text-white/55">
+                  <span className="text-[0.8rem] font-semibold leading-snug text-white/55 sm:text-xs">
                     {healthLabel} overall
                   </span>
                 </div>
-                <div className="mt-2 flex items-baseline justify-between gap-4">
-                  <span className="text-sm font-semibold text-white/78">
+                <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <span className={RESPONSIVE_LABEL}>
                     {healthFocus.label}
                   </span>
-                  <span className="text-sm font-bold tabular-nums text-amber-300">
+                  <span className="text-lg font-bold tabular-nums leading-none text-amber-300 sm:text-sm">
                     {healthFocus.score}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-white/42">{healthFocus.note}</p>
+                <p className={`mt-1 ${RESPONSIVE_COPY}`}>{healthFocus.note}</p>
               </div>
             )}
 
@@ -471,12 +479,12 @@ export default function OverviewV3({
                   <div key={item.label} className={`rounded-xl border bg-white/[0.035] p-3 ${borderCol}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-xs font-semibold text-white/72">
+                        <div className="text-[0.9rem] font-semibold leading-snug text-white/74 sm:text-xs">
                           {item.label}
                         </div>
-                        <div className="mt-1 text-xs text-white/40">{item.note}</div>
+                        <div className={`mt-1 ${RESPONSIVE_COPY}`}>{item.note}</div>
                       </div>
-                      <div className={`text-2xl font-bold tabular-nums leading-none ${numCol}`}>
+                      <div className={`text-[2rem] font-bold tabular-nums leading-none sm:text-2xl ${numCol}`}>
                         {item.score}
                       </div>
                     </div>
