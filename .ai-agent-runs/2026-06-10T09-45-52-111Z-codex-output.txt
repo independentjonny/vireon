@@ -1,0 +1,3 @@
+Modified only [tools/neven-agent/agent-server.ts](C:/Users/summe/liberva/tools/neven-agent/agent-server.ts).
+
+Added structured action `autoLoop`, which runs one cycle of `autoImproveUI`, `planFix`, `executeFix`, and `evaluateFix` in sequence, then returns a combined report with each stage’s output. No tests or build were run.

@@ -1,0 +1,16 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Improve the Neven dashboard information hierarchy. Make only one targeted UI improvement. Commit only if validation passes and screenshot review improves.
+Reviewer issue: The new 'supervisor' script added to package.json uses an experimental Node.js feature (--experimental-strip-types) which may cause instability or compatibility issues. This is a build process concern as it can affect reliability and maintainability.
+Target file: package.json
+Reviewer task: Evaluate and validate the usage of experimental Node.js features in build scripts to avoid potential build or runtime issues.
+Category: build_failure
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

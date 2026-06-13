@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. At startup, load C:\Users\summe\liberva\.env.local if it exists. Parse simple KEY=VALUE lines and set process.env only when not already set. This must allow OPENAI_API_KEY to be loaded automatically for aiReviewUI and autonomousBuild. Do not log secret values. Return summary only.

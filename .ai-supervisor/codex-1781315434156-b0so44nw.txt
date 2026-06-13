@@ -1,0 +1,16 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Review Neven dashboard. Recommend one high-value improvement. Do not modify files.
+Reviewer issue: The screenshots show that the right panel containing 'Health Indicators' and 'Recommendations' is not visible or accessible in the mobile view, causing a loss of important financial insights and recommendations on smaller screens.
+Target file: UI Dashboard Overview
+Reviewer task: Improve responsive layout to make all dashboard panels accessible and readable on mobile devices.
+Category: responsiveness
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

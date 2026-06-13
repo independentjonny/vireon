@@ -1,0 +1,3 @@
+Updated `tools/neven-agent/agent-server.ts` so the `autofix` structured action now runs `npx tsc --noEmit` after Git status and before screenshots, and includes a `Typecheck:` section in the report order:
+
+Git status, Typecheck, Screenshot capture, Git diff.

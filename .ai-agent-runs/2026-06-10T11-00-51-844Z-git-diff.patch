@@ -1,0 +1,94 @@
+ src/app/page.tsx                  |  2 +-
+ tools/neven-agent/agent-server.ts | 63 ++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 63 insertions(+), 2 deletions(-)
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index cb147f5..34d8825 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -135,7 +135,7 @@ export default async function HomePage() {
+       <div className="flex min-h-screen lg:pl-64">
+         <Sidebar />
+ 
+-        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-6">
++        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-4">
+           <div className="w-full space-y-12">
+             <OverviewV3
+               netWorth="$1.84M"
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 2d43ea1..e7b991e 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -253,11 +253,72 @@ function trackedModifiedFilesFromStatus(status: string) {
+     .filter(Boolean);
+ }
+ 
++function modifiedFilesFromStatus(status: string) {
++  return status
++    .split(/\r?\n/)
++    .map((line) => line.trimEnd())
++    .filter(Boolean)
++    .map((line) => line.slice(3).replace(/^.* -> /, "").replaceAll("\\", "/"))
++    .filter(Boolean);
++}
++
++function targetFilesFromTask(task: string) {
++  const matches = task.matchAll(/(?:^|\s)([A-Za-z0-9_.\-\\/]+\.(?:tsx|ts|js|jsx|json|css|md|txt|mjs|cjs|png|jpg|jpeg|webp))/gi);
++  return Array.from(matches, (match) => match[1].replaceAll("\\", "/"));
++}
++
+ function quotePowerShellPath(filePath: string) {
+   return `'${filePath.replaceAll("'", "''")}'`;
+ }
+ 
+-function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "") {
++function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "", executeFixOutput = "") {
++  if (executeFixOutput.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
++
++  const gitStatusOutput = run("git status --short", 15_000);
++  const diffStat = run("git diff --shortstat", 15_000).trim();
++  const diffNameOutput = run("git diff --name-only", 15_000);
++  if (
++    gitStatusOutput.includes("COMMAND FAILED OR TIMED OUT") ||
++    diffStat.includes("COMMAND FAILED OR TIMED OUT") ||
++    diffNameOutput.includes("COMMAND FAILED OR TIMED OUT")
++  ) {
++    return "FAIL";
++  }
++
++  const changedFiles = Array.from(
++    new Set([
++      ...diffNameOutput
++        .split(/\r?\n/)
++        .map((file) => file.trim().replaceAll("\\", "/"))
++        .filter(Boolean),
++      ...modifiedFilesFromStatus(gitStatusOutput),
++    ])
++  );
++  const targetFiles = targetFilesFromTask(recommendedTask);
++  const relevantTargetModified =
++    targetFiles.length > 0 && targetFiles.some((targetFile) => changedFiles.includes(targetFile));
++  const typecheck = run("npx tsc --noEmit", 60_000);
++  if (typecheck.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
++  const screenshotsExist =
++    fs.existsSync(path.join(REPO, ".ai-agent-runs", "latest-desktop.png")) &&
++    fs.existsSync(path.join(REPO, ".ai-agent-runs", "latest-mobile.png"));
++
++  if (!screenshotsExist || !relevantTargetModified) return "FAIL";
++
++  const changedOnlyPage =
++    changedFiles.length === 1 &&
++    (changedFiles[0] === "src/app/page.tsx" || changedFiles[0] === "app/page.tsx");
++  const changedOverviewV3 = changedFiles.includes("src/app/components/OverviewV3.tsx");
++  const targetsOverviewV3HeroDensity =
++    recommendedTask.toLowerCase().includes("overviewv3") &&
++    recommendedTask.toLowerCase().includes("hero") &&
++    recommendedTask.toLowerCase().includes("density");
++  if (targetsOverviewV3HeroDensity && (changedOnlyPage || !changedOverviewV3)) return "FAIL";
++  if (diffStat.length > 0) return "PASS";
++  return "FAIL";
++}
++
++function evaluateFixOld(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "") {
+   const diffStat = run("git diff --shortstat", 15_000).trim();
+   const changedFiles = run("git diff --name-only", 15_000)
+     .split(/\r?\n/)

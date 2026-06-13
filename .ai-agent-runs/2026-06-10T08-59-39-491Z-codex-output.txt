@@ -1,0 +1,10 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Added structured action `executeFix` that:
+- calls `generateUIReviewPlaceholder()`
+- uses the top recommended Codex task
+- runs `runCodex(task, true)`
+- runs `git status`, `git diff`, and `takeScreenshots()`
+- returns a combined summarized report
+
+Also made `runStructuredAction` async and awaited it from `runAgent`. No tests or build were run.

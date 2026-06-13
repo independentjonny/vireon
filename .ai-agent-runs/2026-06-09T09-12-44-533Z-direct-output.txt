@@ -1,0 +1,22 @@
+COMMAND FAILED OR TIMED OUT: Get-Content -Raw "C:\Users\summe\liberva\Read file src\app\components\OverviewV3.tsx"
+
+Get-Content : Cannot find path 'C:\Users\summe\liberva\Read file src\app\components\OverviewV3.tsx' 
+because it does not exist.
+At line:1 char:1
++ Get-Content -Raw "C:\Users\summe\liberva\Read file src\app\components ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\summe\...\OverviewV3.tsx:String) [Get-Conten 
+   t], ItemNotFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
+ 
+
+Command failed: Get-Content -Raw "C:\Users\summe\liberva\Read file src\app\components\OverviewV3.tsx"
+Get-Content : Cannot find path 'C:\Users\summe\liberva\Read file src\app\components\OverviewV3.tsx' 
+because it does not exist.
+At line:1 char:1
++ Get-Content -Raw "C:\Users\summe\liberva\Read file src\app\components ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\summe\...\OverviewV3.tsx:String) [Get-Conten 
+   t], ItemNotFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
+ 

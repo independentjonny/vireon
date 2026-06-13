@@ -1,0 +1,8 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Added structured action `autoImproveUI`, which calls `takeScreenshots()` and returns:
+- Desktop screenshot path
+- Mobile screenshot path
+- Recommended next task: `Review screenshots manually and provide one targeted UI improvement.`
+
+No tests or builds were run.

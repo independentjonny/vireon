@@ -1,0 +1,1 @@
+Run git status --short and return the output. Do not modify files.

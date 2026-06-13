@@ -1,0 +1,14 @@
+Changed only [OverviewV3.tsx](C:/Users/summe/liberva/src/app/components/OverviewV3.tsx:197).
+
+Git diff summary:
+```text
+src/app/components/OverviewV3.tsx | 4 ++--
+1 file changed, 2 insertions(+), 2 deletions(-)
+```
+
+What changed:
+- Portfolio + Health wrapper: `xl:grid-cols-2` -> `xl:grid-cols-3`
+- Portfolio Allocation card: added `xl:col-span-2`
+- Health Indicators remains the default 1 column span
+
+No build or tests run, per instruction. Current worktree also shows unrelated existing changes in `src/app/page.tsx` and `.ai-agent-runs/`; I did not touch them.

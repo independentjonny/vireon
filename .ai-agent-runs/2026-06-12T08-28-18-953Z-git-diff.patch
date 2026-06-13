@@ -1,0 +1,129 @@
+ src/app/components/OverviewV3.tsx |  8 ++++----
+ src/app/page.tsx                  | 24 ++++++++++++------------
+ tools/neven-agent/agent-server.ts | 21 +++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 16 deletions(-)
+diff --git a/src/app/components/OverviewV3.tsx b/src/app/components/OverviewV3.tsx
+index b0e867e..0acbde7 100644
+--- a/src/app/components/OverviewV3.tsx
++++ b/src/app/components/OverviewV3.tsx
+@@ -142,7 +142,7 @@ export default function OverviewV3({
+             }}
+           />
+ 
+-          <div className="relative px-5 py-6 sm:px-8 sm:py-7 lg:px-10">
++          <div className="relative px-5 py-7 sm:px-8 sm:py-7 lg:px-10">
+             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/75">
+               Neven Financial OS &mdash; {dateStr}
+             </p>
+@@ -171,8 +171,8 @@ export default function OverviewV3({
+             <div className="mt-6 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+ 
+             {/* KPI row */}
+-            <div className="mt-5">
+-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
++            <div className="mt-6 sm:mt-5">
++              <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5">
+                 {secondaryMetrics.map((m) => (
+                   <div key={m.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
+                     <div className="mb-2 text-xs font-medium text-white/55">
+@@ -206,7 +206,7 @@ export default function OverviewV3({
+         </section>
+ 
+         {/* Portfolio + Health sub-scores below hero */}
+-        <div className="mt-7 grid gap-6 xl:grid-cols-3">
++        <div className="mt-8 grid gap-6 sm:mt-9 xl:grid-cols-3">
+           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 xl:col-span-2">
+             <h2 className="pb-4 text-sm font-semibold text-white border-b border-white/[0.08]">
+               Portfolio Allocation
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index cb147f5..aa91781 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -24,9 +24,9 @@ const navItems = [
+ 
+ function RuntimeBanner() {
+   return (
+-    <div className="sticky top-0 z-40 border-b border-emerald-500/[0.15] bg-[#07111f]/85 px-4 py-2 text-xs text-emerald-300/80 backdrop-blur-xl">
+-      <span className="inline-flex items-center gap-2">
+-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
++    <div className="sticky top-0 z-40 border-b border-emerald-500/[0.15] bg-[#07111f]/85 px-4 py-2 pr-20 text-xs leading-5 text-emerald-300/80 backdrop-blur-xl lg:ml-64 lg:pr-4">
++      <span className="inline-flex items-start gap-2">
++        <span className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+         Autonomous AI Runtime Active — Supervisor online • 10 agents nominal • Multi-agent v2
+       </span>
+     </div>
+@@ -87,13 +87,13 @@ function SectionShell({
+   children?: React.ReactNode;
+ }) {
+   return (
+-    <section id={id} className="scroll-mt-20">
+-      <div className="mb-4 flex flex-wrap items-baseline gap-3 border-b border-white/[0.07] pb-3">
++    <section id={id} className="scroll-mt-24">
++      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-white/[0.07] pb-3 sm:mb-4">
+         <h2 className="text-lg font-bold text-white">{title}</h2>
+         {subtitle && <span className="text-xs text-white/35">{subtitle}</span>}
+       </div>
+ 
+-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-5 shadow-xl shadow-black/20">
++      <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-4 shadow-xl shadow-black/20 sm:rounded-2xl sm:p-5">
+         {children ?? (
+           <p className="text-sm text-white/45">
+             Section placeholder restored after page recovery. Detailed module can be reattached safely.
+@@ -106,10 +106,10 @@ function SectionShell({
+ 
+ function ScreenshotPanel() {
+   const paths = [
+-    "screenshot/fullpage.png",
+-    "screenshot/overview.png",
+-    "screenshot/build-automation.png",
+-    ".ai/screenshots/fullpage.png",
++    ".ai-agent-runs/latest-desktop.png",
++    ".ai-agent-runs/latest-mobile.png",
++    ".ai/browser-interaction-check.png",
++    ".ai/validate-and-repair.png",
+   ];
+ 
+   return (
+@@ -135,8 +135,8 @@ export default async function HomePage() {
+       <div className="flex min-h-screen lg:pl-64">
+         <Sidebar />
+ 
+-        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-6">
+-          <div className="w-full space-y-12">
++        <section className="min-w-0 flex-1 px-3 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10">
++          <div className="mx-auto w-full max-w-[1540px] space-y-10 sm:space-y-12">
+             <OverviewV3
+               netWorth="$1.84M"
+               netWorthTrend="+4.2% this month"
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 18faae1..9e0e49b 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -7,6 +7,27 @@ const PORT = 4002;
+ const REPO = "C:\\Users\\summe\\liberva";
+ const LOG_DIR = path.join(REPO, ".ai-agent-runs");
+ 
++function loadLocalEnv() {
++  const envPath = path.join(REPO, ".env.local");
++  if (!fs.existsSync(envPath)) return;
++
++  const content = fs.readFileSync(envPath, "utf8");
++  for (const line of content.split(/\r?\n/)) {
++    const trimmed = line.trim();
++    if (!trimmed || trimmed.startsWith("#")) continue;
++
++    const separator = trimmed.indexOf("=");
++    if (separator <= 0) continue;
++
++    const key = trimmed.slice(0, separator).trim();
++    const value = trimmed.slice(separator + 1).trim();
++    if (!key || process.env[key] !== undefined) continue;
++
++    process.env[key] = value.replace(/^["']|["']$/g, "");
++  }
++}
++
++loadLocalEnv();
+ fs.mkdirSync(LOG_DIR, { recursive: true });
+ 
+ type AgentMode = "auto" | "inspect" | "codex";

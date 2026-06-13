@@ -116,6 +116,39 @@ export default function OverviewV3({
     { label: "Cash flow Aug", value: "+$6,800", trend: "up" as const },
   ];
 
+  const healthAverage =
+    healthScores.length > 0
+      ? Math.round(
+          healthScores.reduce((total, item) => total + item.score, 0) /
+            healthScores.length
+        )
+      : 0;
+
+  const healthAverageLabel =
+    healthAverage >= 90
+      ? "Excellent"
+      : healthAverage >= 75
+      ? "Stable"
+      : healthAverage >= 60
+      ? "Watch"
+      : "Action needed";
+
+  const healthAverageTone =
+    healthAverage >= 90
+      ? "border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-300"
+      : healthAverage >= 75
+      ? "border-sky-400/30 bg-sky-400/[0.08] text-sky-300"
+      : healthAverage >= 60
+      ? "border-amber-400/30 bg-amber-400/[0.08] text-amber-300"
+      : "border-red-400/30 bg-red-400/[0.08] text-red-300";
+
+  const healthFocus = healthScores.reduce<
+    { label: string; score: number; note: string } | null
+  >(
+    (lowest, item) => (!lowest || item.score < lowest.score ? item : lowest),
+    null
+  );
+
   return (
     <div id="overview" className="space-y-12 sm:space-y-14">
 
@@ -232,11 +265,49 @@ export default function OverviewV3({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
-            <h2 className="pb-4 text-sm font-semibold text-white border-b border-white/[0.08]">
-              Health Indicators
-            </h2>
-            <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-emerald-400/15 bg-white/[0.03] p-5 shadow-[0_0_42px_rgba(16,185,129,0.06)]">
+            <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
+              <div>
+                <h2 className="text-sm font-semibold text-white">
+                  Health Indicators
+                </h2>
+                <p className="mt-1 text-xs text-white/42">
+                  Grouped risk signals across the dashboard snapshot
+                </p>
+              </div>
+              <div className={`rounded-xl border px-3 py-2 text-right ${healthAverageTone}`}>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] opacity-70">
+                  Overall
+                </div>
+                <div className="mt-1 text-2xl font-bold tabular-nums leading-none">
+                  {healthAverage}
+                </div>
+              </div>
+            </div>
+
+            {healthFocus && (
+              <div className="mt-4 rounded-xl border border-white/[0.08] bg-black/10 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                    Focus area
+                  </span>
+                  <span className="text-xs font-semibold text-white/55">
+                    {healthAverageLabel}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-baseline justify-between gap-4">
+                  <span className="text-sm font-semibold text-white/78">
+                    {healthFocus.label}
+                  </span>
+                  <span className="text-sm font-bold tabular-nums text-amber-300">
+                    {healthFocus.score}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-white/42">{healthFocus.note}</p>
+              </div>
+            )}
+
+            <div className="mt-4 space-y-3">
               {healthScores.map((item) => {
                 const borderCol =
                   item.score >= 90 ? "border-emerald-400/35" :
@@ -246,15 +317,29 @@ export default function OverviewV3({
                   item.score >= 90 ? "text-emerald-400" :
                   item.score >= 75 ? "text-sky-400" :
                   item.score >= 60 ? "text-amber-400" : "text-red-400";
+                const barCol =
+                  item.score >= 90 ? "bg-emerald-400" :
+                  item.score >= 75 ? "bg-sky-400" :
+                  item.score >= 60 ? "bg-amber-400" : "bg-red-400";
                 return (
-                  <div key={item.label} className={`rounded-xl border-l-2 bg-white/[0.025] p-3 ${borderCol}`}>
-                    <div className="text-xs font-medium text-white/55">
-                      {item.label}
+                  <div key={item.label} className={`rounded-xl border bg-white/[0.035] p-3 ${borderCol}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-white/72">
+                          {item.label}
+                        </div>
+                        <div className="mt-1 text-xs text-white/40">{item.note}</div>
+                      </div>
+                      <div className={`text-2xl font-bold tabular-nums leading-none ${numCol}`}>
+                        {item.score}
+                      </div>
                     </div>
-                    <div className={`mt-2 text-3xl font-bold tabular-nums leading-none ${numCol}`}>
-                      {item.score}
+                    <div className="mt-3 h-1.5 w-full rounded-full bg-white/[0.06]">
+                      <div
+                        className={`h-full rounded-full ${barCol}`}
+                        style={{ width: `${item.score}%` }}
+                      />
                     </div>
-                    <div className="mt-1.5 text-xs text-white/42">{item.note}</div>
                   </div>
                 );
               })}

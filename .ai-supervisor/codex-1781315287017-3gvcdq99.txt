@@ -1,0 +1,16 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Review Neven dashboard. Recommend one high-value improvement. Do not modify files.
+Reviewer issue: GPT reviewer unavailable; inspect the visible app and latest diff.
+Target file: src/app/page.tsx
+Reviewer task: Review the current Neven UI and make one substantive improvement.
+Category: information_hierarchy
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

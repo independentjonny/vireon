@@ -1,0 +1,6 @@
+Auto UI improvement review ready.
+Desktop: .ai-agent-runs/latest-desktop.png
+Mobile: .ai-agent-runs/latest-mobile.png
+Top UI issue: TODO - replace with screenshot review finding.
+Likely file: TODO - replace with likely UI source file.
+Recommended Codex task: TODO - replace with targeted implementation task.

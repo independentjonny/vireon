@@ -1,0 +1,31 @@
+
+src\app\components\sections\SubscriptionsSection.tsx:119:        <div className="grid grid-cols-2 
+gap-3 sm:grid-cols-3">
+src\app\components\sections\SubscriptionsSection.tsx:148:          <div className="grid gap-3 
+md:grid-cols-2">
+src\app\components\sections\SubscriptionsSection.tsx:226:          <div className="grid gap-3 
+lg:grid-cols-2">
+src\app\components\sections\TransactionsSection.tsx:87:        <div className="grid grid-cols-2 
+gap-3 sm:grid-cols-4">
+src\app\components\AutonomousTaskComposer.tsx:420:        <div className="grid grid-cols-2 gap-2 
+sm:grid-cols-4">
+src\app\components\ImportWorkflow.tsx:168:            <div className="grid grid-cols-2 gap-2 
+sm:grid-cols-4">
+src\app\components\LatestScreenshots.tsx:61:      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+src\app\components\OverviewV2.tsx:68:            <div className="mt-8 grid grid-cols-2 gap-x-8 
+gap-y-5 border-t border-white/[0.07] pt-7 sm:grid-cols-4">
+src\app\components\OverviewV2.tsx:105:      <section className="grid gap-8 xl:grid-cols-[1.3fr_1fr]">
+src\app\components\OverviewV2.tsx:157:            <div className="mt-4 grid grid-cols-2 gap-5">
+src\app\components\OverviewV3.tsx:161:              <div className="grid grid-cols-2 gap-3 
+sm:grid-cols-4">
+src\app\components\OverviewV3.tsx:200:        <div className="mt-7 grid gap-6 xl:grid-cols-2">
+src\app\components\OverviewV3.tsx:230:            <div className="mt-5 grid grid-cols-2 gap-3">
+src\app\components\OverviewV3.tsx:268:          <div className="grid gap-12 
+xl:grid-cols-[1.4fr_1fr]">
+src\app\components\OverviewV3.tsx:318:          <div className="grid gap-12 xl:grid-cols-2">
+src\app\components\OverviewV3.tsx:423:              <div className="grid gap-4 xl:grid-cols-3">
+src\app\components\OverviewV3.tsx:498:            <div className="grid gap-8 
+xl:grid-cols-[1fr_1fr_1fr] opacity-70">
+src\app\page.tsx:199:              <div className="grid gap-3 sm:grid-cols-3">
+
+

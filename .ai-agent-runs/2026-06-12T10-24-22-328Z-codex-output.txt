@@ -1,0 +1,7 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Summary:
+- Added rollback error reporting via `rollbackError`.
+- Recomputed `gitStatus` after rollback attempts.
+- Restored tracked app files and removed newly created app files during rollback.
+- Fixed rejected iteration screenshot reporting so `after` uses `*-after-desktop.png` and `*-after-mobile.png` paths.

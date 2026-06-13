@@ -1,0 +1,39 @@
+ tools/neven-agent/agent-server.ts | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index f39438f..bf264e1 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -204,8 +204,11 @@ async function aiReviewUI() {
+   const gitStatus = summarizeOutput(run("git status --short", 15_000), 4_000) || "No changes";
+   const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000), 16_000) || "No diff";
+   const prompt = [
+-    "Review the desktop and mobile UI screenshot paths plus git status/diff.",
++    "Review the desktop and mobile UI screenshot paths plus git status/diff for this Next.js app.",
+     "Do not assume screenshot image contents are available yet; use the paths and command output as context.",
++    "Valid likelyFile values are only: src/app/page.tsx, src/app/components/OverviewV3.tsx, src/app/components/MobileNav.tsx, src/app/components/sections/TransactionsSection.tsx, src/app/components/sections/SubscriptionsSection.tsx, src/app/components/ImportWorkflow.tsx, tools/neven-agent/agent-server.ts.",
++    "Do not recommend committing screenshots or .ai-agent-runs.",
++    "If git diff is empty, still recommend a UI source file based on screenshot paths and dashboard context.",
+     "Return only strict compact JSON with these fields: issue, likelyFile, recommendedTask, confidence.",
+     "Use confidence as a number from 0 to 1. Keep recommendedTask concrete and scoped to one likely file.",
+     "",
+@@ -247,7 +250,18 @@ async function aiReviewUI() {
+             additionalProperties: false,
+             properties: {
+               issue: { type: "string" },
+-              likelyFile: { type: "string" },
++              likelyFile: {
++                type: "string",
++                enum: [
++                  "src/app/page.tsx",
++                  "src/app/components/OverviewV3.tsx",
++                  "src/app/components/MobileNav.tsx",
++                  "src/app/components/sections/TransactionsSection.tsx",
++                  "src/app/components/sections/SubscriptionsSection.tsx",
++                  "src/app/components/ImportWorkflow.tsx",
++                  "tools/neven-agent/agent-server.ts",
++                ],
++              },
+               recommendedTask: { type: "string" },
+               confidence: { type: "number" },
+             },

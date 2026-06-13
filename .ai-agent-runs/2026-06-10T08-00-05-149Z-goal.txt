@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Add a new structured action named reviewUI. For now it should ensure screenshots exist by calling takeScreenshots(), then return a concise report containing the desktop and mobile screenshot paths plus instructions that screenshot vision review is not implemented yet. Do not modify Neven app files. Return summary only.

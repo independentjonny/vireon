@@ -1,0 +1,8 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Added structured action `reviewUI`, which calls `takeScreenshots()` and returns:
+- desktop screenshot path
+- mobile screenshot path
+- note that screenshot vision review is not implemented yet
+
+No tests or builds were run, per instructions.

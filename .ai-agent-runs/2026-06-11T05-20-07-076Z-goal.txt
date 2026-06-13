@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Improve evaluateFix. If autoImproveUI identifies a likely file, evaluation must verify that file was modified. Example: if likely file is src/app/components/OverviewV3.tsx and git diff does not contain that file, return FAIL. Only return PASS when the recommended file was modified and typecheck succeeds. Return summary only.

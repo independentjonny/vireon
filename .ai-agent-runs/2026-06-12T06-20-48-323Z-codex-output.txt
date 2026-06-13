@@ -1,0 +1,3 @@
+Updated only `tools/neven-agent/agent-server.ts`.
+
+Changed `aiReviewUI` to state this is a Next.js app, restrict `likelyFile` to the requested file list in both prompt and JSON schema, avoid recommending screenshots or `.ai-agent-runs`, and still choose a UI source file when git diff is empty. No tests or build run.

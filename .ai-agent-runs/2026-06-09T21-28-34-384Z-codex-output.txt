@@ -1,0 +1,12 @@
+Modified only [OverviewV3.tsx](C:/Users/summe/liberva/src/app/components/OverviewV3.tsx:160).
+
+Changed the Dashboard Snapshot hero metrics area from `flex xl:flex-row` to an `xl:grid-cols-3` grid. The four secondary metrics now become a 2x2 grid at `xl`, and Financial Health is explicitly placed in column 3 with right alignment, leaving the middle column empty.
+
+Diff summary:
+
+```text
+src/app/components/OverviewV3.tsx | 6 +++---
+1 file changed, 3 insertions(+), 3 deletions(-)
+```
+
+No tests or build were run, per instructions.

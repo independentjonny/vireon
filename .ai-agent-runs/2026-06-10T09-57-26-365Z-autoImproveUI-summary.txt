@@ -1,0 +1,6 @@
+Auto UI improvement review ready.
+Desktop: .ai-agent-runs/latest-desktop.png
+Mobile: .ai-agent-runs/latest-mobile.png
+Top UI issue: The page layout already uses full width with compact desktop gutters, so the hero dashboard likely needs denser information grouping rather than more width.
+Likely file: src/app/components/OverviewV3.tsx
+Recommended Codex task: Review src/app/components/OverviewV3.tsx and improve hero dashboard density by tightening the primary metric, secondary metrics, and supporting insight sections without expanding the page width.

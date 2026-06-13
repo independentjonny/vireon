@@ -1,0 +1,17 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Run Neven supervisor health task and report readiness without manual steps.
+Review mode: UI_REVIEW_MODE
+Reviewer issue: Health Indicators section lacks consistent visual emphasis and clear grouping compared to Portfolio Allocation and key metrics, which reduces insight clarity on dashboard snapshot.
+Target file: src/app/components/OverviewV3.tsx
+Reviewer task: Enhance visual hierarchy and grouping of Health Indicators cards to improve dashboard insight clarity and prominence.
+Category: dashboard_insight
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

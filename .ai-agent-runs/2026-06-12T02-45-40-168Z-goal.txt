@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Strengthen evaluateFix. When the recommended file is src/app/components/OverviewV3.tsx, FAIL if executeFix modifies src/app/page.tsx. PASS only when OverviewV3.tsx is modified and page.tsx remains unchanged. Return summary only.

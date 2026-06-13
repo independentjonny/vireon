@@ -908,7 +908,8 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
   const payload = body ? JSON.parse(body) : {};
 
   switch (req.url) {
-    case "/task": {
+    case "/task":
+    case "/task-submit": {
       const goal = String(payload.goal ?? "").trim();
       if (!goal) throw new Error("Missing goal");
       const task: TaskRecord = {

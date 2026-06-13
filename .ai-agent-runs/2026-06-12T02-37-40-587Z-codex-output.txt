@@ -1,0 +1,3 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Removed the stale page/container width-expansion task branches from `generateUIReviewPlaceholder()`. `executeFix` remains sourced exclusively from `generateUIReviewPlaceholder()[0].recommendedTask`.

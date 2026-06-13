@@ -1,0 +1,11 @@
+Modified only [tools/neven-agent/agent-server.ts](C:/Users/summe/liberva/tools/neven-agent/agent-server.ts).
+
+What changed:
+- `aiReviewUI` now requests/returns strict JSON with `issue`, `likelyFile`, `targetArea`, `recommendedTask`, `confidence`, `currentScore`, and `successCriteria`.
+- `aiAutoLoop` now parses that JSON, builds a Codex task containing the required fields, captures before/after screenshots, reruns review for `afterScore`, returns the requested summary fields, and rolls back tracked app-file changes when `afterScore < beforeScore`.
+- Rollback explicitly excludes `tools/neven-agent/agent-server.ts` and does not auto-commit.
+
+Verification:
+- Ran `npx tsc --noEmit` successfully.
+- Did not run build or tests.
+- Left existing unrelated working tree changes alone.

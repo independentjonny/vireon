@@ -1,0 +1,13 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Added structured action `aiAutoLoop` that:
+- runs `aiReviewUI`
+- parses its JSON and uses `recommendedTask`
+- falls back to `generateUIReviewPlaceholder()[0].recommendedTask` on invalid JSON
+- runs Codex with the selected task
+- runs `npx tsc --noEmit`
+- captures screenshots
+- evaluates with `evaluateFix(recommendedTask, executeOutput)`
+- returns one combined summarized report
+
+Verification: `npx tsc --noEmit` passed. No commit made.

@@ -1,0 +1,1741 @@
+COMMAND FAILED OR TIMED OUT: Get-Content -Raw "C:\Users\summe\liberva\.ai-agent-runs\2026-06-11T21-37-35-672Z-codex-prompt.txt" | codex exec -s workspace-write -
+
+OpenAI Codex v0.137.0
+--------
+workdir: C:\Users\summe\liberva
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: none
+reasoning summaries: none
+session id: 019eb89e-8492-7ed3-96d6-9f0a9515e416
+--------
+user
+
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Goal:
+Modify only tools/neven-agent/agent-server.ts. Improve evaluateFix for OverviewV3 hero tasks. PASS only if git diff for src/app/components/OverviewV3.tsx includes structural JSX changes to the hero KPI grid or Financial Health render block. A change only to the secondaryMetrics array or accentClass must return FAIL. Check the diff text for className grid changes, removal or movement of the standalone Financial Health block, or JSX rendering changes involving Financial Health. Return summary only.
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.
+
+
+codex
+I’ll inspect the current evaluator logic and the local Next docs only if needed; this looks like a narrow server-side rule change in one file.
+exec
+"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content -Path tools/neven-agent/agent-server.ts' in C:\Users\summe\liberva
+exec
+"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "evaluateFix|OverviewV3|Financial Health|secondaryMetrics|accentClass" tools/neven-agent/agent-server.ts' in C:\Users\summe\liberva
+ succeeded in 336ms:
+import http from "node:http";
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+
+const PORT = 4002;
+const REPO = "C:\\Users\\summe\\liberva";
+const LOG_DIR = path.join(REPO, ".ai-agent-runs");
+
+fs.mkdirSync(LOG_DIR, { recursive: true });
+
+type AgentMode = "auto" | "inspect" | "codex";
+type AgentAction =
+  | "health"
+  | "gitStatus"
+  | "gitDiff"
+  | "readFile"
+  | "writeFile"
+  | "replaceText"
+  | "typecheck"
+  | "screenshot"
+  | "evaluateFix"
+  | "reviewUI"
+  | "autoImproveUI"
+  | "planFix"
+  | "executeFix"
+  | "autofix"
+  | "autoLoop";
+
+type AgentRequest = {
+  action?: AgentAction;
+  goal?: string;
+  mode?: AgentMode;
+  runValidation?: boolean;
+  path?: string;
+  content?: string;
+  from?: string;
+  to?: string;
+};
+
+function run(command: string, timeoutMs = 60_000) {
+  try {
+    return execSync(command, {
+      cwd: REPO,
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024 * 50,
+      shell: "powershell.exe",
+      timeout: timeoutMs,
+    });
+  } catch (err: any) {
+    return [
+      `COMMAND FAILED OR TIMED OUT: ${command}`,
+      err.stdout?.toString() ?? "",
+      err.stderr?.toString() ?? "",
+      err.message ?? "",
+    ].join("\n");
+  }
+}
+
+function save(name: string, content: string) {
+  fs.writeFileSync(path.join(LOG_DIR, name), content, "utf8");
+}
+
+function json(res: http.ServerResponse, statusCode: number, payload: unknown) {
+  res.statusCode = statusCode;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify(payload, null, 2));
+}
+
+function safePath(input: string) {
+  const normalized = input.replaceAll("/", "\\").trim();
+  const full = path.resolve(REPO, normalized);
+  const repoRoot = path.resolve(REPO);
+  const relative = path.relative(repoRoot, full);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(`Unsafe path outside repo: ${input}`);
+  }
+  return full;
+}
+
+function stripQuotes(input: string) {
+  return input.trim().replace(/^["'`]|["'`]$/g, "");
+}
+
+function extractQuotedPath(goal: string) {
+  const quoted = goal.match(/["'`](.+?)["'`]/);
+  return quoted?.[1]?.trim() ?? "";
+}
+
+function extractLikelyPath(goal: string) {
+  const quoted = extractQuotedPath(goal);
+  if (quoted) return quoted;
+  const pathMatch = goal.match(/([A-Za-z0-9_.\-\\/ ]+?\.(tsx|ts|js|jsx|json|css|md|txt|mjs|cjs|png|jpg|jpeg|webp))/i);
+  return pathMatch?.[1]?.trim() ?? "";
+}
+
+function createFile(goal: string) {
+  const match = goal.match(/^create file\s+(.+?)\s+containing exactly:\s*([\s\S]*)$/i);
+  if (!match) return "";
+  const target = stripQuotes(match[1]);
+  const content = match[2];
+  const fullPath = safePath(target);
+  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+  fs.writeFileSync(fullPath, content, "utf8");
+  return `Created file: ${target}`;
+}
+
+function replaceFile(goal: string) {
+  const match = goal.match(/^replace file\s+(.+?)\s+with exactly:\s*([\s\S]*)$/i);
+  if (!match) return "";
+  const target = stripQuotes(match[1]);
+  const content = match[2];
+  const fullPath = safePath(target);
+  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+  fs.writeFileSync(fullPath, content, "utf8");
+  return `Replaced file: ${target}`;
+}
+
+function replaceText(goal: string) {
+  const match = goal.match(/^replace text in file\s+(.+?)\s+from exactly:\s*([\s\S]*?)\s+to exactly:\s*([\s\S]*)$/i);
+  if (!match) return "";
+
+  const target = stripQuotes(match[1]);
+  const oldText = match[2];
+  const newText = match[3];
+  const fullPath = safePath(target);
+
+  const current = fs.readFileSync(fullPath, "utf8");
+  if (!current.includes(oldText)) {
+    return `Text not found in ${target}`;
+  }
+
+  fs.writeFileSync(fullPath, current.replace(oldText, newText), "utf8");
+  return `Replaced text in file: ${target}`;
+}
+
+function takeScreenshots() {
+  const desktopPath = ".ai-agent-runs/latest-desktop.png";
+  const mobilePath = ".ai-agent-runs/latest-mobile.png";
+
+  const desktop = run(`npx playwright screenshot --timeout=30000 --viewport-size=1440,1200 http://localhost:3000 ${desktopPath}`, 35_000);
+  const mobile = run(`npx playwright screenshot --timeout=30000 --viewport-size=390,1200 http://localhost:3000 ${mobilePath}`, 35_000);
+
+  return [
+    "Screenshots captured:",
+    desktopPath,
+    mobilePath,
+    "",
+    "Desktop output:",
+    desktop,
+    "",
+    "Mobile output:",
+    mobile,
+  ].join("\n");
+}
+
+function reviewUI() {
+  takeScreenshots();
+  return [
+    "UI review screenshots ready.",
+    "Desktop: .ai-agent-runs/latest-desktop.png",
+    "Mobile: .ai-agent-runs/latest-mobile.png",
+    "Screenshot vision review is not implemented yet. Inspect these screenshots manually for now.",
+  ].join("\n");
+}
+
+type UIReviewFinding = {
+  issue: string;
+  likelyFile: string;
+  recommendedTask: string;
+};
+
+function generateUIReviewPlaceholder(): UIReviewFinding[] {
+  const desktopPath = path.join(REPO, ".ai-agent-runs", "latest-desktop.png");
+  const mobilePath = path.join(REPO, ".ai-agent-runs", "latest-mobile.png");
+  const pagePathCandidates = ["src/app/page.tsx", "app/page.tsx"];
+  const likelyFileCandidates = [
+    "src/app/page.tsx",
+    "app/page.tsx",
+    "src/components/dashboard.tsx",
+    "src/components/Dashboard.tsx",
+    "src/app/globals.css",
+    "app/globals.css",
+  ];
+  const pagePath = pagePathCandidates.find((candidate) => fs.existsSync(path.join(REPO, candidate))) ?? "src/app/page.tsx";
+  const likelyFile = likelyFileCandidates.find((candidate) => fs.existsSync(path.join(REPO, candidate))) ?? "src/app/page.tsx";
+  const overviewFile = fs.existsSync(path.join(REPO, "src/app/components/OverviewV3.tsx"))
+    ? "src/app/components/OverviewV3.tsx"
+    : likelyFile;
+  const pageSource = fs.existsSync(path.join(REPO, pagePath))
+    ? fs.readFileSync(path.join(REPO, pagePath), "utf8")
+    : "";
+  const pageAlreadyUsesDesktopWidth = /\bw-full\b/.test(pageSource) && /\blg:px-(?:0|1|2|3|4)\b/.test(pageSource);
+
+  const findings: UIReviewFinding[] = [];
+
+  if (fs.existsSync(desktopPath)) {
+    if (pageAlreadyUsesDesktopWidth) {
+      findings.push({
+        issue: "The page layout already uses full width with compact desktop gutters, so OverviewV3 needs a specific hero layout pass rather than more width.",
+        likelyFile: overviewFile,
+        recommendedTask: `Review ${overviewFile} and move Financial Health into the KPI row, creating a 5-card KPI grid while reducing hero vertical spacing without expanding the page width.`,
+      });
+    } else {
+      findings.push({
+        issue: "Content is likely not using the full desktop width, leaving excessive whitespace around the main dashboard area.",
+        likelyFile,
+        recommendedTask: `Review ${likelyFile} and widen the main layout container or grid so dashboard content uses available desktop space without oversized side gutters.`,
+      });
+    }
+  }
+
+  if (fs.existsSync(mobilePath)) {
+    findings.push({
+      issue: "Mobile card density may be too high, making dashboard cards feel stacked and hard to scan on narrow screens.",
+      likelyFile,
+      recommendedTask: `Review ${likelyFile} mobile breakpoints and adjust card spacing, stacking, and summary density for a 390px viewport.`,
+    });
+  }
+
+  if (findings.length === 0) {
+    findings.push({
+      issue: pageAlreadyUsesDesktopWidth
+        ? "OverviewV3 may need a specific hero layout pass now that the page layout already uses full width with compact desktop gutters."
+        : "Dashboard cards may be too narrow or constrained by the current layout container.",
+      likelyFile: pageAlreadyUsesDesktopWidth ? overviewFile : likelyFile,
+      recommendedTask: pageAlreadyUsesDesktopWidth
+        ? `Capture desktop and mobile screenshots, then review ${overviewFile} to move Financial Health into the KPI row, create a 5-card KPI grid, and reduce hero vertical spacing.`
+        : `Capture desktop and mobile screenshots, then review ${likelyFile} for container width, grid columns, and card sizing issues.`,
+    });
+  }
+
+  return findings;
+}
+
+function requireString(value: unknown, name: string) {
+  if (typeof value !== "string") throw new Error(`Missing ${name}`);
+  return value;
+}
+
+function summarizeOutput(output: string, maxLength = 12_000) {
+  const trimmed = output.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  return `${trimmed.slice(0, maxLength)}\n... truncated ${trimmed.length - maxLength} characters`;
+}
+
+function trackedModifiedFilesFromStatus(status: string) {
+  return status
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line && !line.startsWith("??"))
+    .map((line) => line.slice(3).replace(/^.* -> /, ""))
+    .filter(Boolean);
+}
+
+function modifiedFilesFromStatus(status: string) {
+  return status
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map((line) => line.slice(3).replace(/^.* -> /, "").replaceAll("\\", "/"))
+    .filter(Boolean);
+}
+
+function targetFilesFromTask(task: string) {
+  const matches = task.matchAll(/(?:^|\s)([A-Za-z0-9_.\-\\/]+\.(?:tsx|ts|js|jsx|json|css|md|txt|mjs|cjs|png|jpg|jpeg|webp))/gi);
+  return Array.from(matches, (match) => match[1].replaceAll("\\", "/"));
+}
+
+function quotePowerShellPath(filePath: string) {
+  return `'${filePath.replaceAll("'", "''")}'`;
+}
+
+function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "", executeFixOutput = "") {
+  if (executeFixOutput.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
+
+  const gitStatusOutput = run("git status --short", 15_000);
+  const diffStat = run("git diff --shortstat", 15_000).trim();
+  const diffNameOutput = run("git diff --name-only", 15_000);
+  if (
+    gitStatusOutput.includes("COMMAND FAILED OR TIMED OUT") ||
+    diffStat.includes("COMMAND FAILED OR TIMED OUT") ||
+    diffNameOutput.includes("COMMAND FAILED OR TIMED OUT")
+  ) {
+    return "FAIL";
+  }
+
+  const diffChangedFiles = diffNameOutput
+    .split(/\r?\n/)
+    .map((file) => file.trim().replaceAll("\\", "/"))
+    .filter(Boolean);
+  const changedFiles = Array.from(
+    new Set([
+      ...diffChangedFiles,
+      ...modifiedFilesFromStatus(gitStatusOutput),
+    ])
+  );
+  const targetFiles = targetFilesFromTask(recommendedTask);
+  const relevantTargetModified =
+    targetFiles.length > 0 && targetFiles.some((targetFile) => diffChangedFiles.includes(targetFile));
+  const typecheck = run("npx tsc --noEmit", 60_000);
+  if (typecheck.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
+  const screenshotsExist =
+    fs.existsSync(path.join(REPO, ".ai-agent-runs", "latest-desktop.png")) &&
+    fs.existsSync(path.join(REPO, ".ai-agent-runs", "latest-mobile.png"));
+
+  if (!screenshotsExist || !relevantTargetModified) return "FAIL";
+
+  const changedOnlyPage =
+    changedFiles.length === 1 &&
+    (changedFiles[0] === "src/app/page.tsx" || changedFiles[0] === "app/page.tsx");
+  const changedOverviewV3 = changedFiles.includes("src/app/components/OverviewV3.tsx");
+  const targetsOverviewV3HeroDensity =
+    recommendedTask.toLowerCase().includes("overviewv3") &&
+    recommendedTask.toLowerCase().includes("hero") &&
+    recommendedTask.toLowerCase().includes("density");
+  if (targetsOverviewV3HeroDensity && (changedOnlyPage || !changedOverviewV3)) return "FAIL";
+  if (diffStat.length > 0) return "PASS";
+  return "FAIL";
+}
+
+function evaluateFixOld(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "") {
+  const diffStat = run("git diff --shortstat", 15_000).trim();
+  const changedFiles = run("git diff --name-only", 15_000)
+    .split(/\r?\n/)
+    .map((file) => file.trim().replaceAll("\\", "/"))
+    .filter(Boolean);
+  const typecheck = run("npx tsc --noEmit", 60_000);
+  const screenshotsExist =
+    fs.existsSync(path.join(REPO, ".ai-agent-runs", "latest-desktop.png")) &&
+    fs.existsSync(path.join(REPO, ".ai-agent-runs", "latest-mobile.png"));
+
+  const typecheckSucceeded = !typecheck.includes("COMMAND FAILED OR TIMED OUT");
+  if (!typecheckSucceeded) return "FAIL";
+  const changedOnlyPage =
+    changedFiles.length === 1 &&
+    (changedFiles[0] === "src/app/page.tsx" || changedFiles[0] === "app/page.tsx");
+  const changedOverviewV3 = changedFiles.includes("src/app/components/OverviewV3.tsx");
+  const targetsOverviewV3HeroDensity =
+    recommendedTask.toLowerCase().includes("overviewv3") &&
+    recommendedTask.toLowerCase().includes("hero") &&
+    recommendedTask.toLowerCase().includes("density");
+  if (targetsOverviewV3HeroDensity) {
+    if (changedOnlyPage) return "FAIL";
+    if (screenshotsExist && diffStat.length > 0 && changedOverviewV3) return "PASS";
+    return "UNKNOWN";
+  }
+  if (screenshotsExist && diffStat.length > 0) return "PASS";
+  return "UNKNOWN";
+}
+
+async function runStructuredAction(request: AgentRequest) {
+  switch (request.action) {
+    case "health":
+      return "OK";
+
+    case "gitStatus":
+      return summarizeOutput(run("git status --short", 15_000)) || "No changes";
+
+    case "gitDiff":
+      return summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
+
+    case "readFile": {
+      const target = requireString(request.path, "path");
+      return summarizeOutput(fs.readFileSync(safePath(target), "utf8"));
+    }
+
+    case "writeFile": {
+      const target = requireString(request.path, "path");
+      const content = requireString(request.content, "content");
+      const fullPath = safePath(target);
+      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+      fs.writeFileSync(fullPath, content, "utf8");
+      return `Wrote file: ${target}`;
+    }
+
+    case "replaceText": {
+      const target = requireString(request.path, "path");
+      const oldText = requireString(request.from, "from");
+      const newText = requireString(request.to, "to");
+      const fullPath = safePath(target);
+      const current = fs.readFileSync(fullPath, "utf8");
+      if (!current.includes(oldText)) return `Text not found in ${target}`;
+      fs.writeFileSync(fullPath, current.replace(oldText, newText), "utf8");
+      return `Replaced text in file: ${target}`;
+    }
+
+    case "typecheck":
+      return summarizeOutput(run("npx tsc --noEmit", 60_000));
+
+    case "screenshot": {
+      const output = takeScreenshots();
+      if (output.includes("COMMAND FAILED OR TIMED OUT")) return summarizeOutput(output, 4_000);
+      return "Screenshots captured: .ai-agent-runs/latest-desktop.png, .ai-agent-runs/latest-mobile.png";
+    }
+
+    case "evaluateFix":
+      return evaluateFix();
+
+    case "autoLoop": {
+      const stages = ["autoImproveUI", "planFix", "executeFix", "evaluateFix"] as const;
+      const report: string[] = [];
+
+      for (const action of stages) {
+        const output = await runStructuredAction({ ...request, action });
+        report.push([`## ${action}`, output].join("\n"));
+      }
+
+      return summarizeOutput(report.join("\n\n"), 30_000);
+    }
+
+    case "reviewUI": {
+      return reviewUI();
+    }
+
+    case "autoImproveUI": {
+      reviewUI();
+      const [topFinding] = generateUIReviewPlaceholder();
+      return [
+        "Auto UI improvement review ready.",
+        "Desktop: .ai-agent-runs/latest-desktop.png",
+        "Mobile: .ai-agent-runs/latest-mobile.png",
+        `Top UI issue: ${topFinding.issue}`,
+        `Likely file: ${topFinding.likelyFile}`,
+        `Recommended Codex task: ${topFinding.recommendedTask}`,
+      ].join("\n");
+    }
+
+    case "planFix": {
+      const [topFinding] = generateUIReviewPlaceholder();
+      return topFinding.recommendedTask;
+    }
+
+    case "executeFix": {
+      const [topFinding] = generateUIReviewPlaceholder();
+      const task = topFinding.recommendedTask;
+      const beforeGitStatus = run("git status --short", 15_000);
+      const { codexOutput, validation } = await runCodex(task, true);
+      const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
+      if (validation.includes("COMMAND FAILED OR TIMED OUT")) {
+        const beforeModified = new Set(trackedModifiedFilesFromStatus(beforeGitStatus));
+        const filesToRestore = trackedModifiedFilesFromStatus(gitStatus).filter((file) => !beforeModified.has(file));
+        const rollbackOutput =
+          filesToRestore.length > 0
+            ? run(`git restore -- ${filesToRestore.map(quotePowerShellPath).join(" ")}`, 20_000)
+            : "No new modified tracked files to restore.";
+        const postRollbackGitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
+        const evaluation = evaluateFix(task);
+
+        return summarizeOutput(
+          [
+            "Executed fix task:",
+            task,
+            "",
+            "Codex output:",
+            codexOutput,
+            "",
+            "Validation:",
+            validation,
+            "",
+            "Evaluation:",
+            evaluation,
+            "",
+            "Rollback occurred: validation command failed or timed out.",
+            "Rollback restored modified tracked files only; untracked files were not deleted.",
+            "",
+            "Initial git status:",
+            summarizeOutput(beforeGitStatus) || "No changes",
+            "",
+            "Restored files:",
+            filesToRestore.length > 0 ? filesToRestore.join("\n") : "None",
+            "",
+            "Rollback output:",
+            rollbackOutput,
+            "",
+            "Git status after rollback:",
+            postRollbackGitStatus,
+          ].join("\n"),
+          20_000
+        );
+      }
+      const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
+      const screenshots = takeScreenshots();
+      const evaluation = evaluateFix(task);
+
+      return summarizeOutput(
+        [
+          "Executed fix task:",
+          task,
+          "",
+          "Codex output:",
+          codexOutput,
+          "",
+          "Validation:",
+          validation,
+          "",
+          "Initial git status:",
+          summarizeOutput(beforeGitStatus) || "No changes",
+          "",
+          "Git status:",
+          gitStatus,
+          "",
+          "Git diff:",
+          gitDiff,
+          "",
+          "Screenshot capture:",
+          screenshots,
+          "",
+          "Evaluation:",
+          evaluation,
+        ].join("\n"),
+        20_000
+      );
+    }
+
+    case "autofix": {
+      const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
+      const typecheck = summarizeOutput(run("npx tsc --noEmit", 60_000));
+      const screenshots = takeScreenshots();
+      const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
+
+      return summarizeOutput(
+        [
+          "Git status:",
+          gitStatus,
+          "",
+          "Typecheck:",
+          typecheck,
+          "",
+          "Screenshot capture:",
+          screenshots,
+          "",
+          "Git diff:",
+          gitDiff,
+        ].join("\n"),
+        20_000
+      );
+    }
+
+    default:
+      throw new Error(`Unsupported action: ${request.action}`);
+  }
+}
+
+function directInspect(goal: string) {
+  const lower = goal.toLowerCase();
+
+  if (lower.startsWith("create file")) return createFile(goal);
+  if (lower.startsWith("replace file")) return replaceFile(goal);
+  if (lower.startsWith("replace text in file")) return replaceText(goal);
+  if (lower.includes("screenshot") || lower.includes("capture")) return takeScreenshots();
+  if (lower.includes("git status")) return run("git status --short");
+  if (lower.includes("git diff")) return run("git diff --stat; git diff");
+  if (lower.includes("git log")) return run("git log --oneline -10");
+  if (lower.includes("typescript") || lower.includes("tsc") || lower.includes("typecheck") || lower.includes("type check")) return run("npx tsc --noEmit");
+
+  if (lower.startsWith("dir") || lower.includes("list files") || lower.includes("show files") || lower.includes("list directory") || lower.includes("show directory")) {
+    const possiblePath = extractQuotedPath(goal);
+    if (possiblePath) return run(`Get-ChildItem -Force "${safePath(possiblePath)}"`);
+    return run("Get-ChildItem -Force");
+  }
+
+  if (lower.includes("read file") || lower.includes("show file") || lower.includes("type file") || lower.includes("output file") || lower.includes("contents of")) {
+    const filePath = extractLikelyPath(goal);
+    if (!filePath) return `No file path found. Use: Read file "src/app/page.tsx"`;
+    return run(`Get-Content -Raw "${safePath(filePath)}"`);
+  }
+
+  if (lower.includes("find ") || lower.includes("search ")) {
+    const quoted = [...goal.matchAll(/["'`](.+?)["'`]/g)].map((m) => m[1]);
+    const needle = quoted[0];
+    if (!needle) return `No search text found. Use: Search "AppleHome"`;
+
+    return run(
+      `Get-ChildItem -Path "${REPO}" -Recurse -File -Include *.ts,*.tsx,*.js,*.jsx,*.json,*.css,*.md | ` +
+        `Where-Object { $_.FullName -notlike "*\\.next\\*" -and $_.FullName -notlike "*\\node_modules\\*" } | ` +
+        `Select-String "${needle.replaceAll('"', '\\"')}"`
+    );
+  }
+
+  return "";
+}
+
+function shouldInspectDirectly(goal: string, mode: AgentMode) {
+  if (mode === "inspect") return true;
+  if (mode === "codex") return false;
+
+  const lower = goal.toLowerCase();
+
+  return (
+    lower.startsWith("create file") ||
+    lower.startsWith("replace file") ||
+    lower.startsWith("replace text in file") ||
+    lower.includes("screenshot") ||
+    lower.includes("capture") ||
+    lower.includes("git status") ||
+    lower.includes("git diff") ||
+    lower.includes("git log") ||
+    lower.includes("typescript") ||
+    lower.includes("tsc") ||
+    lower.includes("typecheck") ||
+    lower.includes("type check") ||
+    lower.startsWith("dir") ||
+    lower.includes("list files") ||
+    lower.includes("show files") ||
+    lower.includes("list directory") ||
+    lower.includes("show directory") ||
+    lower.includes("read file") ||
+    lower.includes("show file") ||
+    lower.includes("type file") ||
+    lower.includes("output file") ||
+    lower.includes("contents of") ||
+    lower.includes("find ") ||
+    lower.includes("search ")
+  );
+}
+
+async function runCodex(goal: string, runValidation: boolean) {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const promptPath = path.join(LOG_DIR, `${timestamp}-codex-prompt.txt`);
+
+  const codexPrompt = `
+You are working in the Neven repo at C:\\Users\\summe\\liberva.
+
+Goal:
+${goal}
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.
+`;
+
+  fs.writeFileSync(promptPath, codexPrompt, "utf8");
+
+  const codexOutput = run(`Get-Content -Raw "${promptPath}" | codex exec -s workspace-write -`, 90_000);
+
+  let validation = "";
+  if (runValidation) {
+    validation = run("npx tsc --noEmit", 60_000);
+  }
+
+  return { codexOutput, validation };
+}
+
+async function runAgent(request: AgentRequest) {
+  const goal = String(request.goal || "").trim();
+  const mode = request.mode ?? "auto";
+  const runValidation = Boolean(request.runValidation);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+  if (request.action) {
+    const summary = await runStructuredAction(request);
+    save(`${timestamp}-${request.action}-summary.txt`, summary);
+    return { ok: true, summary };
+  }
+
+  if (!goal) throw new Error("Missing goal");
+
+  save(`${timestamp}-goal.txt`, goal);
+
+  if (shouldInspectDirectly(goal, mode)) {
+    const output = directInspect(goal);
+    save(`${timestamp}-direct-output.txt`, output);
+
+    return {
+      ok: true,
+      summary: summarizeOutput(output),
+    };
+  }
+
+  const { codexOutput, validation } = await runCodex(goal, runValidation);
+  save(`${timestamp}-codex-output.txt`, codexOutput);
+
+  const gitStatus = run("git status --short", 15_000);
+  const gitDiff = run("git diff --stat; git diff", 20_000);
+
+  save(`${timestamp}-git-status.txt`, gitStatus);
+  save(`${timestamp}-git-diff.patch`, gitDiff);
+  if (validation) save(`${timestamp}-validation.txt`, validation);
+
+  return {
+    ok: true,
+    summary: summarizeOutput([codexOutput, validation, gitStatus, gitDiff].filter(Boolean).join("\n\n")),
+  };
+}
+
+const server = http.createServer(async (req, res) => {
+  req.setTimeout(125_000, () => {
+    json(res, 408, { ok: false, summary: "Request timed out" });
+    req.destroy();
+  });
+
+  if (req.method === "GET" && req.url === "/health") {
+    json(res, 200, { ok: true, summary: "OK" });
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/run-agent") {
+    let body = "";
+    let responded = false;
+
+    req.on("data", (chunk) => {
+      if (responded) return;
+      body += chunk.toString();
+      if (body.length > 1024 * 1024 * 5) {
+        responded = true;
+        json(res, 413, { ok: false, summary: "Request body too large" });
+        req.destroy();
+      }
+    });
+
+    req.on("end", async () => {
+      if (responded) return;
+      try {
+        const parsed = JSON.parse(body || "{}") as AgentRequest;
+        const result = await runAgent(parsed);
+        responded = true;
+        json(res, 200, result);
+      } catch (err: any) {
+        responded = true;
+        json(res, 500, { ok: false, summary: err.message });
+      }
+    });
+
+    return;
+  }
+
+  json(res, 404, { ok: false, summary: "Not found" });
+});
+
+server.headersTimeout = 130_000;
+server.requestTimeout = 130_000;
+
+server.listen(PORT, () => {
+  console.log(`Neven agent server running on http://localhost:${PORT}`);
+  console.log(`POST tasks to http://localhost:${PORT}/run-agent`);
+});
+
+ exited 1 in 368ms:
+rg : The term 'rg' is not recognized as the name of a cmdlet, function, script file, or operable 
+program. Check the spelling of the name, or if a path was included, verify that the path is correct 
+and try again.
+At line:2 char:1
++ rg -n "evaluateFix|OverviewV3|Financial Health|secondaryMetrics|accen ...
++ ~~
+    + CategoryInfo          : ObjectNotFound: (rg:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+
+2026-06-11T21:37:48.108558Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.4 seconds
+Output:
+rg : The term 'rg' is not recognized as the name of a cmdlet, function, script file, or operable 
+program. Check the spelling of the name, or if a path was included, verify that the path is correct 
+and try again.
+At line:2 char:1
++ rg -n "evaluateFix|OverviewV3|Financial Health|secondaryMetrics|accen ...
++ ~~
+    + CategoryInfo          : ObjectNotFound: (rg:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+
+codex
+The current `evaluateFix` already has a special OverviewV3 hero-density guard, but it only checks that the file changed. I’m tightening that branch to inspect the actual `git diff` for the allowed structural signals.
+exec
+"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Select-String -Path tools/neven-agent/agent-server.ts -Pattern "function evaluateFix|targetsOverviewV3HeroDensity|diffStat|git diff" -Context 0,8' in C:\Users\summe\liberva
+exec
+"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git status --short' in C:\Users\summe\liberva
+ succeeded in 284ms:
+?? .ai-agent-runs/
+
+ succeeded in 350ms:
+
+> tools\neven-agent\agent-server.ts:274:function evaluateFix(recommendedTask = 
+generateUIReviewPlaceholder()[0]?.recommendedTask ?? "", executeFixOutput = "") {
+  tools\neven-agent\agent-server.ts:275:  if (executeFixOutput.includes("COMMAND FAILED OR TIMED 
+OUT")) return "FAIL";
+  tools\neven-agent\agent-server.ts:276:
+  tools\neven-agent\agent-server.ts:277:  const gitStatusOutput = run("git status --short", 15_000);
+> tools\neven-agent\agent-server.ts:278:  const diffStat = run("git diff --shortstat", 
+15_000).trim();
+> tools\neven-agent\agent-server.ts:279:  const diffNameOutput = run("git diff --name-only", 15_000);
+  tools\neven-agent\agent-server.ts:280:  if (
+  tools\neven-agent\agent-server.ts:281:    gitStatusOutput.includes("COMMAND FAILED OR TIMED OUT") 
+||
+> tools\neven-agent\agent-server.ts:282:    diffStat.includes("COMMAND FAILED OR TIMED OUT") ||
+  tools\neven-agent\agent-server.ts:283:    diffNameOutput.includes("COMMAND FAILED OR TIMED OUT")
+  tools\neven-agent\agent-server.ts:284:  ) {
+  tools\neven-agent\agent-server.ts:285:    return "FAIL";
+  tools\neven-agent\agent-server.ts:286:  }
+  tools\neven-agent\agent-server.ts:287:
+  tools\neven-agent\agent-server.ts:288:  const diffChangedFiles = diffNameOutput
+  tools\neven-agent\agent-server.ts:289:    .split(/\r?\n/)
+  tools\neven-agent\agent-server.ts:290:    .map((file) => file.trim().replaceAll("\\", "/"))
+> tools\neven-agent\agent-server.ts:313:  const targetsOverviewV3HeroDensity =
+  tools\neven-agent\agent-server.ts:314:    recommendedTask.toLowerCase().includes("overviewv3") &&
+  tools\neven-agent\agent-server.ts:315:    recommendedTask.toLowerCase().includes("hero") &&
+  tools\neven-agent\agent-server.ts:316:    recommendedTask.toLowerCase().includes("density");
+> tools\neven-agent\agent-server.ts:317:  if (targetsOverviewV3HeroDensity && (changedOnlyPage || 
+!changedOverviewV3)) return "FAIL";
+> tools\neven-agent\agent-server.ts:318:  if (diffStat.length > 0) return "PASS";
+  tools\neven-agent\agent-server.ts:319:  return "FAIL";
+  tools\neven-agent\agent-server.ts:320:}
+  tools\neven-agent\agent-server.ts:321:
+> tools\neven-agent\agent-server.ts:322:function evaluateFixOld(recommendedTask = 
+generateUIReviewPlaceholder()[0]?.recommendedTask ?? "") {
+> tools\neven-agent\agent-server.ts:323:  const diffStat = run("git diff --shortstat", 
+15_000).trim();
+> tools\neven-agent\agent-server.ts:324:  const changedFiles = run("git diff --name-only", 15_000)
+  tools\neven-agent\agent-server.ts:325:    .split(/\r?\n/)
+  tools\neven-agent\agent-server.ts:326:    .map((file) => file.trim().replaceAll("\\", "/"))
+  tools\neven-agent\agent-server.ts:327:    .filter(Boolean);
+  tools\neven-agent\agent-server.ts:328:  const typecheck = run("npx tsc --noEmit", 60_000);
+  tools\neven-agent\agent-server.ts:329:  const screenshotsExist =
+  tools\neven-agent\agent-server.ts:330:    fs.existsSync(path.join(REPO, ".ai-agent-runs", 
+"latest-desktop.png")) &&
+  tools\neven-agent\agent-server.ts:331:    fs.existsSync(path.join(REPO, ".ai-agent-runs", 
+"latest-mobile.png"));
+  tools\neven-agent\agent-server.ts:332:
+> tools\neven-agent\agent-server.ts:339:  const targetsOverviewV3HeroDensity =
+  tools\neven-agent\agent-server.ts:340:    recommendedTask.toLowerCase().includes("overviewv3") &&
+  tools\neven-agent\agent-server.ts:341:    recommendedTask.toLowerCase().includes("hero") &&
+  tools\neven-agent\agent-server.ts:342:    recommendedTask.toLowerCase().includes("density");
+> tools\neven-agent\agent-server.ts:343:  if (targetsOverviewV3HeroDensity) {
+  tools\neven-agent\agent-server.ts:344:    if (changedOnlyPage) return "FAIL";
+> tools\neven-agent\agent-server.ts:345:    if (screenshotsExist && diffStat.length > 0 && 
+changedOverviewV3) return "PASS";
+  tools\neven-agent\agent-server.ts:346:    return "UNKNOWN";
+  tools\neven-agent\agent-server.ts:347:  }
+> tools\neven-agent\agent-server.ts:348:  if (screenshotsExist && diffStat.length > 0) return "PASS";
+  tools\neven-agent\agent-server.ts:349:  return "UNKNOWN";
+  tools\neven-agent\agent-server.ts:350:}
+  tools\neven-agent\agent-server.ts:351:
+  tools\neven-agent\agent-server.ts:352:async function runStructuredAction(request: AgentRequest) {
+  tools\neven-agent\agent-server.ts:353:  switch (request.action) {
+  tools\neven-agent\agent-server.ts:354:    case "health":
+  tools\neven-agent\agent-server.ts:355:      return "OK";
+  tools\neven-agent\agent-server.ts:356:
+> tools\neven-agent\agent-server.ts:361:      return summarizeOutput(run("git diff --stat; git 
+diff", 20_000)) || "No diff";
+  tools\neven-agent\agent-server.ts:362:
+  tools\neven-agent\agent-server.ts:363:    case "readFile": {
+  tools\neven-agent\agent-server.ts:364:      const target = requireString(request.path, "path");
+  tools\neven-agent\agent-server.ts:365:      return 
+summarizeOutput(fs.readFileSync(safePath(target), "utf8"));
+  tools\neven-agent\agent-server.ts:366:    }
+  tools\neven-agent\agent-server.ts:367:
+  tools\neven-agent\agent-server.ts:368:    case "writeFile": {
+  tools\neven-agent\agent-server.ts:369:      const target = requireString(request.path, "path");
+> tools\neven-agent\agent-server.ts:482:      const gitDiff = summarizeOutput(run("git diff --stat; 
+git diff", 20_000)) || "No diff";
+  tools\neven-agent\agent-server.ts:483:      const screenshots = takeScreenshots();
+  tools\neven-agent\agent-server.ts:484:      const evaluation = evaluateFix(task);
+  tools\neven-agent\agent-server.ts:485:
+  tools\neven-agent\agent-server.ts:486:      return summarizeOutput(
+  tools\neven-agent\agent-server.ts:487:        [
+  tools\neven-agent\agent-server.ts:488:          "Executed fix task:",
+  tools\neven-agent\agent-server.ts:489:          task,
+  tools\neven-agent\agent-server.ts:490:          "",
+> tools\neven-agent\agent-server.ts:503:          "Git diff:",
+  tools\neven-agent\agent-server.ts:504:          gitDiff,
+  tools\neven-agent\agent-server.ts:505:          "",
+  tools\neven-agent\agent-server.ts:506:          "Screenshot capture:",
+  tools\neven-agent\agent-server.ts:507:          screenshots,
+  tools\neven-agent\agent-server.ts:508:          "",
+  tools\neven-agent\agent-server.ts:509:          "Evaluation:",
+  tools\neven-agent\agent-server.ts:510:          evaluation,
+  tools\neven-agent\agent-server.ts:511:        ].join("\n"),
+> tools\neven-agent\agent-server.ts:520:      const gitDiff = summarizeOutput(run("git diff --stat; 
+git diff", 20_000)) || "No diff";
+  tools\neven-agent\agent-server.ts:521:
+  tools\neven-agent\agent-server.ts:522:      return summarizeOutput(
+  tools\neven-agent\agent-server.ts:523:        [
+  tools\neven-agent\agent-server.ts:524:          "Git status:",
+  tools\neven-agent\agent-server.ts:525:          gitStatus,
+  tools\neven-agent\agent-server.ts:526:          "",
+  tools\neven-agent\agent-server.ts:527:          "Typecheck:",
+  tools\neven-agent\agent-server.ts:528:          typecheck,
+> tools\neven-agent\agent-server.ts:533:          "Git diff:",
+  tools\neven-agent\agent-server.ts:534:          gitDiff,
+  tools\neven-agent\agent-server.ts:535:        ].join("\n"),
+  tools\neven-agent\agent-server.ts:536:        20_000
+  tools\neven-agent\agent-server.ts:537:      );
+  tools\neven-agent\agent-server.ts:538:    }
+  tools\neven-agent\agent-server.ts:539:
+  tools\neven-agent\agent-server.ts:540:    default:
+  tools\neven-agent\agent-server.ts:541:      throw new Error(`Unsupported action: 
+${request.action}`);
+> tools\neven-agent\agent-server.ts:553:  if (lower.includes("git diff")) return run("git diff 
+--stat; git diff");
+  tools\neven-agent\agent-server.ts:554:  if (lower.includes("git log")) return run("git log 
+--oneline -10");
+  tools\neven-agent\agent-server.ts:555:  if (lower.includes("typescript") || lower.includes("tsc") 
+|| lower.includes("typecheck") || lower.includes("type check")) return run("npx tsc --noEmit");
+  tools\neven-agent\agent-server.ts:556:
+  tools\neven-agent\agent-server.ts:557:  if (lower.startsWith("dir") || lower.includes("list 
+files") || lower.includes("show files") || lower.includes("list directory") || lower.includes("show 
+directory")) {
+  tools\neven-agent\agent-server.ts:558:    const possiblePath = extractQuotedPath(goal);
+  tools\neven-agent\agent-server.ts:559:    if (possiblePath) return run(`Get-ChildItem -Force 
+"${safePath(possiblePath)}"`);
+  tools\neven-agent\agent-server.ts:560:    return run("Get-ChildItem -Force");
+  tools\neven-agent\agent-server.ts:561:  }
+> tools\neven-agent\agent-server.ts:597:    lower.includes("git diff") ||
+  tools\neven-agent\agent-server.ts:598:    lower.includes("git log") ||
+  tools\neven-agent\agent-server.ts:599:    lower.includes("typescript") ||
+  tools\neven-agent\agent-server.ts:600:    lower.includes("tsc") ||
+  tools\neven-agent\agent-server.ts:601:    lower.includes("typecheck") ||
+  tools\neven-agent\agent-server.ts:602:    lower.includes("type check") ||
+  tools\neven-agent\agent-server.ts:603:    lower.startsWith("dir") ||
+  tools\neven-agent\agent-server.ts:604:    lower.includes("list files") ||
+  tools\neven-agent\agent-server.ts:605:    lower.includes("show files") ||
+> tools\neven-agent\agent-server.ts:681:  const gitDiff = run("git diff --stat; git diff", 20_000);
+  tools\neven-agent\agent-server.ts:682:
+  tools\neven-agent\agent-server.ts:683:  save(`${timestamp}-git-status.txt`, gitStatus);
+  tools\neven-agent\agent-server.ts:684:  save(`${timestamp}-git-diff.patch`, gitDiff);
+  tools\neven-agent\agent-server.ts:685:  if (validation) save(`${timestamp}-validation.txt`, 
+validation);
+  tools\neven-agent\agent-server.ts:686:
+  tools\neven-agent\agent-server.ts:687:  return {
+  tools\neven-agent\agent-server.ts:688:    ok: true,
+  tools\neven-agent\agent-server.ts:689:    summary: summarizeOutput([codexOutput, validation, 
+gitStatus, gitDiff].filter(Boolean).join("\n\n")),
+
+
+
+codex
+I’m going to read `OverviewV3.tsx` briefly to align the diff heuristics with the component’s actual structure. That keeps the evaluator from passing on data-only edits that happen to mention “Financial Health.”
+exec
+"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Select-String -Path src/app/components/OverviewV3.tsx -Pattern "secondaryMetrics|accentClass|Financial Health|grid|return" -Context 3,5' in C:\Users\summe\liberva
+exec
+"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content -Path src/app/components/OverviewV3.tsx | Select-Object -First 260' in C:\Users\summe\liberva
+ succeeded in 366ms:
+
+  src\app\components\OverviewV3.tsx:58:      ? "text-amber-400"
+  src\app\components\OverviewV3.tsx:59:      : "text-red-400";
+  src\app\components\OverviewV3.tsx:60:
+> src\app\components\OverviewV3.tsx:61:  const secondaryMetrics = [
+  src\app\components\OverviewV3.tsx:62:    { label: "Cash Flow", value: cashFlow, accent: "emerald" 
+},
+  src\app\components\OverviewV3.tsx:63:    { label: "Savings Rate", value: savingsRate, accent: 
+"sky" },
+  src\app\components\OverviewV3.tsx:64:    { label: "Runway", value: runway, accent: "white" },
+  src\app\components\OverviewV3.tsx:65:    { label: "AI Score", value: aiConfidence, accent: 
+"violet" },
+  src\app\components\OverviewV3.tsx:66:  ];
+  src\app\components\OverviewV3.tsx:67:
+> src\app\components\OverviewV3.tsx:68:  const accentClass: Record<string, string> = {
+  src\app\components\OverviewV3.tsx:69:    emerald: "text-emerald-400",
+  src\app\components\OverviewV3.tsx:70:    sky: "text-sky-400",
+  src\app\components\OverviewV3.tsx:71:    white: "text-white/70",
+  src\app\components\OverviewV3.tsx:72:    violet: "text-violet-400",
+  src\app\components\OverviewV3.tsx:73:  };
+  src\app\components\OverviewV3.tsx:102:    { label: "Cash flow Aug", value: "+$6,800", trend: "up" 
+as const },
+  src\app\components\OverviewV3.tsx:103:  ];
+  src\app\components\OverviewV3.tsx:104:
+> src\app\components\OverviewV3.tsx:105:  return (
+  src\app\components\OverviewV3.tsx:106:    <div id="overview" className="space-y-12 sm:space-y-14">
+  src\app\components\OverviewV3.tsx:107:
+  src\app\components\OverviewV3.tsx:108:      {/* 
+══════════════════════════════════════════════════════════════
+  src\app\components\OverviewV3.tsx:109:          LAYER 1 — Financial Identity
+  src\app\components\OverviewV3.tsx:110:      
+══════════════════════════════════════════════════════════════ */}
+  src\app\components\OverviewV3.tsx:157:            <div className="mt-8 h-px bg-gradient-to-r 
+from-transparent via-white/[0.08] to-transparent" />
+  src\app\components\OverviewV3.tsx:158:
+  src\app\components\OverviewV3.tsx:159:            {/* Secondary metrics: Runway / Savings / 
+Portfolio / AI Score + Health */}
+> src\app\components\OverviewV3.tsx:160:            <div className="mt-7 grid gap-7 xl:grid-cols-3 
+xl:items-end">
+> src\app\components\OverviewV3.tsx:161:              <div className="grid grid-cols-2 gap-3 
+sm:grid-cols-4 xl:grid-cols-2">
+> src\app\components\OverviewV3.tsx:162:                {secondaryMetrics.map((m) => (
+  src\app\components\OverviewV3.tsx:163:                  <div key={m.label} className="rounded-2xl 
+border border-white/[0.08] bg-white/[0.035] p-4">
+  src\app\components\OverviewV3.tsx:164:                    <div className="mb-2 text-xs font-medium 
+text-white/55">
+  src\app\components\OverviewV3.tsx:165:                      {m.label}
+  src\app\components\OverviewV3.tsx:166:                    </div>
+  src\app\components\OverviewV3.tsx:167:                    <div
+> src\app\components\OverviewV3.tsx:168:                      className={`font-bold tabular-nums 
+leading-none ${accentClass[m.accent]}`}
+  src\app\components\OverviewV3.tsx:169:                      style={{ fontSize: "clamp(1.65rem, 
+3.5vw, 2.35rem)" }}
+  src\app\components\OverviewV3.tsx:170:                    >
+  src\app\components\OverviewV3.tsx:171:                      {m.value}
+  src\app\components\OverviewV3.tsx:172:                    </div>
+  src\app\components\OverviewV3.tsx:173:                  </div>
+  src\app\components\OverviewV3.tsx:174:                ))}
+  src\app\components\OverviewV3.tsx:175:              </div>
+  src\app\components\OverviewV3.tsx:176:
+> src\app\components\OverviewV3.tsx:177:              {/* Financial Health — right anchor */}
+  src\app\components\OverviewV3.tsx:178:              <div className="rounded-2xl border 
+border-white/[0.08] bg-white/[0.035] p-4 xl:col-start-3 xl:justify-self-end xl:text-right 
+xl:shrink-0">
+  src\app\components\OverviewV3.tsx:179:                <div className="mb-1 text-xs font-medium 
+text-white/55">
+> src\app\components\OverviewV3.tsx:180:                  Financial Health
+  src\app\components\OverviewV3.tsx:181:                </div>
+  src\app\components\OverviewV3.tsx:182:                <div className={`text-7xl font-bold 
+tabular-nums leading-none ${healthColor}`}>
+  src\app\components\OverviewV3.tsx:183:                  {healthScore}
+  src\app\components\OverviewV3.tsx:184:                </div>
+  src\app\components\OverviewV3.tsx:185:                <div className={`text-xs font-semibold 
+mt-1.5 ${healthColor} opacity-60`}>
+  src\app\components\OverviewV3.tsx:197:        </section>
+  src\app\components\OverviewV3.tsx:198:
+  src\app\components\OverviewV3.tsx:199:        {/* Portfolio + Health sub-scores below hero */}
+> src\app\components\OverviewV3.tsx:200:        <div className="mt-7 grid gap-6 xl:grid-cols-3">
+  src\app\components\OverviewV3.tsx:201:          <div className="rounded-2xl border 
+border-white/[0.08] bg-white/[0.025] p-5 xl:col-span-2">
+  src\app\components\OverviewV3.tsx:202:            <h2 className="pb-4 text-sm font-semibold 
+text-white border-b border-white/[0.08]">
+  src\app\components\OverviewV3.tsx:203:              Portfolio Allocation
+  src\app\components\OverviewV3.tsx:204:            </h2>
+  src\app\components\OverviewV3.tsx:205:            <div className="mt-5 space-y-5">
+  src\app\components\OverviewV3.tsx:227:            <h2 className="pb-4 text-sm font-semibold 
+text-white border-b border-white/[0.08]">
+  src\app\components\OverviewV3.tsx:228:              Health Indicators
+  src\app\components\OverviewV3.tsx:229:            </h2>
+> src\app\components\OverviewV3.tsx:230:            <div className="mt-5 grid grid-cols-2 gap-3">
+  src\app\components\OverviewV3.tsx:231:              {healthScores.map((item) => {
+  src\app\components\OverviewV3.tsx:232:                const borderCol =
+  src\app\components\OverviewV3.tsx:233:                  item.score >= 90 ? "border-emerald-400/35" 
+:
+  src\app\components\OverviewV3.tsx:234:                  item.score >= 75 ? "border-sky-400/35" :
+  src\app\components\OverviewV3.tsx:235:                  item.score >= 60 ? "border-amber-400/35" : 
+"border-red-400/35";
+  src\app\components\OverviewV3.tsx:237:                  item.score >= 90 ? "text-emerald-400" :
+  src\app\components\OverviewV3.tsx:238:                  item.score >= 75 ? "text-sky-400" :
+  src\app\components\OverviewV3.tsx:239:                  item.score >= 60 ? "text-amber-400" : 
+"text-red-400";
+> src\app\components\OverviewV3.tsx:240:                return (
+  src\app\components\OverviewV3.tsx:241:                  <div key={item.label} 
+className={`rounded-xl border-l-2 bg-white/[0.025] p-3 ${borderCol}`}>
+  src\app\components\OverviewV3.tsx:242:                    <div className="text-xs font-medium 
+text-white/55">
+  src\app\components\OverviewV3.tsx:243:                      {item.label}
+  src\app\components\OverviewV3.tsx:244:                    </div>
+  src\app\components\OverviewV3.tsx:245:                    <div className={`mt-2 text-3xl font-bold 
+tabular-nums leading-none ${numCol}`}>
+  src\app\components\OverviewV3.tsx:265:        <div className="space-y-12">
+  src\app\components\OverviewV3.tsx:266:
+  src\app\components\OverviewV3.tsx:267:          {/* Signals + Recommendations row */}
+> src\app\components\OverviewV3.tsx:268:          <div className="grid gap-12 
+xl:grid-cols-[1.4fr_1fr]">
+  src\app\components\OverviewV3.tsx:269:
+  src\app\components\OverviewV3.tsx:270:            {/* Intelligence Signals */}
+  src\app\components\OverviewV3.tsx:271:            <div>
+  src\app\components\OverviewV3.tsx:272:              <div className="flex items-baseline gap-3 pb-5 
+border-b border-white/[0.06]">
+  src\app\components\OverviewV3.tsx:273:                <h2 className="text-sm font-semibold 
+text-white">
+  src\app\components\OverviewV3.tsx:315:          </div>
+  src\app\components\OverviewV3.tsx:316:
+  src\app\components\OverviewV3.tsx:317:          {/* Opportunities + Predictions row */}
+> src\app\components\OverviewV3.tsx:318:          <div className="grid gap-12 xl:grid-cols-2">
+  src\app\components\OverviewV3.tsx:319:
+  src\app\components\OverviewV3.tsx:320:            {/* Opportunities */}
+  src\app\components\OverviewV3.tsx:321:            <div>
+  src\app\components\OverviewV3.tsx:322:              <h2 className="pb-5 text-sm font-semibold 
+text-white border-b border-white/[0.08]">
+  src\app\components\OverviewV3.tsx:323:                Opportunities
+  src\app\components\OverviewV3.tsx:420:              <div className="text-[8px] uppercase 
+tracking-[0.2em] text-white/20 font-semibold pb-3 border-b border-white/[0.05] mb-4">
+  src\app\components\OverviewV3.tsx:421:                Autonomous Build Status &mdash; {totalRuns} 
+total runs
+  src\app\components\OverviewV3.tsx:422:              </div>
+> src\app\components\OverviewV3.tsx:423:              <div className="grid gap-4 xl:grid-cols-3">
+  src\app\components\OverviewV3.tsx:424:                {/* Current Task */}
+  src\app\components\OverviewV3.tsx:425:                <div className="rounded-xl border 
+border-sky-400/20 bg-sky-400/5 p-4">
+  src\app\components\OverviewV3.tsx:426:                  <div className="flex items-center gap-2 
+mb-2">
+  src\app\components\OverviewV3.tsx:427:                    {currentTask ? (
+  src\app\components\OverviewV3.tsx:428:                      <span className="h-1.5 w-1.5 
+rounded-full bg-sky-400 animate-pulse shrink-0" />
+  src\app\components\OverviewV3.tsx:440:                      </div>
+  src\app\components\OverviewV3.tsx:441:                      <div className="mt-2 font-mono 
+text-[9px] text-white/25 truncate">{currentTask.runId}</div>
+  src\app\components\OverviewV3.tsx:442:                      <div className="mt-1 text-[9px] 
+text-white/20" suppressHydrationWarning>
+> src\app\components\OverviewV3.tsx:443:                        {(() => { const d = new 
+Date(currentTask.startedAt); return `Started ${String(d.getHours()).padStart(2,"0")}:${String(d.getMi
+nutes()).padStart(2,"0")}:${String(d.getSeconds()).padStart(2,"0")}`; })()}
+  src\app\components\OverviewV3.tsx:444:                      </div>
+  src\app\components\OverviewV3.tsx:445:                    </>
+  src\app\components\OverviewV3.tsx:446:                  ) : (
+  src\app\components\OverviewV3.tsx:447:                    <div className="text-xs text-white/30 
+italic">No active run</div>
+  src\app\components\OverviewV3.tsx:448:                  )}
+  src\app\components\OverviewV3.tsx:495:              </div>
+  src\app\components\OverviewV3.tsx:496:            </div>
+  src\app\components\OverviewV3.tsx:497:
+> src\app\components\OverviewV3.tsx:498:            <div className="grid gap-8 
+xl:grid-cols-[1fr_1fr_1fr] opacity-70">
+  src\app\components\OverviewV3.tsx:499:
+  src\app\components\OverviewV3.tsx:500:              {/* Agent Runtime */}
+  src\app\components\OverviewV3.tsx:501:              {agents.length > 0 && (
+  src\app\components\OverviewV3.tsx:502:                <div>
+  src\app\components\OverviewV3.tsx:503:                  <div className="text-[8px] uppercase 
+tracking-[0.2em] text-white/15 font-semibold pb-3 border-b border-white/[0.04] mb-4">
+
+
+
+ succeeded in 340ms:
+"use client";
+import { useState } from "react";
+
+interface OverviewV3Props {
+  netWorth: string;
+  netWorthTrend: string;
+  cashFlow: string;
+  savingsRate: string;
+  runway: string;
+  aiConfidence: string;
+  healthScore: number;
+  healthLabel: string;
+  insights: string[];
+  portfolioAllocation: { label: string; pct: number; color: string }[];
+  healthScores: { label: string; score: number; note: string }[];
+  dateStr: string;
+  agents?: { label: string; value: string; role: string }[];
+  telemetryEvents?: { event: string; level: "info" | "warn" | "error"; agent: string; detail: string }[];
+  dbConfigured?: boolean;
+  currentTask?: { runId: string; goal: string; startedAt: string } | null;
+  lastTask?: { runId: string; goalPreview: string; status: string } | null;
+  nextTask?: { id: string; title: string } | null;
+  totalRuns?: number;
+}
+
+const LAYER_LABEL =
+  "text-xs font-semibold uppercase tracking-[0.18em] text-white/45";
+
+export default function OverviewV3({
+  netWorth,
+  netWorthTrend,
+  cashFlow,
+  savingsRate,
+  runway,
+  aiConfidence,
+  healthScore,
+  healthLabel,
+  insights,
+  portfolioAllocation,
+  healthScores,
+  dateStr,
+  agents = [],
+  telemetryEvents = [],
+  dbConfigured = false,
+  currentTask = null,
+  lastTask = null,
+  nextTask = null,
+  totalRuns = 0,
+}: OverviewV3Props) {
+  const [runtimeOpen, setRuntimeOpen] = useState(false);
+
+  const healthColor =
+    healthScore >= 90
+      ? "text-emerald-400"
+      : healthScore >= 75
+      ? "text-sky-400"
+      : healthScore >= 60
+      ? "text-amber-400"
+      : "text-red-400";
+
+  const secondaryMetrics = [
+    { label: "Cash Flow", value: cashFlow, accent: "emerald" },
+    { label: "Savings Rate", value: savingsRate, accent: "sky" },
+    { label: "Runway", value: runway, accent: "white" },
+    { label: "AI Score", value: aiConfidence, accent: "violet" },
+  ];
+
+  const accentClass: Record<string, string> = {
+    emerald: "text-emerald-400",
+    sky: "text-sky-400",
+    white: "text-white/70",
+    violet: "text-violet-400",
+  };
+
+  const levelColor: Record<string, string> = {
+    info: "text-sky-400",
+    warn: "text-amber-400",
+    error: "text-red-400",
+  };
+
+  const levelBg: Record<string, string> = {
+    info: "bg-sky-400/10",
+    warn: "bg-amber-400/10",
+    error: "bg-red-400/10",
+  };
+
+  const recommendations = [
+    { title: "Offset mortgage", impact: "Save $2,400/yr", confidence: 94 },
+    { title: "Review streaming bundle", impact: "Save $138/mo", confidence: 89 },
+    { title: "Switch to annual plans", impact: "Save $340/yr", confidence: 82 },
+  ];
+
+  const opportunities = [
+    { label: "Annual plan upgrade", saving: "$340/yr" },
+    { label: "Cancel unused trial", saving: "$96/yr" },
+    { label: "High-yield savings", saving: "+1.4% APY" },
+  ];
+
+  const predictions = [
+    { label: "Q3 savings projection", value: "+$4,200", trend: "up" as const },
+    { label: "Subscription renewal", value: "3 in 14 days", trend: "neutral" as const },
+    { label: "Cash flow Aug", value: "+$6,800", trend: "up" as const },
+  ];
+
+  return (
+    <div id="overview" className="space-y-12 sm:space-y-14">
+
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          LAYER 1 â€” Financial Identity
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <div>
+        <div className={`${LAYER_LABEL} mb-4`}>
+          Dashboard Snapshot
+        </div>
+
+        <section className="relative backdrop-blur-xl">
+          {/* Background atmosphere */}
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-[#040f1e] via-[#060d18] to-[#030a12]" />
+          <div className="absolute -top-24 -right-24 hidden h-[600px] w-[600px] rounded-full bg-emerald-500/[0.08] blur-[140px] pointer-events-none" />
+          <div className="absolute bottom-0 left-1/4 hidden h-[400px] w-[400px] rounded-full bg-sky-500/[0.05] blur-[120px] pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent rounded-t-3xl" />
+          <div
+            className="absolute inset-0 rounded-3xl pointer-events-none"
+            style={{
+              backgroundImage:
+                "linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px)",
+              backgroundSize: "64px 64px",
+            }}
+          />
+
+          <div className="relative px-5 py-7 sm:px-8 sm:py-9 lg:px-10">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/75">
+              Neven Financial OS &mdash; {dateStr}
+            </p>
+
+            {/* Net Worth â€” dominant anchor */}
+            <div className="mt-6">
+              <div className="mb-2 text-sm font-semibold text-white/55">
+                Net Worth
+              </div>
+              <h1
+                className="font-bold leading-none tracking-tight text-white"
+                style={{ fontSize: "clamp(3.5rem, 9vw, 7.5rem)" }}
+              >
+                {netWorth}
+              </h1>
+              <div className="mt-4 flex items-center gap-4 flex-wrap">
+                <span className="flex items-center gap-1.5 text-emerald-400 font-bold text-base">
+                  <span>â†‘</span>
+                  {netWorthTrend}
+                </span>
+                <span className="text-white/[0.12]">Â·</span>
+                <span className="text-white/25 text-sm">Good morning, Alex</span>
+              </div>
+            </div>
+
+            <div className="mt-8 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+
+            {/* Secondary metrics: Runway / Savings / Portfolio / AI Score + Health */}
+            <div className="mt-7 grid gap-7 xl:grid-cols-3 xl:items-end">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2">
+                {secondaryMetrics.map((m) => (
+                  <div key={m.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
+                    <div className="mb-2 text-xs font-medium text-white/55">
+                      {m.label}
+                    </div>
+                    <div
+                      className={`font-bold tabular-nums leading-none ${accentClass[m.accent]}`}
+                      style={{ fontSize: "clamp(1.65rem, 3.5vw, 2.35rem)" }}
+                    >
+                      {m.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Financial Health â€” right anchor */}
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 xl:col-start-3 xl:justify-self-end xl:text-right xl:shrink-0">
+                <div className="mb-1 text-xs font-medium text-white/55">
+                  Financial Health
+                </div>
+                <div className={`text-7xl font-bold tabular-nums leading-none ${healthColor}`}>
+                  {healthScore}
+                </div>
+                <div className={`text-xs font-semibold mt-1.5 ${healthColor} opacity-60`}>
+                  {healthLabel}
+                </div>
+                <div className="mt-2 w-20 h-[2px] rounded-full bg-white/[0.06] xl:ml-auto">
+                  <div
+                    className="h-full rounded-full bg-emerald-400"
+                    style={{ width: `${healthScore}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Portfolio + Health sub-scores below hero */}
+        <div className="mt-7 grid gap-6 xl:grid-cols-3">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 xl:col-span-2">
+            <h2 className="pb-4 text-sm font-semibold text-white border-b border-white/[0.08]">
+              Portfolio Allocation
+            </h2>
+            <div className="mt-5 space-y-5">
+              {portfolioAllocation.map((item) => (
+                <div key={item.label}>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${item.color}`} />
+                      <span className="text-sm font-medium text-white/68">{item.label}</span>
+                    </div>
+                    <span className="text-sm font-bold tabular-nums text-white/78">{item.pct}%</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-white/[0.06]">
+                    <div
+                      className={`h-full rounded-full ${item.color} opacity-80`}
+                      style={{ width: `${item.pct}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
+            <h2 className="pb-4 text-sm font-semibold text-white border-b border-white/[0.08]">
+              Health Indicators
+            </h2>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              {healthScores.map((item) => {
+                const borderCol =
+                  item.score >= 90 ? "border-emerald-400/35" :
+                  item.score >= 75 ? "border-sky-400/35" :
+                  item.score >= 60 ? "border-amber-400/35" : "border-red-400/35";
+                const numCol =
+                  item.score >= 90 ? "text-emerald-400" :
+                  item.score >= 75 ? "text-sky-400" :
+                  item.score >= 60 ? "text-amber-400" : "text-red-400";
+                return (
+                  <div key={item.label} className={`rounded-xl border-l-2 bg-white/[0.025] p-3 ${borderCol}`}>
+                    <div className="text-xs font-medium text-white/55">
+                      {item.label}
+                    </div>
+                    <div className={`mt-2 text-3xl font-bold tabular-nums leading-none ${numCol}`}>
+                      {item.score}
+                    </div>
+                    <div className="mt-1.5 text-xs text-white/42">{item.note}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          LAYER 2 â€” Intelligence Workspace
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <div>
+
+codex
+I’ve got the shape now: data declarations live above `return`, while the hero KPI and Financial Health JSX sits around the secondary metrics grid. I’m adding a small diff-hunk helper and using it only for the OverviewV3 hero-density evaluation path.
+apply patch
+patch: completed
+C:\Users\summe\liberva\tools\neven-agent\agent-server.ts
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 36162741e0d605dd55b54aed17d9ec23a8b5c36c..350ddf6bcb4b377bf499562a0a21151003d07a8c
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -271,6 +271,52 @@
+   return `'${filePath.replaceAll("'", "''")}'`;
+ }
+ 
++function changedDiffLines(diffHunk: string) {
++  return diffHunk
++    .split(/\r?\n/)
++    .filter((line) => /^[+-](?![+-]{2})/.test(line));
++}
++
++function diffHunks(diff: string) {
++  return diff
++    .split(/(?=^@@\s)/m)
++    .filter((hunk) => hunk.startsWith("@@"));
++}
++
++function hasOverviewV3HeroStructuralChange(diff: string) {
++  return diffHunks(diff).some((hunk) => {
++    const changedLines = changedDiffLines(hunk);
++    if (changedLines.length === 0) return false;
++
++    const changesDataDeclaration =
++      /\bconst\s+secondaryMetrics\b/.test(hunk) ||
++      /\bconst\s+accentClass\b/.test(hunk);
++    const hasHeroKpiContext =
++      /Secondary metrics|secondaryMetrics\.map|Financial Health|healthScore|healthLabel/.test(hunk);
++    if (!hasHeroKpiContext || changesDataDeclaration) return false;
++
++    const hasGridClassNameChange = changedLines.some((line) =>
++      /className=/.test(line) && /\bgrid\b|grid-cols/.test(line)
++    );
++    const hasFinancialHealthJsxChange =
++      hunk.includes("Financial Health") &&
++      changedLines.some((line) => {
++        const text = line.slice(1).trim();
++        return (
++          text.includes("Financial Health") ||
++          text.includes("healthScore") ||
++          text.includes("healthLabel") ||
++          text.includes("healthColor") ||
++          text.includes("className=") ||
++          text.includes("style=") ||
++          /^<\/?[A-Za-z]/.test(text)
++        );
++      });
++
++    return hasGridClassNameChange || hasFinancialHealthJsxChange;
++  });
++}
++
+ function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "", executeFixOutput = "") {
+   if (executeFixOutput.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
+ 
+@@ -314,7 +360,16 @@
+     recommendedTask.toLowerCase().includes("overviewv3") &&
+     recommendedTask.toLowerCase().includes("hero") &&
+     recommendedTask.toLowerCase().includes("density");
+-  if (targetsOverviewV3HeroDensity && (changedOnlyPage || !changedOverviewV3)) return "FAIL";
++  if (targetsOverviewV3HeroDensity) {
++    if (changedOnlyPage || !changedOverviewV3) return "FAIL";
++    const overviewV3Diff = run("git diff -- src/app/components/OverviewV3.tsx", 15_000);
++    if (
++      overviewV3Diff.includes("COMMAND FAILED OR TIMED OUT") ||
++      !hasOverviewV3HeroStructuralChange(overviewV3Diff)
++    ) {
++      return "FAIL";
++    }
++  }
+   if (diffStat.length > 0) return "PASS";
+   return "FAIL";
+ }
+
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 36162741e0d605dd55b54aed17d9ec23a8b5c36c..350ddf6bcb4b377bf499562a0a21151003d07a8c
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -271,6 +271,52 @@
+   return `'${filePath.replaceAll("'", "''")}'`;
+ }
+ 
++function changedDiffLines(diffHunk: string) {
++  return diffHunk
++    .split(/\r?\n/)
++    .filter((line) => /^[+-](?![+-]{2})/.test(line));
++}
++
++function diffHunks(diff: string) {
++  return diff
++    .split(/(?=^@@\s)/m)
++    .filter((hunk) => hunk.startsWith("@@"));
++}
++
++function hasOverviewV3HeroStructuralChange(diff: string) {
++  return diffHunks(diff).some((hunk) => {
++    const changedLines = changedDiffLines(hunk);
++    if (changedLines.length === 0) return false;
++
++    const changesDataDeclaration =
++      /\bconst\s+secondaryMetrics\b/.test(hunk) ||
++      /\bconst\s+accentClass\b/.test(hunk);
++    const hasHeroKpiContext =
++      /Secondary metrics|secondaryMetrics\.map|Financial Health|healthScore|healthLabel/.test(hunk);
++    if (!hasHeroKpiContext || changesDataDeclaration) return false;
++
++    const hasGridClassNameChange = changedLines.some((line) =>
++      /className=/.test(line) && /\bgrid\b|grid-cols/.test(line)
++    );
++    const hasFinancialHealthJsxChange =
++      hunk.includes("Financial Health") &&
++      changedLines.some((line) => {
++        const text = line.slice(1).trim();
++        return (
++          text.includes("Financial Health") ||
++          text.includes("healthScore") ||
++          text.includes("healthLabel") ||
++          text.includes("healthColor") ||
++          text.includes("className=") ||
++          text.includes("style=") ||
++          /^<\/?[A-Za-z]/.test(text)
++        );
++      });
++
++    return hasGridClassNameChange || hasFinancialHealthJsxChange;
++  });
++}
++
+ function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "", executeFixOutput = "") {
+   if (executeFixOutput.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
+ 
+@@ -314,7 +360,16 @@
+     recommendedTask.toLowerCase().includes("overviewv3") &&
+     recommendedTask.toLowerCase().includes("hero") &&
+     recommendedTask.toLowerCase().includes("density");
+-  if (targetsOverviewV3HeroDensity && (changedOnlyPage || !changedOverviewV3)) return "FAIL";
++  if (targetsOverviewV3HeroDensity) {
++    if (changedOnlyPage || !changedOverviewV3) return "FAIL";
++    const overviewV3Diff = run("git diff -- src/app/components/OverviewV3.tsx", 15_000);
++    if (
++      overviewV3Diff.includes("COMMAND FAILED OR TIMED OUT") ||
++      !hasOverviewV3HeroStructuralChange(overviewV3Diff)
++    ) {
++      return "FAIL";
++    }
++  }
+   if (diffStat.length > 0) return "PASS";
+   return "FAIL";
+ }
+
+codex
+One important detail surfaced: the existing guard was keyed to the word `density`, but the generated OverviewV3 task can say “hero vertical spacing” without that word. I’m broadening the trigger to OverviewV3 + hero so the new diff check actually applies to the intended tasks.
+apply patch
+patch: completed
+C:\Users\summe\liberva\tools\neven-agent\agent-server.ts
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 36162741e0d605dd55b54aed17d9ec23a8b5c36c..c5f15bcee6496db873a0fda17b49fb6546fbeb9d
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -271,6 +271,52 @@
+   return `'${filePath.replaceAll("'", "''")}'`;
+ }
+ 
++function changedDiffLines(diffHunk: string) {
++  return diffHunk
++    .split(/\r?\n/)
++    .filter((line) => /^[+-](?![+-]{2})/.test(line));
++}
++
++function diffHunks(diff: string) {
++  return diff
++    .split(/(?=^@@\s)/m)
++    .filter((hunk) => hunk.startsWith("@@"));
++}
++
++function hasOverviewV3HeroStructuralChange(diff: string) {
++  return diffHunks(diff).some((hunk) => {
++    const changedLines = changedDiffLines(hunk);
++    if (changedLines.length === 0) return false;
++
++    const changesDataDeclaration =
++      /\bconst\s+secondaryMetrics\b/.test(hunk) ||
++      /\bconst\s+accentClass\b/.test(hunk);
++    const hasHeroKpiContext =
++      /Secondary metrics|secondaryMetrics\.map|Financial Health|healthScore|healthLabel/.test(hunk);
++    if (!hasHeroKpiContext || changesDataDeclaration) return false;
++
++    const hasGridClassNameChange = changedLines.some((line) =>
++      /className=/.test(line) && /\bgrid\b|grid-cols/.test(line)
++    );
++    const hasFinancialHealthJsxChange =
++      hunk.includes("Financial Health") &&
++      changedLines.some((line) => {
++        const text = line.slice(1).trim();
++        return (
++          text.includes("Financial Health") ||
++          text.includes("healthScore") ||
++          text.includes("healthLabel") ||
++          text.includes("healthColor") ||
++          text.includes("className=") ||
++          text.includes("style=") ||
++          /^<\/?[A-Za-z]/.test(text)
++        );
++      });
++
++    return hasGridClassNameChange || hasFinancialHealthJsxChange;
++  });
++}
++
+ function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "", executeFixOutput = "") {
+   if (executeFixOutput.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
+ 
+@@ -310,11 +356,19 @@
+     changedFiles.length === 1 &&
+     (changedFiles[0] === "src/app/page.tsx" || changedFiles[0] === "app/page.tsx");
+   const changedOverviewV3 = changedFiles.includes("src/app/components/OverviewV3.tsx");
+-  const targetsOverviewV3HeroDensity =
++  const targetsOverviewV3Hero =
+     recommendedTask.toLowerCase().includes("overviewv3") &&
+-    recommendedTask.toLowerCase().includes("hero") &&
+-    recommendedTask.toLowerCase().includes("density");
+-  if (targetsOverviewV3HeroDensity && (changedOnlyPage || !changedOverviewV3)) return "FAIL";
++    recommendedTask.toLowerCase().includes("hero");
++  if (targetsOverviewV3Hero) {
++    if (changedOnlyPage || !changedOverviewV3) return "FAIL";
++    const overviewV3Diff = run("git diff -- src/app/components/OverviewV3.tsx", 15_000);
++    if (
++      overviewV3Diff.includes("COMMAND FAILED OR TIMED OUT") ||
++      !hasOverviewV3HeroStructuralChange(overviewV3Diff)
++    ) {
++      return "FAIL";
++    }
++  }
+   if (diffStat.length > 0) return "PASS";
+   return "FAIL";
+ }
+
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 36162741e0d605dd55b54aed17d9ec23a8b5c36c..c5f15bcee6496db873a0fda17b49fb6546fbeb9d
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -271,6 +271,52 @@
+   return `'${filePath.replaceAll("'", "''")}'`;
+ }
+ 
++function changedDiffLines(diffHunk: string) {
++  return diffHunk
++    .split(/\r?\n/)
++    .filter((line) => /^[+-](?![+-]{2})/.test(line));
++}
++
++function diffHunks(diff: string) {
++  return diff
++    .split(/(?=^@@\s)/m)
++    .filter((hunk) => hunk.startsWith("@@"));
++}
++
++function hasOverviewV3HeroStructuralChange(diff: string) {
++  return diffHunks(diff).some((hunk) => {
++    const changedLines = changedDiffLines(hunk);
++    if (changedLines.length === 0) return false;
++
++    const changesDataDeclaration =
++      /\bconst\s+secondaryMetrics\b/.test(hunk) ||
++      /\bconst\s+accentClass\b/.test(hunk);
++    const hasHeroKpiContext =
++      /Secondary metrics|secondaryMetrics\.map|Financial Health|healthScore|healthLabel/.test(hunk);
++    if (!hasHeroKpiContext || changesDataDeclaration) return false;
++
++    const hasGridClassNameChange = changedLines.some((line) =>
++      /className=/.test(line) && /\bgrid\b|grid-cols/.test(line)
++    );
++    const hasFinancialHealthJsxChange =
++      hunk.includes("Financial Health") &&
++      changedLines.some((line) => {
++        const text = line.slice(1).trim();
++        return (
++          text.includes("Financial Health") ||
++          text.includes("healthScore") ||
++          text.includes("healthLabel") ||
++          text.includes("healthColor") ||
++          text.includes("className=") ||
++          text.includes("style=") ||
++          /^<\/?[A-Za-z]/.test(text)
++        );
++      });
++
++    return hasGridClassNameChange || hasFinancialHealthJsxChange;
++  });
++}
++
+ function evaluateFix(recommendedTask = generateUIReviewPlaceholder()[0]?.recommendedTask ?? "", executeFixOutput = "") {
+   if (executeFixOutput.includes("COMMAND FAILED OR TIMED OUT")) return "FAIL";
+ 
+@@ -310,11 +356,19 @@
+     changedFiles.length === 1 &&
+     (changedFiles[0] === "src/app/page.tsx" || changedFiles[0] === "app/page.tsx");
+   const changedOverviewV3 = changedFiles.includes("src/app/components/OverviewV3.tsx");
+-  const targetsOverviewV3HeroDensity =
++  const targetsOverviewV3Hero =
+     recommendedTask.toLowerCase().includes("overviewv3") &&
+-    recommendedTask.toLowerCase().includes("hero") &&
+-    recommendedTask.toLowerCase().includes("density");
+-  if (targetsOverviewV3HeroDensity && (changedOnlyPage || !changedOverviewV3)) return "FAIL";
++    recommendedTask.toLowerCase().includes("hero");
++  if (targetsOverviewV3Hero) {
++    if (changedOnlyPage || !changedOverviewV3) return "FAIL";
++    const overviewV3Diff = run("git diff -- src/app/components/OverviewV3.tsx", 15_000);
++    if (
++      overviewV3Diff.includes("COMMAND FAILED OR TIMED OUT") ||
++      !hasOverviewV3HeroStructuralChange(overviewV3Diff)
++    ) {
++      return "FAIL";
++    }
++  }
+   if (diffStat.length > 0) return "PASS";
+   return "FAIL";
+ }
+
+
+spawnSync powershell.exe ETIMEDOUT

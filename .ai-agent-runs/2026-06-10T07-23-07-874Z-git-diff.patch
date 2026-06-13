@@ -1,0 +1,42 @@
+ tools/neven-agent/agent-server.ts | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index cb8cdf4..77dea38 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -10,7 +10,7 @@ const LOG_DIR = path.join(REPO, ".ai-agent-runs");
+ fs.mkdirSync(LOG_DIR, { recursive: true });
+ 
+ type AgentMode = "auto" | "inspect" | "codex";
+-type AgentAction = "health" | "gitStatus" | "gitDiff" | "readFile" | "writeFile" | "replaceText" | "typecheck" | "screenshot";
++type AgentAction = "health" | "gitStatus" | "gitDiff" | "readFile" | "writeFile" | "replaceText" | "typecheck" | "screenshot" | "autofix";
+ 
+ type AgentRequest = {
+   action?: AgentAction;
+@@ -195,6 +195,26 @@ function runStructuredAction(request: AgentRequest) {
+       return "Screenshots captured: .ai-agent-runs/latest-desktop.png, .ai-agent-runs/latest-mobile.png";
+     }
+ 
++    case "autofix": {
++      const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
++      const screenshots = takeScreenshots();
++      const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
++
++      return summarizeOutput(
++        [
++          "Git status:",
++          gitStatus,
++          "",
++          "Screenshot capture:",
++          screenshots,
++          "",
++          "Git diff:",
++          gitDiff,
++        ].join("\n"),
++        20_000
++      );
++    }
++
+     default:
+       throw new Error(`Unsupported action: ${request.action}`);
+   }

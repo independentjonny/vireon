@@ -1,0 +1,105 @@
+
+> neven@0.1.0 build
+> next build
+
+▲ Next.js 16.2.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 3.3s
+  Running TypeScript ...
+  Finished TypeScript in 4.7s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/59) ...
+  Generating static pages using 7 workers (14/59) 
+  Generating static pages using 7 workers (29/59) 
+  Generating static pages using 7 workers (44/59) 
+✓ Generating static pages using 7 workers (59/59) in 229ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /api/agent-hierarchy
+├ ƒ /api/agents
+├ ƒ /api/analytics
+├ ƒ /api/architecture-drift
+├ ƒ /api/architecture-map
+├ ƒ /api/assets
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/session
+├ ƒ /api/autonomous-engineer
+├ ƒ /api/autonomous-task
+├ ƒ /api/autonomy-status
+├ ƒ /api/backup/export
+├ ƒ /api/backup/import
+├ ƒ /api/build-artifacts
+├ ƒ /api/build-history
+├ ƒ /api/build-orchestrator
+├ ƒ /api/build-pipeline
+├ ƒ /api/build-queue
+├ ƒ /api/build-queue/complete
+├ ƒ /api/build-queue/next
+├ ƒ /api/build-status
+├ ƒ /api/command-policy
+├ ƒ /api/copilot
+├ ƒ /api/copilot-history
+├ ƒ /api/dashboard-metrics
+├ ƒ /api/database-agent
+├ ƒ /api/dependency-health
+├ ƒ /api/deployment-status
+├ ƒ /api/engineering-loop
+├ ƒ /api/env-check
+├ ƒ /api/execution-queue
+├ ƒ /api/executive-briefing
+├ ƒ /api/finance-health
+├ ƒ /api/financial-intelligence
+├ ƒ /api/health
+├ ƒ /api/health-score
+├ ƒ /api/infrastructure-activation
+├ ƒ /api/ingest
+├ ƒ /api/ingestion-health
+├ ƒ /api/insights
+├ ƒ /api/local-data/status
+├ ƒ /api/logs/ingest
+├ ƒ /api/memory
+├ ƒ /api/merchant-intelligence
+├ ƒ /api/platform-status
+├ ƒ /api/production-readiness
+├ ƒ /api/production-status
+├ ƒ /api/recommendations
+├ ƒ /api/release-candidate
+├ ƒ /api/release-promotion
+├ ƒ /api/reset-local-data
+├ ƒ /api/roadmap
+├ ƒ /api/runtime-operations
+├ ƒ /api/runtime/assign
+├ ƒ /api/runtime/cancel
+├ ƒ /api/runtime/continuous-status
+├ ƒ /api/runtime/defects
+├ ƒ /api/runtime/git
+├ ƒ /api/runtime/health-contract
+├ ƒ /api/runtime/heartbeat
+├ ƒ /api/runtime/logs
+├ ƒ /api/runtime/next-task
+├ ƒ /api/runtime/overnight
+├ ƒ /api/runtime/queue
+├ ƒ /api/runtime/runs
+├ ƒ /api/runtime/scheduler
+├ ƒ /api/runtime/screenshot
+├ ƒ /api/runtime/screenshots
+├ ƒ /api/runtime/status
+├ ƒ /api/smoke
+├ ƒ /api/subscriptions
+├ ƒ /api/subscriptions/intelligence
+├ ƒ /api/system-health
+├ ƒ /api/telemetry
+├ ƒ /api/test-runner
+├ ƒ /api/transactions
+└ ƒ /api/workflow-status
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

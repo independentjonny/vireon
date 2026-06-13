@@ -1,0 +1,7 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+`aiReviewUI` now reads `.ai-agent-runs/latest-desktop.png` and `latest-mobile.png`, encodes them as `input_image` data URLs for the OpenAI Responses API, and asks for strict JSON with `issue`, `likelyFile`, `recommendedTask`, and `confidence`.
+
+Kept the existing git status and git diff text context. If screenshot/image review fails or images are unavailable, it falls back to the existing text-only review path.
+
+Did not run tests or build.

@@ -1,0 +1,107 @@
+ src/app/page.tsx                  | 24 ++++++++++++------------
+ tools/neven-agent/agent-server.ts | 19 ++++++++++---------
+ 2 files changed, 22 insertions(+), 21 deletions(-)
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index cb147f5..aa91781 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -24,9 +24,9 @@ const navItems = [
+ 
+ function RuntimeBanner() {
+   return (
+-    <div className="sticky top-0 z-40 border-b border-emerald-500/[0.15] bg-[#07111f]/85 px-4 py-2 text-xs text-emerald-300/80 backdrop-blur-xl">
+-      <span className="inline-flex items-center gap-2">
+-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
++    <div className="sticky top-0 z-40 border-b border-emerald-500/[0.15] bg-[#07111f]/85 px-4 py-2 pr-20 text-xs leading-5 text-emerald-300/80 backdrop-blur-xl lg:ml-64 lg:pr-4">
++      <span className="inline-flex items-start gap-2">
++        <span className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+         Autonomous AI Runtime Active — Supervisor online • 10 agents nominal • Multi-agent v2
+       </span>
+     </div>
+@@ -87,13 +87,13 @@ function SectionShell({
+   children?: React.ReactNode;
+ }) {
+   return (
+-    <section id={id} className="scroll-mt-20">
+-      <div className="mb-4 flex flex-wrap items-baseline gap-3 border-b border-white/[0.07] pb-3">
++    <section id={id} className="scroll-mt-24">
++      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-white/[0.07] pb-3 sm:mb-4">
+         <h2 className="text-lg font-bold text-white">{title}</h2>
+         {subtitle && <span className="text-xs text-white/35">{subtitle}</span>}
+       </div>
+ 
+-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-5 shadow-xl shadow-black/20">
++      <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-4 shadow-xl shadow-black/20 sm:rounded-2xl sm:p-5">
+         {children ?? (
+           <p className="text-sm text-white/45">
+             Section placeholder restored after page recovery. Detailed module can be reattached safely.
+@@ -106,10 +106,10 @@ function SectionShell({
+ 
+ function ScreenshotPanel() {
+   const paths = [
+-    "screenshot/fullpage.png",
+-    "screenshot/overview.png",
+-    "screenshot/build-automation.png",
+-    ".ai/screenshots/fullpage.png",
++    ".ai-agent-runs/latest-desktop.png",
++    ".ai-agent-runs/latest-mobile.png",
++    ".ai/browser-interaction-check.png",
++    ".ai/validate-and-repair.png",
+   ];
+ 
+   return (
+@@ -135,8 +135,8 @@ export default async function HomePage() {
+       <div className="flex min-h-screen lg:pl-64">
+         <Sidebar />
+ 
+-        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-6">
+-          <div className="w-full space-y-12">
++        <section className="min-w-0 flex-1 px-3 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10">
++          <div className="mx-auto w-full max-w-[1540px] space-y-10 sm:space-y-12">
+             <OverviewV3
+               netWorth="$1.84M"
+               netWorthTrend="+4.2% this month"
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 515d629..8fb900d 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -215,7 +215,6 @@ function uiReviewJsonFormat() {
+               "src/app/components/sections/TransactionsSection.tsx",
+               "src/app/components/sections/SubscriptionsSection.tsx",
+               "src/app/components/ImportWorkflow.tsx",
+-              "tools/neven-agent/agent-server.ts",
+             ],
+           },
+           recommendedTask: { type: "string" },
+@@ -274,12 +273,14 @@ async function aiReviewUI() {
+   const gitStatus = summarizeOutput(run("git status --short", 15_000), 4_000) || "No changes";
+   const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000), 16_000) || "No diff";
+   const prompt = [
+-    "Review the actual desktop and mobile UI screenshots plus git status/diff for this Next.js app.",
+-    "Valid likelyFile values are only: src/app/page.tsx, src/app/components/OverviewV3.tsx, src/app/components/MobileNav.tsx, src/app/components/sections/TransactionsSection.tsx, src/app/components/sections/SubscriptionsSection.tsx, src/app/components/ImportWorkflow.tsx, tools/neven-agent/agent-server.ts.",
+-    "Do not recommend committing screenshots or .ai-agent-runs.",
+-    "If git diff is empty, still recommend a UI source file based on the screenshot images and dashboard context.",
+-    "Return only strict compact JSON with these fields: issue, likelyFile, recommendedTask, confidence.",
+-    "Use confidence as a number from 0 to 1. Keep recommendedTask concrete and scoped to one likely file.",
++    "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
++    "Ignore git diff unless needed to choose likelyFile.",
++    "Do not summarize recent code changes.",
++    "Identify the single highest-impact visible UI issue.",
++    "Valid likelyFile values are src/app/page.tsx, src/app/components/OverviewV3.tsx, src/app/components/MobileNav.tsx, src/app/components/sections/TransactionsSection.tsx, src/app/components/sections/SubscriptionsSection.tsx, src/app/components/ImportWorkflow.tsx.",
++    "Prefer OverviewV3 for dashboard hero/cards/portfolio/health issues.",
++    "Return strict JSON only with issue, likelyFile, recommendedTask, confidence.",
++    "Return summary only.",
+     "",
+     "Screenshot paths:",
+     ".ai-agent-runs/latest-desktop.png",
+@@ -312,8 +313,8 @@ async function aiReviewUI() {
+   }
+ 
+   const fallbackPrompt = prompt.replace(
+-    "Review the actual desktop and mobile UI screenshots plus git status/diff for this Next.js app.",
+-    "Review the desktop and mobile UI screenshot paths plus git status/diff for this Next.js app.\nDo not assume screenshot image contents are available yet; use the paths and command output as context."
++    "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
++    "You are a senior product designer reviewing the Neven dashboard screenshot paths.\nDo not assume screenshot image contents are available yet; use the paths and command output as context."
+   );
+ 
+   try {

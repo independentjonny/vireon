@@ -1,0 +1,31 @@
+ src/app/components/OverviewV3.tsx | 4 ++--
+ src/app/page.tsx                  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+diff --git a/src/app/components/OverviewV3.tsx b/src/app/components/OverviewV3.tsx
+index 3dcf0e4..4016dd5 100644
+--- a/src/app/components/OverviewV3.tsx
++++ b/src/app/components/OverviewV3.tsx
+@@ -197,8 +197,8 @@ export default function OverviewV3({
+         </section>
+ 
+         {/* Portfolio + Health sub-scores below hero */}
+-        <div className="mt-7 grid gap-6 xl:grid-cols-2">
+-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
++        <div className="mt-7 grid gap-6 xl:grid-cols-3">
++          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 xl:col-span-2">
+             <h2 className="pb-4 text-sm font-semibold text-white border-b border-white/[0.08]">
+               Portfolio Allocation
+             </h2>
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 97c8211..9031fdb 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -136,7 +136,7 @@ export default async function HomePage() {
+         <Sidebar />
+ 
+         <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10">
+-          <div className="mx-auto max-w-7xl space-y-12">
++          <div className="mx-auto max-w-[1600px] space-y-12">
+             <OverviewV3
+               netWorth="$1.84M"
+               netWorthTrend="+4.2% this month"

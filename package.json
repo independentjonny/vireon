@@ -11,6 +11,8 @@
     "test:smoke": "playwright test --config playwright.config.ts",
     "screenshot": "node scripts/fullpage-screenshot.mjs",
     "daemon": "node scripts/local-daemon.mjs",
+    "neven": "powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/neven-supervisor/launch.ps1",
+    "supervisor": "node --experimental-strip-types tools/neven-supervisor/supervisor.ts",
     "automate": "node scripts/local-automation.mjs",
     "validate": "npm run lint && npm run build && npm run test:smoke && npm run screenshot"
   },

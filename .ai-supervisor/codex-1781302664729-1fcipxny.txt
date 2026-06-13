@@ -1,0 +1,16 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Improve the Neven dashboard information hierarchy. Make only one targeted UI improvement. Commit only if validation passes and screenshot review improves.
+Reviewer issue: The new supervisor script added to package.json uses the --experimental-strip-types flag, which may lead to runtime issues or lack of stability depending on the current Node.js version support. There is no build or test output; the addition is an operational feature but lacks validation or documentation. A review or testing step should be added to ensure the supervisor script functions as expected and does not cause build or run failures.
+Target file: package.json
+Reviewer task: Ensure added supervisor script with --experimental-strip-types is validated through build or test to avoid runtime failures.
+Category: feature_gap
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

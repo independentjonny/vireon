@@ -1,0 +1,78 @@
+ tools/neven-agent/agent-server.ts | 51 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index bf264e1..439b41f 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -20,6 +20,7 @@ type AgentAction =
+   | "typecheck"
+   | "screenshot"
+   | "aiReviewUI"
++  | "aiAutoLoop"
+   | "evaluateFix"
+   | "reviewUI"
+   | "autoImproveUI"
+@@ -333,6 +334,18 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
+   return findings;
+ }
+ 
++function parseUIReviewFinding(output: string) {
++  try {
++    const parsed = JSON.parse(output.trim()) as Partial<UIReviewFinding>;
++    if (typeof parsed.recommendedTask !== "string" || parsed.recommendedTask.trim().length === 0) {
++      return null;
++    }
++    return parsed;
++  } catch {
++    return null;
++  }
++}
++
+ function requireString(value: unknown, name: string) {
+   if (typeof value !== "string") throw new Error(`Missing ${name}`);
+   return value;
+@@ -547,6 +560,44 @@ async function runStructuredAction(request: AgentRequest) {
+     case "aiReviewUI":
+       return aiReviewUI();
+ 
++    case "aiAutoLoop": {
++      const reviewOutput = await aiReviewUI();
++      const parsedReview = parseUIReviewFinding(reviewOutput);
++      const recommendedTask =
++        parsedReview?.recommendedTask?.trim() ||
++        generateUIReviewPlaceholder()[0].recommendedTask;
++      const { codexOutput } = await runCodex(recommendedTask, false);
++      const typecheck = run("npx tsc --noEmit", 60_000);
++      const screenshots = takeScreenshots();
++      const executeOutput = [
++        "Codex output:",
++        codexOutput,
++        "",
++        "Typecheck:",
++        typecheck,
++        "",
++        "Screenshot capture:",
++        screenshots,
++      ].join("\n");
++      const evaluation = evaluateFix(recommendedTask, executeOutput);
++
++      return summarizeOutput(
++        [
++          "AI review:",
++          reviewOutput,
++          "",
++          "Selected task:",
++          recommendedTask,
++          "",
++          executeOutput,
++          "",
++          "Evaluation:",
++          evaluation,
++        ].join("\n"),
++        30_000
++      );
++    }
++
+     case "evaluateFix":
+       return evaluateFix();
+ 

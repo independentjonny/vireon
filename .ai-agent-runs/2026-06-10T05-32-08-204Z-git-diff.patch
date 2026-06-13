@@ -1,0 +1,23 @@
+ src/app/components/OverviewV3.tsx | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+diff --git a/src/app/components/OverviewV3.tsx b/src/app/components/OverviewV3.tsx
+index 276c2ca..67c0b35 100644
+--- a/src/app/components/OverviewV3.tsx
++++ b/src/app/components/OverviewV3.tsx
+@@ -63,6 +63,7 @@ export default function OverviewV3({
+     { label: "Savings Rate", value: savingsRate, accent: "sky" },
+     { label: "Runway", value: runway, accent: "white" },
+     { label: "AI Score", value: aiConfidence, accent: "violet" },
++    { label: "Financial Health", value: healthScore, accent: "health" },
+   ];
+ 
+   const accentClass: Record<string, string> = {
+@@ -128,7 +129,7 @@ export default function OverviewV3({
+             }}
+           />
+ 
+-          <div className="relative px-5 py-7 sm:px-8 sm:py-9 lg:px-10">
++          <div className="relative px-5 py-6 sm:px-8 sm:py-8 lg:px-10">
+             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/75">
+               Neven Financial OS &mdash; {dateStr}
+             </p>

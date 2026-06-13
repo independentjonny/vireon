@@ -1,0 +1,5 @@
+Updated only `tools/neven-agent/agent-server.ts`.
+
+Changed both `executeFix` Evaluation calls from `evaluateFix(task)` to `evaluateFix()`, matching the structured `evaluateFix` action so `executeFix` does not report `PASS` when the final standalone evaluation would return `FAIL`.
+
+No tests or build run, per instructions.

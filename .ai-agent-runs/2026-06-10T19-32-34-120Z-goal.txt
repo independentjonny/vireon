@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Improve generateUIReviewPlaceholder(). When OverviewV3 is detected, recommend one specific layout task instead of a generic density improvement. Example: Move Financial Health into KPI row, create 5-card KPI grid, reduce hero vertical spacing. Return summary only.

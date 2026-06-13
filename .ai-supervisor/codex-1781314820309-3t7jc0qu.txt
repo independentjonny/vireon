@@ -1,0 +1,16 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Review Neven dashboard. Recommend one high-value improvement. Do not modify files.
+Reviewer issue: The new 'supervisor' script added to package.json uses an experimental Node.js flag '--experimental-strip-types', which may introduce instability or unexpected behavior in the automation workflow. There is no corresponding UI change or indication of feature impact in the dashboard snapshot. This may affect developer experience or deployment stability but not the user interface directly.
+Target file: package.json
+Reviewer task: Evaluate stability and impact of introducing experimental flag in automation script
+Category: workflow
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

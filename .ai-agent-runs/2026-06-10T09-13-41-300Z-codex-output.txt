@@ -1,0 +1,10 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Implemented `executeFix` safety:
+- Captures `git status --short` before Codex runs.
+- If validation output contains `COMMAND FAILED OR TIMED OUT`, restores only newly modified tracked files with `git restore -- ...`.
+- Leaves untracked files untouched.
+- Returns a rollback summary instead of continuing to diff/screenshots.
+- No auto-commit added.
+
+I did not run tests or build.

@@ -1,0 +1,16 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Improve the Neven dashboard information hierarchy. Make only one targeted UI improvement. Commit only if validation passes and screenshot review improves.
+Reviewer issue: No visible UI changes or issues detected from the provided inputs. The added npm script ('supervisor') extends developer tooling but does not impact UI or user workflow directly.
+Target file: package.json
+Reviewer task: Add supervisor script to package.json for development tooling
+Category: code_quality
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

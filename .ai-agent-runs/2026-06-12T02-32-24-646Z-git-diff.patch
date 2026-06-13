@@ -1,0 +1,17 @@
+ tools/neven-agent/agent-server.ts | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 0e2d7c8..d615da1 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -486,8 +486,8 @@ async function runStructuredAction(request: AgentRequest) {
+     }
+ 
+     case "executeFix": {
+-      const [topFinding] = generateUIReviewPlaceholder();
+-      const task = topFinding.recommendedTask;
++      // executeFix and planFix must share the same task source.
++      const task = generateUIReviewPlaceholder()[0].recommendedTask;
+       const beforeGitStatus = run("git status --short", 15_000);
+       const { codexOutput, validation } = await runCodex(task, true);
+       const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";

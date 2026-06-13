@@ -1,0 +1,15 @@
+
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Goal:
+Review src/app/components/OverviewV3.tsx and move Financial Health into the KPI row, creating a 5-card KPI grid while reducing hero vertical spacing.
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.

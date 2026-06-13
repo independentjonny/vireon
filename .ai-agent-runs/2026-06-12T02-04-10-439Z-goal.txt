@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Update executeFix so the Evaluation line uses the same evaluateFix logic used by the structured evaluateFix action. It must not print PASS when the final evaluateFix action would return FAIL. Return summary only.

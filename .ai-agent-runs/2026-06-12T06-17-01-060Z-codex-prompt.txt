@@ -1,0 +1,15 @@
+
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Goal:
+Modify only tools/neven-agent/agent-server.ts. Fix aiReviewUI by making the first OpenAI Responses API version text-only. Do not send screenshot image inputs yet. Keep takeScreenshots, git status, and git diff. Send a text prompt containing screenshot paths, git status, git diff, and ask for strict JSON with issue, likelyFile, recommendedTask, confidence. Use model gpt-4.1-mini by default. Improve error output to include status, statusText, and JSON error body. Return summary only.
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.

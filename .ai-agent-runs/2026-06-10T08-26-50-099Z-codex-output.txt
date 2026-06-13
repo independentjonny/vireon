@@ -1,0 +1,5 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Added `generateUIReviewPlaceholder()` returning structured UI findings with `issue`, `likelyFile`, and `recommendedTask`. Updated `autoImproveUI` to call it and populate `Top UI issue`, `Likely file`, and `Recommended Codex task` from the generated review instead of TODO text.
+
+No tests or build run, per instructions.

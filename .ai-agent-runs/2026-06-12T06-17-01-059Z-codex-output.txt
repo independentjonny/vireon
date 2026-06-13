@@ -1,0 +1,5 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Updated `aiReviewUI` so the first OpenAI Responses API call is text-only: it still runs screenshots, git status, and git diff, but sends screenshot paths instead of image inputs. The prompt now asks for strict JSON with `issue`, `likelyFile`, `recommendedTask`, and `confidence`, keeps `gpt-4.1-mini` as the default model, and error output now includes status, status text, and the JSON error body.
+
+No tests or build were run, per instructions.

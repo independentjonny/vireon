@@ -1,0 +1,4 @@
+UI review screenshots ready.
+Desktop: .ai-agent-runs/latest-desktop.png
+Mobile: .ai-agent-runs/latest-mobile.png
+Screenshot vision review is not implemented yet. Inspect these screenshots manually for now.

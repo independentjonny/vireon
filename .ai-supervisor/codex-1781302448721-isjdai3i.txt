@@ -1,0 +1,16 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Improve the Neven dashboard information hierarchy. Make only one targeted UI improvement. Commit only if validation passes and screenshot review improves.
+Reviewer issue: Dashboard financial summary metrics and portfolio allocation sections lose some contextual spacing and alignment in mobile view compared to desktop, which may affect readability and user comprehension.
+Target file: UI Screenshots
+Reviewer task: Improve responsive design consistency for financial summary and portfolio allocation sections to maintain clarity and alignment across viewports
+Category: responsiveness
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

@@ -1,0 +1,15 @@
+
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Goal:
+Modify only tools/neven-agent/agent-server.ts. Add a function generateUIReviewPlaceholder(). It should return structured findings based on simple rules instead of hardcoded TODO text. Example findings: excessive whitespace, dashboard cards too narrow, content not using full width, mobile card density issues. autoImproveUI should call this function and return Top UI Issue, Likely File, and Recommended Codex Task populated from the generated review. Do not modify Neven app files. Return summary only.
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.

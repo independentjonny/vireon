@@ -1,0 +1,15 @@
+
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Goal:
+Modify only src/app/components/OverviewV3.tsx. In the top Dashboard Snapshot hero section only, improve desktop width usage by changing the secondary metrics and Financial Health layout from flex xl:flex-row to a 3-column xl grid. Left column should contain the four secondary metric cards in a 2x2 grid, middle column should be empty only if needed, and Financial Health should align on the right. Do not change colours, data, text, or any other sections. Return git diff summary.
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.

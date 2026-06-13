@@ -1,0 +1,12 @@
+Implemented `autonomousBuild` in [agent-server.ts](C:/Users/summe/liberva/tools/neven-agent/agent-server.ts:803).
+
+What changed:
+- Added `autonomousBuild` to structured actions.
+- Added `iterations` request support, defaulting to `3` and capped at `10`.
+- Each iteration now runs review, Codex task, typecheck, screenshots, second review, score comparison, optional rollback, and compact JSON reporting.
+- Rollback restores tracked app files only and excludes `tools/neven-agent/agent-server.ts`.
+- No auto-commit behavior added.
+
+Validation:
+- Ran `npx tsc --noEmit` successfully.
+- Did not modify unrelated files. Existing `src/app/page.tsx`, `.ai-agent-runs/`, and `restart-agent-and-review.ps1` changes were already present and left untouched.

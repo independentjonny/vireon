@@ -1,0 +1,1 @@
+Modified only `tools/neven-agent/agent-server.ts`: strengthened `evaluateFix` so an `OverviewV3.tsx` recommendation fails if `src/app/page.tsx` changes, and only proceeds when `src/app/components/OverviewV3.tsx` is modified while `page.tsx` remains unchanged.

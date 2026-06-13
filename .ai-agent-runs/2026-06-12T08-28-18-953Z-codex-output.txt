@@ -1,0 +1,3 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Added startup loading for `.env.local`, parsing simple `KEY=VALUE` lines, skipping comments/blanks, preserving existing `process.env` values, and avoiding any secret logging. No build or tests run.

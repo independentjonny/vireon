@@ -1,0 +1,3 @@
+Updated only `tools/neven-agent/agent-server.ts`.
+
+Changed `executeFix` to set its task directly from `generateUIReviewPlaceholder()[0].recommendedTask`, matching `planFix`’s source, and added the required comment near `executeFix`. No tests or builds were run.

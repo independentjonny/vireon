@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Add new structured action named autofix. For now autofix should: 1) run gitStatus, 2) run screenshot capture, 3) run gitDiff, 4) return combined report. Do not modify Neven app files. Return summary only.

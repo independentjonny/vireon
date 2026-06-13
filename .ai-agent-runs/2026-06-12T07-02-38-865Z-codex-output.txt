@@ -1,0 +1,8 @@
+Updated only [tools/neven-agent/agent-server.ts](C:/Users/summe/liberva/tools/neven-agent/agent-server.ts:215).
+
+What changed:
+- Rewrote the `aiReviewUI` prompt to prioritize visible Neven dashboard screenshots over git diff.
+- Added the requested designer-review framing and strict JSON instructions.
+- Removed `tools/neven-agent/agent-server.ts` from the `likelyFile` schema enum so it matches the allowed file list.
+
+I did not run tests or build.

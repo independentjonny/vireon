@@ -1,0 +1,1 @@
+Ready. I’ll follow the repo instructions, including checking the local Next.js docs under `node_modules/next/dist/docs/` before making any Next.js-related code changes.

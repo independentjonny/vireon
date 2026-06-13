@@ -1,0 +1,24 @@
+ tools/neven-agent/agent-server.ts | 4 ++++
+ 1 file changed, 4 insertions(+)
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 77dea38..0bf33ab 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -197,6 +197,7 @@ function runStructuredAction(request: AgentRequest) {
+ 
+     case "autofix": {
+       const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
++      const typecheck = summarizeOutput(run("npx tsc --noEmit", 60_000));
+       const screenshots = takeScreenshots();
+       const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
+ 
+@@ -205,6 +206,9 @@ function runStructuredAction(request: AgentRequest) {
+           "Git status:",
+           gitStatus,
+           "",
++          "Typecheck:",
++          typecheck,
++          "",
+           "Screenshot capture:",
+           screenshots,
+           "",

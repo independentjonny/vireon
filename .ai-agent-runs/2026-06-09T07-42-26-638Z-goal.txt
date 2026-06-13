@@ -1,0 +1,1 @@
+Take screenshots of localhost:3000

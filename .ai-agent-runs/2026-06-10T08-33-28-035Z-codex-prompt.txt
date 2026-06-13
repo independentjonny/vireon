@@ -1,0 +1,15 @@
+
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Goal:
+Modify only tools/neven-agent/agent-server.ts. Add structured action named planFix. It should call generateUIReviewPlaceholder(), then return only a ready-to-run Codex goal string based on the recommended Codex task. Do not run Codex. Do not modify Neven app files. Return summary only.
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.

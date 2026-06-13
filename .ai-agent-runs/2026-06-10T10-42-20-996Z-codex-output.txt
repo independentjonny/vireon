@@ -1,0 +1,12 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Summary:
+- Updated `evaluateFix` to inspect changed files with `git diff --name-only`.
+- Added an OverviewV3 hero-density heuristic based on the recommended task text.
+- For that task, `evaluateFix` now:
+  - returns `FAIL` when only `page.tsx` changed,
+  - returns `PASS` only when `src/app/components/OverviewV3.tsx` changed and existing typecheck/screenshot checks pass,
+  - otherwise returns `UNKNOWN`.
+- Passed the executed recommended task into `evaluateFix` from `executeFix`.
+
+No tests or builds were run.

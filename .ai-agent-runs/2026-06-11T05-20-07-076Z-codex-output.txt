@@ -1,0 +1,3 @@
+Updated `tools/neven-agent/agent-server.ts` so `evaluateFix` now requires the recommended target file to appear in `git diff --name-only` before returning `PASS`.
+
+No tests or builds were run, per instruction.

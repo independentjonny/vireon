@@ -1,0 +1,215 @@
+ src/app/page.tsx                  |  24 ++++----
+ tools/neven-agent/agent-server.ts | 113 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 125 insertions(+), 12 deletions(-)
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index cb147f5..aa91781 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -24,9 +24,9 @@ const navItems = [
+ 
+ function RuntimeBanner() {
+   return (
+-    <div className="sticky top-0 z-40 border-b border-emerald-500/[0.15] bg-[#07111f]/85 px-4 py-2 text-xs text-emerald-300/80 backdrop-blur-xl">
+-      <span className="inline-flex items-center gap-2">
+-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
++    <div className="sticky top-0 z-40 border-b border-emerald-500/[0.15] bg-[#07111f]/85 px-4 py-2 pr-20 text-xs leading-5 text-emerald-300/80 backdrop-blur-xl lg:ml-64 lg:pr-4">
++      <span className="inline-flex items-start gap-2">
++        <span className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+         Autonomous AI Runtime Active — Supervisor online • 10 agents nominal • Multi-agent v2
+       </span>
+     </div>
+@@ -87,13 +87,13 @@ function SectionShell({
+   children?: React.ReactNode;
+ }) {
+   return (
+-    <section id={id} className="scroll-mt-20">
+-      <div className="mb-4 flex flex-wrap items-baseline gap-3 border-b border-white/[0.07] pb-3">
++    <section id={id} className="scroll-mt-24">
++      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-white/[0.07] pb-3 sm:mb-4">
+         <h2 className="text-lg font-bold text-white">{title}</h2>
+         {subtitle && <span className="text-xs text-white/35">{subtitle}</span>}
+       </div>
+ 
+-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-5 shadow-xl shadow-black/20">
++      <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-4 shadow-xl shadow-black/20 sm:rounded-2xl sm:p-5">
+         {children ?? (
+           <p className="text-sm text-white/45">
+             Section placeholder restored after page recovery. Detailed module can be reattached safely.
+@@ -106,10 +106,10 @@ function SectionShell({
+ 
+ function ScreenshotPanel() {
+   const paths = [
+-    "screenshot/fullpage.png",
+-    "screenshot/overview.png",
+-    "screenshot/build-automation.png",
+-    ".ai/screenshots/fullpage.png",
++    ".ai-agent-runs/latest-desktop.png",
++    ".ai-agent-runs/latest-mobile.png",
++    ".ai/browser-interaction-check.png",
++    ".ai/validate-and-repair.png",
+   ];
+ 
+   return (
+@@ -135,8 +135,8 @@ export default async function HomePage() {
+       <div className="flex min-h-screen lg:pl-64">
+         <Sidebar />
+ 
+-        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-6">
+-          <div className="w-full space-y-12">
++        <section className="min-w-0 flex-1 px-3 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10">
++          <div className="mx-auto w-full max-w-[1540px] space-y-10 sm:space-y-12">
+             <OverviewV3
+               netWorth="$1.84M"
+               netWorthTrend="+4.2% this month"
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index e15e8d9..18faae1 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -21,6 +21,7 @@ type AgentAction =
+   | "screenshot"
+   | "aiReviewUI"
+   | "aiAutoLoop"
++  | "autonomousBuild"
+   | "evaluateFix"
+   | "reviewUI"
+   | "autoImproveUI"
+@@ -38,6 +39,7 @@ type AgentRequest = {
+   content?: string;
+   from?: string;
+   to?: string;
++  iterations?: number;
+ };
+ 
+ function run(command: string, timeoutMs = 60_000) {
+@@ -436,6 +438,21 @@ function parseUIReviewFinding(output: string) {
+   }
+ }
+ 
++function scoreFromReviewOutput(output: string) {
++  try {
++    const parsed = JSON.parse(output.trim()) as Partial<UIReviewFinding>;
++    if (typeof parsed.currentScore === "number") {
++      return Math.min(10, Math.max(1, parsed.currentScore));
++    }
++    if (typeof parsed.confidence === "number") {
++      return parsed.confidence;
++    }
++  } catch {
++    return null;
++  }
++  return null;
++}
++
+ function requireString(value: unknown, name: string) {
+   if (typeof value !== "string") throw new Error(`Missing ${name}`);
+   return value;
+@@ -531,6 +548,11 @@ function restoreTrackedAppFiles(snapshot: Map<string, string>) {
+   return restored;
+ }
+ 
++function normalizedIterations(value: unknown) {
++  if (typeof value !== "number" || !Number.isFinite(value)) return 3;
++  return Math.min(10, Math.max(1, Math.floor(value)));
++}
++
+ function changedDiffLines(diffHunk: string) {
+   return diffHunk
+     .split(/\r?\n/)
+@@ -778,6 +800,97 @@ async function runStructuredAction(request: AgentRequest) {
+       );
+     }
+ 
++    case "autonomousBuild": {
++      const requestedIterations = normalizedIterations(request.iterations);
++      const report: Array<{
++        iteration: number;
++        issue: string;
++        file: string;
++        task: string;
++        beforeScore: number | null;
++        afterScore: number | null;
++        improved: boolean | null;
++        rollback: {
++          occurred: boolean;
++          restoredTrackedAppFiles: string[];
++        };
++        gitStatus: string;
++        screenshotPaths: {
++          before: {
++            desktop: string;
++            mobile: string;
++          };
++          after: {
++            desktop: string;
++            mobile: string;
++          };
++        };
++      }> = [];
++
++      for (let iteration = 1; iteration <= requestedIterations; iteration += 1) {
++        const iterationId = `${new Date().toISOString().replace(/[:.]/g, "-")}-autonomous-${iteration}`;
++        const appFileSnapshot = trackedAppFileSnapshot();
++        const beforeReviewOutput = await aiReviewUI();
++        const beforeScreenshots = copyLatestScreenshots(`${iterationId}-before`);
++        const beforeReview = parseUIReviewFinding(beforeReviewOutput) ?? generateUIReviewPlaceholder()[0];
++        const beforeScore = scoreFromReviewOutput(beforeReviewOutput) ?? beforeReview.currentScore ?? beforeReview.confidence ?? null;
++        const selectedTask = [
++          "Improve the Neven UI based on this screenshot-only AI review.",
++          `Likely file: ${beforeReview.likelyFile}`,
++          `Target area: ${beforeReview.targetArea}`,
++          `Recommended task: ${beforeReview.recommendedTask}`,
++          `Success criteria: ${beforeReview.successCriteria}`,
++          "",
++          "Rules:",
++          "- Make the smallest targeted UI change needed to satisfy the success criteria.",
++          "- Modify only the likely file unless the requested UI area clearly requires a directly related component file.",
++          "- Do not modify API routes, package files, Next config, Playwright config, package files, or .ai files.",
++          "- Do not commit changes.",
++          "- Return summary only.",
++        ].join("\n");
++
++        await runCodex(selectedTask, false);
++        run("npx tsc --noEmit", 60_000);
++        takeScreenshots();
++        const afterScreenshots = copyLatestScreenshots(`${iterationId}-after`);
++        const afterReviewOutput = await aiReviewUI(false);
++        const afterScore = scoreFromReviewOutput(afterReviewOutput);
++        const improved =
++          beforeScore === null || afterScore === null
++            ? null
++            : afterScore > beforeScore;
++        const rollbackOccurred =
++          beforeScore !== null &&
++          afterScore !== null &&
++          afterScore < beforeScore;
++        const restoredTrackedAppFiles = rollbackOccurred ? restoreTrackedAppFiles(appFileSnapshot) : [];
++        const gitStatus = summarizeOutput(run("git status --short", 15_000), 2_000) || "No changes";
++
++        report.push({
++          iteration,
++          issue: beforeReview.issue,
++          file: beforeReview.likelyFile,
++          task: beforeReview.recommendedTask,
++          beforeScore,
++          afterScore,
++          improved,
++          rollback: {
++            occurred: rollbackOccurred,
++            restoredTrackedAppFiles,
++          },
++          gitStatus,
++          screenshotPaths: {
++            before: beforeScreenshots,
++            after: afterScreenshots,
++          },
++        });
++
++        if (afterScore !== null && afterScore >= 8.5) break;
++      }
++
++      return summarizeOutput(JSON.stringify({ iterations: report }, null, 2), 30_000);
++    }
++
+     case "evaluateFix":
+       return evaluateFix();
+ 

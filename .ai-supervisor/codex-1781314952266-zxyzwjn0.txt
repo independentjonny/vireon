@@ -1,0 +1,16 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Review Neven dashboard. Recommend one high-value improvement. Do not modify files.
+Reviewer issue: The new supervisor script entry in package.json adds a development convenience but does not include related documentation or UI integration, causing a feature gap in discoverability and workflow.
+Target file: package.json
+Reviewer task: Add supervisor script and related documentation or UI integration for user access and clarity.
+Category: workflow
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

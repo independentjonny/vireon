@@ -1,0 +1,1 @@
+Inspect src/app/page.tsx and tell me which components are rendered. Do not modify files.

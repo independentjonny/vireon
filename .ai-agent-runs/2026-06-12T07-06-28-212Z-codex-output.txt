@@ -1,0 +1,9 @@
+Updated only `tools/neven-agent/agent-server.ts`.
+
+What changed:
+- Removed `git status`, `git diff`, and screenshot capture output from the `aiReviewUI` OpenAI prompt.
+- Prompt now limits model context to screenshot images, screenshot paths, and the fixed `likelyFile` list.
+- Added explicit instruction not to mention recent code changes, git diff/status, commits, or screenshots being generated.
+- Kept strict JSON-only and summary-only instructions.
+
+No tests or build were run, per your rules.

@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Extend autoImproveUI. After taking screenshots, it should automatically call the existing reviewUI functionality and return: screenshot paths, top UI issue placeholder, likely file placeholder, and recommended Codex task placeholder. Do not modify Neven app files. Return summary only.

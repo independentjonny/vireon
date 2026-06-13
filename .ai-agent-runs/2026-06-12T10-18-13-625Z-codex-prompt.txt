@@ -1,0 +1,28 @@
+
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Goal:
+Improve the Neven UI based on this screenshot-only AI review.
+Likely file: src/app/components/OverviewV3.tsx
+Target area: dashboard-hero-section
+Category: workflow
+Recommended task: Add clear workflow elements like prioritized action buttons, step-by-step guidance, or an interactive assistant in the dashboard hero area to help users act on insights and signals immediately.
+Success criteria: The next screenshots show clear, prioritized calls to action or guided workflows in the dashboard hero area that enable users to easily proceed with next steps derived from the dashboard insights.
+
+Rules:
+- Make the smallest targeted UI change needed to satisfy the success criteria.
+- Never recommend or make spacing, padding, margin, border radius, gap, or font-size changes if a hierarchy, navigation, workflow, information architecture, feature, dashboard insight, responsiveness, accessibility, or content issue exists.
+- Modify only the likely file unless the requested UI area clearly requires a directly related component file.
+- Do not modify API routes, package files, Next config, Playwright config, package files, or .ai files.
+- Do not commit changes.
+- Return summary only.
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.

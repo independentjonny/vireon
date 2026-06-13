@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Improve evaluateFix. Add heuristic checks based on the recommended task. If the task targets OverviewV3 hero density, FAIL when only page.tsx changed. PASS only when OverviewV3.tsx changed. Keep existing typecheck and screenshot checks. Return summary only.

@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Improve generateUIReviewPlaceholder(). If page.tsx already uses w-full and lg:px-4 or smaller, stop recommending width expansion. Instead recommend hero dashboard density improvements in src/app/components/OverviewV3.tsx. Return summary only.

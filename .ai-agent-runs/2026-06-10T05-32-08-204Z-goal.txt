@@ -1,0 +1,1 @@
+Modify only src/app/components/OverviewV3.tsx. In the hero section move Financial Health into the same KPI grid as Cash Flow, Savings Rate, Runway and AI Score. Create a 5-card responsive KPI row beneath Net Worth. Reduce empty vertical space in the hero section. Do not change colours, data, labels or calculations. Do not modify any other sections. Return git diff summary only.

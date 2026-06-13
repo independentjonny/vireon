@@ -1,0 +1,15 @@
+
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Goal:
+Modify only C:\Users\summe\ai-dev-orchestrator\neven-agent\agent-server.ts. Add structured action support to POST /run-agent. Support action values: health, gitStatus, gitDiff, readFile, writeFile, replaceText, typecheck, screenshot. Keep existing goal-based behavior as fallback. For action readFile use path. For writeFile use path and content. For replaceText use path, from, to. For screenshot capture latest desktop and mobile. Add timeouts so server never hangs. Do not modify Neven app files. Return summary only.
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.

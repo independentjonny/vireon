@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Add structured action named planFix. It should call generateUIReviewPlaceholder(), then return only a ready-to-run Codex goal string based on the recommended Codex task. Do not run Codex. Do not modify Neven app files. Return summary only.

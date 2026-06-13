@@ -1,0 +1,1 @@
+Replace text in file src/app/components/OverviewV3.tsx from exactly: xl:grid-cols-2 to exactly: 2xl:grid-cols-2 xl:grid-cols-[1fr_1fr]

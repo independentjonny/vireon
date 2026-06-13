@@ -1,0 +1,15 @@
+
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Goal:
+Modify only src/app/components/OverviewV3.tsx. Improve desktop width usage without changing colours or data logic. Specifically: in the Portfolio + Health sub-scores area, change the wrapper from a 2-column xl grid to a 3-column xl grid where Portfolio Allocation spans 2 columns and Health Indicators spans 1 column. Do not modify other sections. Do not run build. Return git diff summary.
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.

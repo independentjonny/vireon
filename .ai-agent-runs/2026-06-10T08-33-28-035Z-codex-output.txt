@@ -1,0 +1,5 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Added structured action `planFix` to `AgentAction` and implemented its handler to call `generateUIReviewPlaceholder()` and return only the top finding’s `recommendedTask` as a ready-to-run Codex goal string.
+
+Did not run Codex, tests, or build.

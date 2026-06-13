@@ -1,0 +1,111 @@
+ src/app/page.tsx                  | 24 ++++++++++++------------
+ tools/neven-agent/agent-server.ts | 19 ++++---------------
+ 2 files changed, 16 insertions(+), 27 deletions(-)
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index cb147f5..aa91781 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -24,9 +24,9 @@ const navItems = [
+ 
+ function RuntimeBanner() {
+   return (
+-    <div className="sticky top-0 z-40 border-b border-emerald-500/[0.15] bg-[#07111f]/85 px-4 py-2 text-xs text-emerald-300/80 backdrop-blur-xl">
+-      <span className="inline-flex items-center gap-2">
+-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
++    <div className="sticky top-0 z-40 border-b border-emerald-500/[0.15] bg-[#07111f]/85 px-4 py-2 pr-20 text-xs leading-5 text-emerald-300/80 backdrop-blur-xl lg:ml-64 lg:pr-4">
++      <span className="inline-flex items-start gap-2">
++        <span className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+         Autonomous AI Runtime Active — Supervisor online • 10 agents nominal • Multi-agent v2
+       </span>
+     </div>
+@@ -87,13 +87,13 @@ function SectionShell({
+   children?: React.ReactNode;
+ }) {
+   return (
+-    <section id={id} className="scroll-mt-20">
+-      <div className="mb-4 flex flex-wrap items-baseline gap-3 border-b border-white/[0.07] pb-3">
++    <section id={id} className="scroll-mt-24">
++      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-white/[0.07] pb-3 sm:mb-4">
+         <h2 className="text-lg font-bold text-white">{title}</h2>
+         {subtitle && <span className="text-xs text-white/35">{subtitle}</span>}
+       </div>
+ 
+-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-5 shadow-xl shadow-black/20">
++      <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-4 shadow-xl shadow-black/20 sm:rounded-2xl sm:p-5">
+         {children ?? (
+           <p className="text-sm text-white/45">
+             Section placeholder restored after page recovery. Detailed module can be reattached safely.
+@@ -106,10 +106,10 @@ function SectionShell({
+ 
+ function ScreenshotPanel() {
+   const paths = [
+-    "screenshot/fullpage.png",
+-    "screenshot/overview.png",
+-    "screenshot/build-automation.png",
+-    ".ai/screenshots/fullpage.png",
++    ".ai-agent-runs/latest-desktop.png",
++    ".ai-agent-runs/latest-mobile.png",
++    ".ai/browser-interaction-check.png",
++    ".ai/validate-and-repair.png",
+   ];
+ 
+   return (
+@@ -135,8 +135,8 @@ export default async function HomePage() {
+       <div className="flex min-h-screen lg:pl-64">
+         <Sidebar />
+ 
+-        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-6">
+-          <div className="w-full space-y-12">
++        <section className="min-w-0 flex-1 px-3 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10">
++          <div className="mx-auto w-full max-w-[1540px] space-y-10 sm:space-y-12">
+             <OverviewV3
+               netWorth="$1.84M"
+               netWorthTrend="+4.2% this month"
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 8fb900d..41cb2a4 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -269,31 +269,20 @@ async function aiReviewUI() {
+     return "OPENAI_API_KEY is missing. Set OPENAI_API_KEY in the environment before running aiReviewUI.";
+   }
+ 
+-  const screenshotOutput = takeScreenshots();
+-  const gitStatus = summarizeOutput(run("git status --short", 15_000), 4_000) || "No changes";
+-  const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000), 16_000) || "No diff";
++  takeScreenshots();
+   const prompt = [
+     "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
+-    "Ignore git diff unless needed to choose likelyFile.",
+-    "Do not summarize recent code changes.",
++    "Use only the screenshot images, screenshot paths, and valid likelyFile values below.",
+     "Identify the single highest-impact visible UI issue.",
+     "Valid likelyFile values are src/app/page.tsx, src/app/components/OverviewV3.tsx, src/app/components/MobileNav.tsx, src/app/components/sections/TransactionsSection.tsx, src/app/components/sections/SubscriptionsSection.tsx, src/app/components/ImportWorkflow.tsx.",
+     "Prefer OverviewV3 for dashboard hero/cards/portfolio/health issues.",
++    "Do not mention recent code changes, git diff, git status, commits, or screenshots being generated.",
+     "Return strict JSON only with issue, likelyFile, recommendedTask, confidence.",
+     "Return summary only.",
+     "",
+     "Screenshot paths:",
+     ".ai-agent-runs/latest-desktop.png",
+     ".ai-agent-runs/latest-mobile.png",
+-    "",
+-    "Git status:",
+-    gitStatus,
+-    "",
+-    "Git diff:",
+-    gitDiff,
+-    "",
+-    "Screenshot capture output:",
+-    summarizeOutput(screenshotOutput, 4_000),
+   ].join("\n");
+ 
+   const desktopImage = screenshotInputImage("latest-desktop.png");
+@@ -314,7 +303,7 @@ async function aiReviewUI() {
+ 
+   const fallbackPrompt = prompt.replace(
+     "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
+-    "You are a senior product designer reviewing the Neven dashboard screenshot paths.\nDo not assume screenshot image contents are available yet; use the paths and command output as context."
++    "You are a senior product designer reviewing the Neven dashboard screenshot paths.\nDo not assume screenshot image contents are available yet."
+   );
+ 
+   try {

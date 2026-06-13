@@ -1,0 +1,4 @@
+Auto UI improvement screenshots ready.
+Desktop: .ai-agent-runs/latest-desktop.png
+Mobile: .ai-agent-runs/latest-mobile.png
+Recommended next task: Review screenshots manually and provide one targeted UI improvement.

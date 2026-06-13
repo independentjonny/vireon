@@ -1,0 +1,1 @@
+Inspect src/app/components/OverviewV3.tsx. Find every max-w class, fixed width class, grid column definition, and container width restriction. Return only a summary. Do not modify files.

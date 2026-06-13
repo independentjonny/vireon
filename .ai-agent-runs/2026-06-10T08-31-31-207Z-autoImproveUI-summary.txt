@@ -1,0 +1,6 @@
+Auto UI improvement review ready.
+Desktop: .ai-agent-runs/latest-desktop.png
+Mobile: .ai-agent-runs/latest-mobile.png
+Top UI issue: Content is likely not using the full desktop width, leaving excessive whitespace around the main dashboard area.
+Likely file: src/app/page.tsx
+Recommended Codex task: Review src/app/page.tsx and widen the main layout container or grid so dashboard content uses available desktop space without oversized side gutters.

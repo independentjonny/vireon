@@ -1,0 +1,12 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+What changed:
+- Extracted existing `reviewUI` behavior into a small `reviewUI()` helper.
+- Updated `reviewUI` action to use that helper.
+- Updated `autoImproveUI` to call `reviewUI()` after screenshot capture and return:
+  - desktop/mobile screenshot paths
+  - top UI issue placeholder
+  - likely file placeholder
+  - recommended Codex task placeholder
+
+No tests or build were run, per instructions.

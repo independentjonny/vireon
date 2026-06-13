@@ -1,0 +1,55 @@
+Executed fix task:
+Review src/app/page.tsx and widen the main layout container or grid so dashboard content uses available desktop space without oversized side gutters.
+
+Codex output:
+Updated [src/app/page.tsx](C:/Users/summe/liberva/src/app/page.tsx:139) only.
+
+Changed the dashboard content wrapper from `mx-auto max-w-[1600px]` to `w-full`, so the main dashboard uses the available desktop content width instead of being capped and centered with oversized gutters.
+
+I did not run tests or `npm run build`, per your rules.
+
+
+Validation:
+
+
+Git status:
+M src/app/page.tsx
+?? .ai-agent-runs/
+
+Git diff:
+src/app/page.tsx | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 9031fdb..2b1c190 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -136,7 +136,7 @@ export default async function HomePage() {
+         <Sidebar />
+ 
+         <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10">
+-          <div className="mx-auto max-w-[1600px] space-y-12">
++          <div className="w-full space-y-12">
+             <OverviewV3
+               netWorth="$1.84M"
+               netWorthTrend="+4.2% this month"
+@@ -233,4 +233,4 @@ export default async function HomePage() {
+       </div>
+     </main>
+   );
+-}
+\ No newline at end of file
++}
+
+Screenshot capture:
+Screenshots captured:
+.ai-agent-runs/latest-desktop.png
+.ai-agent-runs/latest-mobile.png
+
+Desktop output:
+Navigating to http://localhost:3000
+Capturing screenshot into .ai-agent-runs/latest-desktop.png
+
+
+Mobile output:
+Navigating to http://localhost:3000
+Capturing screenshot into .ai-agent-runs/latest-mobile.png

@@ -1,0 +1,5 @@
+Updated `tools/neven-agent/agent-server.ts` only.
+
+Changed `generateUIReviewPlaceholder()` so the OverviewV3 full-width paths recommend a concrete layout task: move Financial Health into the KPI row, create a 5-card KPI grid, and reduce hero vertical spacing.
+
+No tests or build run, per instructions.

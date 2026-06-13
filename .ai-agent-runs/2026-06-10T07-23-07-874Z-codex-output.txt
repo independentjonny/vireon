@@ -1,0 +1,9 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Added structured action `autofix` that runs, in order:
+
+1. `git status --short`
+2. screenshot capture via existing `takeScreenshots()`
+3. `git diff --stat; git diff`
+
+It returns a combined summarized report with sections for status, screenshots, and diff. No tests or build were run.

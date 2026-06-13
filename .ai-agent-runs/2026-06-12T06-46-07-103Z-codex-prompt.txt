@@ -1,0 +1,15 @@
+
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Goal:
+Modify only tools/neven-agent/agent-server.ts. Upgrade aiReviewUI to use screenshot images. Read .ai-agent-runs/latest-desktop.png and latest-mobile.png, encode them as input_image content for the OpenAI Responses API, and ask the model to review the actual UI. Return strict JSON with issue, likelyFile, recommendedTask, confidence. Keep the current text context (git status and git diff) but add the screenshots. If image review fails, fall back to the current text-only review. Return summary only.
+
+Rules:
+- Follow the goal exactly.
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless the goal explicitly requires it.
+- Do not run npm run build unless the goal explicitly asks for it.
+- Do not run tests unless the goal explicitly asks for them.
+- If the goal asks to read or inspect only, do not modify files.
+- At the end, summarize exactly what you did.

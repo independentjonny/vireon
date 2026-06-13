@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. In the executeFix structured action, remove any hardcoded page.tsx width-expansion task. executeFix must get its task from the same source as planFix, specifically generateUIReviewPlaceholder()[0].recommendedTask. Add a comment near executeFix saying executeFix and planFix must share the same task source. Return summary only.

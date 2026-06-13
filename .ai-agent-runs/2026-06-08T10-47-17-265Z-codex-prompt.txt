@@ -1,0 +1,12 @@
+
+You are working in the Neven repo.
+
+Goal:
+Run git status --short and return the output. Do not modify files.
+
+Rules:
+- Make the smallest targeted change.
+- Do not rewrite unrelated files.
+- Do not modify package.json, package-lock.json, playwright.config.ts, next.config.ts, .ai/*, or API routes unless explicitly required.
+- Run npm run build.
+- Summarise files changed and result.

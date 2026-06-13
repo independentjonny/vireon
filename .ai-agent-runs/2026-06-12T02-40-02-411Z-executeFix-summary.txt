@@ -1,0 +1,251 @@
+Executed fix task:
+Review src/app/components/OverviewV3.tsx and move Financial Health into the KPI row, creating a 5-card KPI grid while reducing hero vertical spacing.
+
+Codex output:
+Updated [OverviewV3.tsx](C:/Users/summe/liberva/src/app/components/OverviewV3.tsx):
+
+- Moved `Financial Health` into `secondaryMetrics`, so it renders as part of the KPI row.
+- Changed the KPI layout to a 5-card grid at `xl` width.
+- Removed the old standalone Financial Health card.
+- Reduced hero vertical spacing by tightening hero padding and key top margins.
+
+I did not run tests or `npm run build`, per your rules. I ran `git diff --check` only; it passed with a line-ending warning for this file.
+
+
+Validation:
+
+
+Initial git status:
+M src/app/page.tsx
+ M tools/neven-agent/agent-server.ts
+?? .ai-agent-runs/
+
+Git status:
+M src/app/components/OverviewV3.tsx
+ M src/app/page.tsx
+ M tools/neven-agent/agent-server.ts
+?? .ai-agent-runs/
+
+Git diff:
+src/app/components/OverviewV3.tsx | 61 ++++++++++++++++++++++-----------------
+ src/app/page.tsx                  |  2 +-
+ tools/neven-agent/agent-server.ts | 34 +++++-----------------
+ 3 files changed, 44 insertions(+), 53 deletions(-)
+diff --git a/src/app/components/OverviewV3.tsx b/src/app/components/OverviewV3.tsx
+index 276c2ca..b0e867e 100644
+--- a/src/app/components/OverviewV3.tsx
++++ b/src/app/components/OverviewV3.tsx
+@@ -58,11 +58,24 @@ export default function OverviewV3({
+       ? "text-amber-400"
+       : "text-red-400";
+ 
+-  const secondaryMetrics = [
++  const secondaryMetrics: {
++    label: string;
++    value: string;
++    accent: string;
++    detail?: string;
++    progress?: number;
++  }[] = [
+     { label: "Cash Flow", value: cashFlow, accent: "emerald" },
+     { label: "Savings Rate", value: savingsRate, accent: "sky" },
+     { label: "Runway", value: runway, accent: "white" },
+     { label: "AI Score", value: aiConfidence, accent: "violet" },
++    {
++      label: "Financial Health",
++      value: String(healthScore),
++      accent: "health",
++      detail: healthLabel,
++      progress: healthScore,
++    },
+   ];
+ 
+   const accentClass: Record<string, string> = {
+@@ -70,6 +83,7 @@ export default function OverviewV3({
+     sky: "text-sky-400",
+     white: "text-white/70",
+     violet: "text-violet-400",
++    health: healthColor,
+   };
+ 
+   const levelColor: Record<string, string> = {
+@@ -128,13 +142,13 @@ export default function OverviewV3({
+             }}
+           />
+ 
+-          <div className="relative px-5 py-7 sm:px-8 sm:py-9 lg:px-10">
++          <div className="relative px-5 py-6 sm:px-8 sm:py-7 lg:px-10">
+             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/75">
+               Neven Financial OS &mdash; {dateStr}
+             </p>
+ 
+             {/* Net Worth — dominant anchor */}
+-            <div className="mt-6">
++            <div className="mt-5">
+               <div className="mb-2 text-sm font-semibold text-white/55">
+                 Net Worth
+               </div>
+@@ -144,7 +158,7 @@ export default function OverviewV3({
+               >
+                 {netWorth}
+               </h1>
+-              <div className="mt-4 flex items-center gap-4 flex-wrap">
++              <div className="mt-3 flex items-center gap-4 flex-wrap">
+                 <span className="flex items-center gap-1.5 text-emerald-400 font-bold text-base">
+                   <span>↑</span>
+                   {netWorthTrend}
+@@ -154,11 +168,11 @@ export default function OverviewV3({
+               </div>
+             </div>
+ 
+-            <div className="mt-8 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
++            <div className="mt-6 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+ 
+-            {/* Secondary metrics: Runway / Savings / Portfolio / AI Score + Health */}
+-            <div className="mt-7 grid gap-7 xl:grid-cols-3 xl:items-end">
+-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2">
++            {/* KPI row */}
++            <div className="mt-5">
++              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+                 {secondaryMetrics.map((m) => (
+                   <div key={m.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
+                     <div className="mb-2 text-xs font-medium text-white/55">
+@@ -170,28 +184,23 @@ export default function OverviewV3({
+                     >
+                       {m.value}
+                     </div>
++                    {m.detail && (
++                      <div className={`mt-1.5 text-xs font-semibold ${accentClass[m.accent]} opacity-60`}>
++                        {m.detail}
++                      </div>
++                    )}
++                    {m.progress !== undefined && (
++                      <div className="mt-2 h-[2px] w-20 rounded-full bg-white/[0.06]">
++                        <div
++                          className="h-full rounded-full bg-emerald-400"
++                          style={{ width: `${m.progress}%` }}
++                        />
++                      </div>
++                    )}
+                   </div>
+                 ))}
+               </div>
+ 
+-              {/* Financial Health — right anchor */}
+-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 xl:col-start-3 xl:justify-self-end xl:text-right xl:shrink-0">
+-                <div className="mb-1 text-xs font-medium text-white/55">
+-                  Financial Health
+-                </div>
+-                <div className={`text-7xl font-bold tabular-nums leading-none ${healthColor}`}>
+-                  {healthScore}
+-                </div>
+-                <div className={`text-xs font-semibold mt-1.5 ${healthColor} opacity-60`}>
+-                  {healthLabel}
+-                </div>
+-                <div className="mt-2 w-20 h-[2px] rounded-full bg-white/[0.06] xl:ml-auto">
+-                  <div
+-                    className="h-full rounded-full bg-emerald-400"
+-                    style={{ width: `${healthScore}%` }}
+-                  />
+-                </div>
+-              </div>
+             </div>
+           </div>
+         </section>
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index cb147f5..dfce101 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -135,7 +135,7 @@ export default async function HomePage() {
+       <div className="flex min-h-screen lg:pl-64">
+         <Sidebar />
+ 
+-        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-6">
++        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-4 xl:px-5">
+           <div className="w-full space-y-12">
+             <OverviewV3
+               netWorth="$1.84M"
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index d615da1..827140b 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -173,7 +173,6 @@ type UIReviewFinding = {
+ function generateUIReviewPlaceholder(): UIReviewFinding[] {
+   const desktopPath = path.join(REPO, ".ai-agent-runs", "latest-desktop.png");
+   const mobilePath = path.join(REPO, ".ai-agent-runs", "latest-mobile.png");
+-  const pagePathCandidates = ["src/app/page.tsx", "app/page.tsx"];
+   const likelyFileCandidates = [
+     "src/app/page.tsx",
+     "app/page.tsx",
+@@ -182,32 +181,19 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
+     "src/app/globals.css",
+     "app/globals.css",
+   ];
+-  const pagePath = pagePathCandidates.find((candidate) => fs.existsSync(path.join(REPO, candidate))) ?? "src/app/page.tsx";
+   const likelyFile = likelyFileCandidates.find((candidate) => fs.existsSync(path.join(REPO, candidate))) ?? "src/app/page.tsx";
+   const overviewFile = fs.existsSync(path.join(REPO, "src/app/components/OverviewV3.tsx"))
+     ? "src/app/components/OverviewV3.tsx"
+     : likelyFile;
+-  const pageSource = fs.existsSync(path.join(REPO, pagePath))
+-    ? fs.readFileSync(path.join(REPO, pagePath), "utf8")
+-    : "";
+-  const pageAlreadyUsesDesktopWidth = /\bw-full\b/.test(pageSource) && /\blg:px-(?:0|1|2|3|4)\b/.test(pageSource);
+ 
+   const findings: UIReviewFinding[] = [];
+ 
+   if (fs.existsSync(desktopPath)) {
+-    if (pageAlreadyUsesDesktopWidth) {
+-      findings.push({
+-        issue: "The page layout already uses full width with compact desktop gutters, so OverviewV3 needs a specific hero layout pass rather than more width.",
+-        likelyFile: overviewFile,
+-        recommendedTask: `Review ${overviewFile} and move Financial Health into the KPI row, creating a 5-card KPI grid while reducing hero vertical spacing without expanding the page width.`,
+-      });
+-    } else {
+-      findings.push({
+-        issue: "Content is likely not using the full desktop width, leaving excessive whitespace around the main dashboard area.",
+-        likelyFile,
+-        recommendedTask: `Review ${likelyFile} and widen the main layout container or grid so dashboard content uses available desktop space without oversized side gutters.`,
+-      });
+-    }
++    findings.push({
++      issue: "OverviewV3 needs a specific hero layout pass with a denser KPI row.",
++      likelyFile: overviewFile,
++      recommendedTask: `Review ${overviewFile} and move Financial Health into the KPI row, creating a 5-card KPI grid while reducing hero vertical spacing.`,
++    });
+   }
+ 
+   if (fs.existsSync(mobilePath)) {
+@@ -220,13 +206,9 @@ function generateUIReviewPlaceholder(): UIReviewFinding[] {
+ 
+   if (findings.length === 0) {
+     findings.push({
+-      issue: pageAlreadyUsesDesktopWidth
+-        ? "OverviewV3 may need a specific hero layout pass now that the page layout already uses full width with compact desktop gutters."
+-        : "Dashboard cards may be too narrow or constrained by the current layout container.",
+-      likelyFile: pageAlreadyUsesDesktopWidth ? overviewFile : likelyFile,
+-      recommendedTask: pageAlreadyUsesDesktopWidth
+-        ? `Capture desktop and mobile screenshots, then review ${overviewFile} to move Financial Health into the KPI row, create a 5-card KPI grid, and reduce hero vertical spacing.`
+-        : `Capture desktop and mobile screenshots, then review ${likelyFile} for container width, grid columns, and card sizing issues.`,
++      issue: "OverviewV3 may need a specific hero layout pass with a denser KPI row.",
++      likelyFile: overviewFile,
++      recommendedTask: `Capture desktop and mobile screenshots, then review ${overviewFile} to move Financial Health into the KPI row, create a 5-card KPI grid, and reduce hero vertical spacing.`,
+     });
+   }
+
+Screenshot capture:
+Screenshots captured:
+.ai-agent-runs/latest-desktop.png
+.ai-agent-runs/latest-mobile.png
+
+Desktop output:
+Navigating to http://localhost:3000
+Capturing screenshot into .ai-agent-runs/latest-desktop.png
+
+
+Mobile output:
+Navigating to http://localhost:3000
+Capturing screenshot into .ai-agent-runs/latest-mobile.png
+
+
+Evaluation:
+PASS

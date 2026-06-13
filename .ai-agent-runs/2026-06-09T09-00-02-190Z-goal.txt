@@ -1,0 +1,1 @@
+Replace text in file src/app/page.tsx from exactly: max-w-7xl to exactly: max-w-[1600px]

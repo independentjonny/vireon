@@ -1,0 +1,3 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Added structured action `evaluateFix`, returning exactly `PASS`, `FAIL`, or `UNKNOWN` based on git diff, typecheck, and screenshot existence. Updated `executeFix` to call `evaluateFix` and include its result in the final report. Did not run tests or build.

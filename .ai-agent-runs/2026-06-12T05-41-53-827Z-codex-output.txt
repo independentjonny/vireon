@@ -1,0 +1,10 @@
+Modified only `tools/neven-agent/agent-server.ts`.
+
+Added `aiReviewUI` structured action that:
+- checks `OPENAI_API_KEY` and returns a clear missing-key error
+- captures desktop/mobile screenshots
+- reads `git status` and `git diff`
+- calls OpenAI Responses API
+- requests compact JSON with `issue`, `likelyFile`, `recommendedTask`, and `confidence`
+
+Did not modify Neven app files, package files, config files, `.ai/*`, or API routes. Did not run tests or build.

@@ -1,0 +1,16 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Review the Neven dashboard and propose one high-value UI improvement. Do not modify files yet.
+Reviewer issue: Minor feature addition in package.json without corresponding UI or functional changes visible in screenshots or build/test outputs; no UI issues detected in screenshots for desktop and mobile views.
+Target file: package.json
+Reviewer task: Add new supervisor script to package.json
+Category: code_quality
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

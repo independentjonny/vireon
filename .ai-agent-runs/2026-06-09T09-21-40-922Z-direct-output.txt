@@ -1,0 +1,13 @@
+
+src\app\components\sections\SubscriptionsSection.tsx:221:            <p className="mx-auto mt-2 
+max-w-md text-sm leading-6 text-white/55">
+src\app\components\sections\TransactionsSection.tsx:142:            <p className="mx-auto mt-2 
+max-w-md text-sm leading-6 text-white/55">
+src\app\components\MobileNav.tsx:101:          "fixed inset-y-0 right-0 z-[2147483646] w-80 
+max-w-[86vw] border-l border-white/10 bg-[#07111f] shadow-2xl transition-transform duration-300 
+lg:hidden",
+src\app\components\OverviewV3.tsx:363:              <p className="text-sm text-white/38 
+leading-relaxed max-w-md">
+src\app\page.tsx:139:          <div className="mx-auto max-w-[1600px] space-y-12">
+
+

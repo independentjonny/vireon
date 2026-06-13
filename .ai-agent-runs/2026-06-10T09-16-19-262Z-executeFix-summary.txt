@@ -1,0 +1,136 @@
+Executed fix task:
+Review src/app/page.tsx and widen the main layout container or grid so dashboard content uses available desktop space without oversized side gutters.
+
+Codex output:
+Updated [src/app/page.tsx](C:/Users/summe/liberva/src/app/page.tsx:135) only.
+
+Changed the main dashboard content section from `lg:px-10` to `lg:px-6`, reducing oversized desktop side gutters so the existing full-width dashboard grids can use more available space.
+
+I did not run tests or build, per your rules. Existing unrelated worktree changes remain untouched.
+
+
+Validation:
+
+
+Initial git status:
+M tools/neven-agent/agent-server.ts
+?? .ai-agent-runs/
+
+Git status:
+M src/app/page.tsx
+ M tools/neven-agent/agent-server.ts
+?? .ai-agent-runs/
+
+Git diff:
+src/app/page.tsx                  |  2 +-
+ tools/neven-agent/agent-server.ts | 55 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 1 deletion(-)
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 2b1c190..cb147f5 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -135,7 +135,7 @@ export default async function HomePage() {
+       <div className="flex min-h-screen lg:pl-64">
+         <Sidebar />
+ 
+-        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10">
++        <section className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-6">
+           <div className="w-full space-y-12">
+             <OverviewV3
+               netWorth="$1.84M"
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 830b113..f02b560 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -221,6 +221,19 @@ function summarizeOutput(output: string, maxLength = 12_000) {
+   return `${trimmed.slice(0, maxLength)}\n... truncated ${trimmed.length - maxLength} characters`;
+ }
+ 
++function trackedModifiedFilesFromStatus(status: string) {
++  return status
++    .split(/\r?\n/)
++    .map((line) => line.trimEnd())
++    .filter((line) => line && !line.startsWith("??"))
++    .map((line) => line.slice(3).replace(/^.* -> /, ""))
++    .filter(Boolean);
++}
++
++function quotePowerShellPath(filePath: string) {
++  return `'${filePath.replaceAll("'", "''")}'`;
++}
++
+ async function runStructuredAction(request: AgentRequest) {
+   switch (request.action) {
+     case "health":
+@@ -291,8 +304,47 @@ async function runStructuredAction(request: AgentRequest) {
+     case "executeFix": {
+       const [topFinding] = generateUIReviewPlaceholder();
+       const task = topFinding.recommendedTask;
++      const beforeGitStatus = run("git status --short", 15_000);
+       const { codexOutput, validation } = await runCodex(task, true);
+       const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
++      if (validation.includes("COMMAND FAILED OR TIMED OUT")) {
++        const beforeModified = new Set(trackedModifiedFilesFromStatus(beforeGitStatus));
++        const filesToRestore = trackedModifiedFilesFromStatus(gitStatus).filter((file) => !beforeModified.has(file));
++        const rollbackOutput =
++          filesToRestore.length > 0
++            ? run(`git restore -- ${filesToRestore.map(quotePowerShellPath).join(" ")}`, 20_000)
++            : "No new modified tracked files to restore.";
++        const postRollbackGitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
++
++        return summarizeOutput(
++          [
++            "Executed fix task:",
++            task,
++            "",
++            "Codex output:",
++            codexOutput,
++            "",
++            "Validation:",
++            validation,
++            "",
++            "Rollback occurred: validation command failed or timed out.",
++            "Rollback restored modified tracked files only; untracked files were not deleted.",
++            "",
++            "Initial git status:",
++            summarizeOutput(beforeGitStatus) || "No changes",
++            "",
++            "Restored files:",
++            filesToRestore.length > 0 ? filesToRestore.join("\n") : "None",
++            "",
++            "Rollback output:",
++            rollbackOutput,
++            "",
++            "Git status after rollback:",
++            postRollbackGitStatus,
++          ].join("\n"),
++          20_000
++        );
++      }
+       const gitDiff = summarizeOutput(run("git diff --stat; git diff", 20_000)) || "No diff";
+       const screenshots = takeScreenshots();
+ 
+@@ -307,6 +359,9 @@ async function runStructuredAction(request: AgentRequest) {
+           "Validation:",
+           validation,
+           "",
++          "Initial git status:",
++          summarizeOutput(beforeGitStatus) || "No changes",
++          "",
+           "Git status:",
+           gitStatus,
+           "",
+
+Screenshot capture:
+Screenshots captured:
+.ai-agent-runs/latest-desktop.png
+.ai-agent-runs/latest-mobile.png
+
+Desktop output:
+Navigating to http://localhost:3000
+Capturing screenshot into .ai-agent-runs/latest-desktop.png
+
+
+Mobile output:
+Navigating to http://localhost:3000
+Capturing screenshot into .ai-agent-runs/latest-mobile.png

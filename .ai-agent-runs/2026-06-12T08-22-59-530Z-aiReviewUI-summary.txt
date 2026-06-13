@@ -1,0 +1,9 @@
+{
+  "issue": "OPENAI_API_KEY is missing, so screenshot vision review could not run.",
+  "likelyFile": "src/app/components/OverviewV3.tsx",
+  "targetArea": "dashboard-spacing",
+  "recommendedTask": "Review src/app/components/OverviewV3.tsx against the captured desktop and mobile screenshots and make the smallest visible spacing or hierarchy improvement.",
+  "confidence": 0,
+  "currentScore": 1,
+  "successCriteria": "The next desktop and mobile screenshots show a clearer dashboard hierarchy with no new visible layout regressions."
+}

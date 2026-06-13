@@ -1,0 +1,51 @@
+[
+  {
+    "id": "task-1781301567417-jpvrefym",
+    "goal": "Review the Neven dashboard and propose one high-value UI improvement. Do not modify files yet.",
+    "approved": false,
+    "status": "failed",
+    "createdAt": "2026-06-12T21:59:27.417Z",
+    "updatedAt": "2026-06-13T01:25:39.307Z",
+    "attempts": 1,
+    "startedAt": "2026-06-12T21:59:29.500Z",
+    "completedAt": "2026-06-13T01:25:39.307Z",
+    "lastIssue": "Repaired stale running task",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
+  },
+  {
+    "id": "task-1781301583229-wcdqqv8a",
+    "goal": "Improve the Neven dashboard information hierarchy. Make only one targeted UI improvement. Commit only if validation passes and screenshot review improves.",
+    "approved": false,
+    "status": "failed",
+    "createdAt": "2026-06-12T21:59:43.229Z",
+    "updatedAt": "2026-06-12T22:22:34.634Z",
+    "attempts": 1,
+    "startedAt": "2026-06-12T22:09:48.940Z",
+    "completedAt": "2026-06-12T22:22:34.634Z",
+    "lastIssue": "Build failure due to type error in tools/neven-supervisor/supervisor.ts: assigning 'string | null' to 'string' without null check.",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
+  },
+  {
+    "id": "task-1781314807142-kc6mgjlo",
+    "goal": "Review Neven dashboard. Recommend one high-value improvement. Do not modify files.",
+    "approved": false,
+    "status": "failed",
+    "createdAt": "2026-06-13T01:40:07.142Z",
+    "updatedAt": "2026-06-13T01:52:31.004Z",
+    "attempts": 1,
+    "startedAt": "2026-06-13T01:40:08.768Z",
+    "completedAt": "2026-06-13T01:52:31.004Z",
+    "lastIssue": "Test failure due to ambiguous selector in mobile navigation test: the close navigation menu button resolves to two elements, causing strict mode violation and test failure.",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
+  },
+  {
+    "id": "task-1781328183026-l543fr01",
+    "goal": "Run Neven supervisor health task and report readiness without manual steps.",
+    "approved": true,
+    "status": "running",
+    "createdAt": "2026-06-13T05:23:03.026Z",
+    "updatedAt": "2026-06-13T05:23:03.135Z",
+    "attempts": 1,
+    "startedAt": "2026-06-13T05:23:03.135Z"
+  }
+]

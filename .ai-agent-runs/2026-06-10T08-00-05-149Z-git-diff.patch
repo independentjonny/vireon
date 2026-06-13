@@ -1,0 +1,32 @@
+ tools/neven-agent/agent-server.ts | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+diff --git a/tools/neven-agent/agent-server.ts b/tools/neven-agent/agent-server.ts
+index 0bf33ab..beb5a23 100644
+--- a/tools/neven-agent/agent-server.ts
++++ b/tools/neven-agent/agent-server.ts
+@@ -10,7 +10,7 @@ const LOG_DIR = path.join(REPO, ".ai-agent-runs");
+ fs.mkdirSync(LOG_DIR, { recursive: true });
+ 
+ type AgentMode = "auto" | "inspect" | "codex";
+-type AgentAction = "health" | "gitStatus" | "gitDiff" | "readFile" | "writeFile" | "replaceText" | "typecheck" | "screenshot" | "autofix";
++type AgentAction = "health" | "gitStatus" | "gitDiff" | "readFile" | "writeFile" | "replaceText" | "typecheck" | "screenshot" | "reviewUI" | "autofix";
+ 
+ type AgentRequest = {
+   action?: AgentAction;
+@@ -195,6 +195,16 @@ function runStructuredAction(request: AgentRequest) {
+       return "Screenshots captured: .ai-agent-runs/latest-desktop.png, .ai-agent-runs/latest-mobile.png";
+     }
+ 
++    case "reviewUI": {
++      takeScreenshots();
++      return [
++        "UI review screenshots ready.",
++        "Desktop: .ai-agent-runs/latest-desktop.png",
++        "Mobile: .ai-agent-runs/latest-mobile.png",
++        "Screenshot vision review is not implemented yet. Inspect these screenshots manually for now.",
++      ].join("\n");
++    }
++
+     case "autofix": {
+       const gitStatus = summarizeOutput(run("git status --short", 15_000)) || "No changes";
+       const typecheck = summarizeOutput(run("npx tsc --noEmit", 60_000));

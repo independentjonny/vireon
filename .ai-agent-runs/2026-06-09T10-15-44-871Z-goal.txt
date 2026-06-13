@@ -1,0 +1,1 @@
+Review latest-desktop.png and latest-mobile.png in .ai-agent-runs. Identify the 5 biggest consumer UX issues. Focus on layout, navigation, information hierarchy, spacing, and usability. Do not suggest colour changes. Do not modify files. Return findings as a numbered list with specific file names likely responsible for each issue.

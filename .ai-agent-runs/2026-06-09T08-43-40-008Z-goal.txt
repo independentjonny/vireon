@@ -1,0 +1,1 @@
+Modify only src/app/page.tsx. In the main content wrapper, change max-w-7xl to max-w-[1600px]. Keep sidebar width fixed. Do not change colours. Do not change data logic. Do not modify any other files. After the change, summarize files modified.

@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Remove every hardcoded task string that references page.tsx width expansion. executeFix must obtain its task exclusively from generateUIReviewPlaceholder()[0].recommendedTask. Search the entire file for page.tsx width-expansion task text and eliminate all stale copies. Return summary only.

@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Extend the autofix structured action so it also runs typecheck between gitStatus and screenshot. The report should include Git status, Typecheck, Screenshot capture, and Git diff. Do not modify Neven app files. Return summary only.

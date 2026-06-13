@@ -1,0 +1,3 @@
+Modified only [src/app/page.tsx](C:/Users/summe/liberva/src/app/page.tsx:139).
+
+Changed the main content wrapper from `max-w-7xl` to `max-w-[1600px]`. Sidebar width, colours, and data logic were not changed. No tests or build were run, per your rules.

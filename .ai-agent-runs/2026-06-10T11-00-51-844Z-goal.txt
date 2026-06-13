@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Improve evaluateFix. If executeFix output contains COMMAND FAILED OR TIMED OUT, evaluation must return FAIL. PASS only when: no timeout occurred, screenshots exist, typecheck succeeds, and a relevant target file was modified. Return summary only.

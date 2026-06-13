@@ -1,0 +1,1 @@
+Review src/app/page.tsx and widen the main layout container or grid so dashboard content uses available desktop space without oversized side gutters.

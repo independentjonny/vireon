@@ -1,0 +1,16 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Improve the Neven dashboard information hierarchy. Make only one targeted UI improvement. Commit only if validation passes and screenshot review improves.
+Reviewer issue: A new npm script 'supervisor' has been added to package.json for running a TypeScript file with experimental strip types. There are no UI or functionality changes visible in the provided screenshots or build/test outputs. No issues found in UI, workflow, or code quality from the given data.
+Target file: package.json
+Reviewer task: Review addition of new npm script and verify no UI impact
+Category: code_quality
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

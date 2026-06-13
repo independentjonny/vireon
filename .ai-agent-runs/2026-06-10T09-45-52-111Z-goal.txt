@@ -1,0 +1,1 @@
+Modify only tools/neven-agent/agent-server.ts. Add structured action autoLoop. autoLoop should execute autoImproveUI, planFix, executeFix, and evaluateFix in sequence. Return a combined report containing each stage output. Stop after one cycle. Do not auto-commit. Do not modify Neven app files except through executeFix. Return summary only.

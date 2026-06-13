@@ -1,0 +1,1 @@
+Review src/app/page.tsx and dashboard layout components. Fix desktop layout so content uses available screen width. Reduce unused right-side whitespace. Keep sidebar width fixed. Main content max width approximately 1600px. Do not change colours. Do not change data logic. Return files modified, git diff summary and build result.
