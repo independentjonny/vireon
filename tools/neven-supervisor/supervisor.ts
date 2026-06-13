@@ -15,6 +15,28 @@ const LOG_PATH = path.join(SUPERVISOR_DIR, "actions.log");
 const POLL_MS = Number(process.env.NEVEN_SUPERVISOR_POLL_MS ?? 2500);
 const MAX_ITERATIONS = Number(process.env.NEVEN_SUPERVISOR_MAX_ITERATIONS ?? 5);
 const APP_URL = process.env.NEVEN_APP_URL ?? "http://localhost:3000";
+const UI_REVIEW_MODE = "UI_REVIEW_MODE" as const;
+const BUILD_HEALTH_MODE = "BUILD_HEALTH_MODE" as const;
+const UI_REVIEW_FILES = [
+  "src/app/page.tsx",
+  "src/app/components/OverviewV3.tsx",
+  "src/app/components/MobileNav.tsx",
+  "src/app/components/sections/TransactionsSection.tsx",
+  "src/app/components/sections/SubscriptionsSection.tsx",
+  "src/app/components/ImportWorkflow.tsx",
+] as const;
+const UI_REVIEW_CATEGORIES = [
+  "information_hierarchy",
+  "navigation",
+  "workflow",
+  "feature_gap",
+  "dashboard_insight",
+  "accessibility",
+  "responsiveness",
+  "layout",
+] as const;
+const UI_REVIEW_FORBIDDEN_PATTERN =
+  /\bpackage\.json\b|\btools[\\/]|\bsupervisor\.ts\b|\bagent-server\.ts\b|\btests[\\/]|\bplaywright\b|\btypescript\b|\bci\b|\bbuild failure\b|\bnpm scripts\b|\binfrastructure\b/i;
 
 type TaskStatus = "queued" | "running" | "complete" | "failed" | "paused" | "stopped" | "needs_approval";
 type SupervisorStatus = "idle" | "running" | "paused" | "stopped";
@@ -98,6 +120,14 @@ type ReviewResult = {
   task: string;
   confidence: number;
   category: ReviewCategory;
+};
+
+type BuildHealthResult = {
+  mode: typeof BUILD_HEALTH_MODE;
+  ok: boolean;
+  typecheck: Pick<CommandResult, "ok" | "summary" | "output" | "code">;
+  test: Pick<CommandResult, "ok" | "summary" | "output" | "code">;
+  failures: string[];
 };
 
 type RunSnapshot = {
@@ -504,10 +534,16 @@ async function executeAction(action: CommandAction, input: Record<string, unknow
         return screenshot("desktop", 1440, 1200);
       case "screenshotMobile":
         return screenshot("mobile", 390, 1200);
-      case "reviewUI":
-        return { action, ok: true, summary: "UI review completed.", output: JSON.stringify(await reviewWithGpt("ui"), null, 2) };
+      case "reviewUI": {
+        const desktop = await screenshot("desktop", 1440, 1200);
+        const mobile = await screenshot("mobile", 390, 1200);
+        const review = await reviewUiWithRetry({
+          screenshots: [desktop.screenshotPath, mobile.screenshotPath].filter(Boolean),
+        });
+        return { action, ok: true, summary: "UI review completed.", output: JSON.stringify({ review, screenshots: { desktop, mobile } }, null, 2) };
+      }
       case "reviewCode":
-        return { action, ok: true, summary: "Code review completed.", output: JSON.stringify(await reviewWithGpt("code"), null, 2) };
+        return { action, ok: true, summary: "Build health completed.", output: JSON.stringify(await runBuildHealth(), null, 2) };
       case "rollback":
         throw new Error("Rollback requires an active task snapshot and is only available inside the autonomous loop.");
       default:
@@ -555,38 +591,48 @@ function screenshotInput(relativePath: string) {
   };
 }
 
-async function reviewWithGpt(mode: "ui" | "code", context: Record<string, unknown> = {}): Promise<ReviewResult> {
-  const diff = String(context.diff ?? runSync("git diff --stat; git diff", 30_000)).slice(-40_000);
-  const buildOutput = String(context.buildOutput ?? "").slice(-12_000);
-  const testOutput = String(context.testOutput ?? "").slice(-12_000);
-  const screenshots = Array.isArray(context.screenshots) ? context.screenshots.map(String) : [];
-  const fallback: ReviewResult = {
-    issue: mode === "ui" ? "GPT reviewer unavailable; inspect the visible app and latest diff." : "GPT reviewer unavailable; inspect the latest diff and validation output.",
-    file: "src/app/page.tsx",
-    task: mode === "ui" ? "Review the current Neven UI and make one substantive improvement." : "Review the current diff and fix the highest-risk code issue.",
+function fallbackUiReview(): ReviewResult {
+  return {
+    issue: "GPT reviewer unavailable; inspect the visible dashboard and choose the clearest visual improvement.",
+    file: UI_REVIEW_FILES[0],
+    task: "Improve the visible dashboard hierarchy or workflow clarity based on the screenshots.",
     confidence: 0,
-    category: mode === "ui" ? "information_hierarchy" : "code_quality",
+    category: "information_hierarchy",
   };
+}
+
+function isAllowedUiReview(review: ReviewResult) {
+  const combined = [review.issue, review.file, review.task, review.category].join("\n");
+  return (
+    (UI_REVIEW_FILES as readonly string[]).includes(review.file) &&
+    (UI_REVIEW_CATEGORIES as readonly string[]).includes(review.category) &&
+    !UI_REVIEW_FORBIDDEN_PATTERN.test(combined)
+  );
+}
+
+function sanitizeUiReview(review: ReviewResult) {
+  return isAllowedUiReview(review) ? review : fallbackUiReview();
+}
+
+async function reviewWithGpt(mode: typeof UI_REVIEW_MODE, context: Record<string, unknown> = {}): Promise<ReviewResult> {
+  const screenshots = Array.isArray(context.screenshots) ? context.screenshots.map(String) : [];
+  const fallback = fallbackUiReview();
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return fallback;
 
   const prompt = [
-    `You are the Neven GPT Reviewer performing a ${mode} review.`,
-    "Input includes screenshots if available, git diff, build output, and test output.",
+    `You are the Neven visual reviewer using ${mode}.`,
+    "Inspect only the screenshots.",
+    "Identify the highest-impact visible dashboard improvement.",
+    "Do not inspect or mention git diff, package.json, tools, tests, TypeScript, Playwright, CI, build output, supervisor files, agent files, npm scripts, or infrastructure.",
     "Return strict JSON only:",
     '{"issue":"","file":"","task":"","confidence":0,"category":""}',
-    "Use category values such as feature_gap, workflow, information_hierarchy, navigation, dashboard_insight, accessibility, responsiveness, layout, code_quality, test_failure, build_failure.",
-    "Prefer substantive hierarchy, workflow, feature, accessibility, responsiveness, or code correctness tasks over spacing-only changes.",
+    `The file must be one of: ${UI_REVIEW_FILES.join(", ")}.`,
+    `The category must be one of: ${UI_REVIEW_CATEGORIES.join(", ")}.`,
+    "Prefer substantive hierarchy, workflow, feature, accessibility, responsiveness, or layout tasks over spacing-only changes.",
     "",
-    "Git diff:",
-    diff || "No diff",
-    "",
-    "Build output:",
-    buildOutput || "No build output",
-    "",
-    "Test output:",
-    testOutput || "No test output",
+    "Screenshots are the complete review input.",
   ].join("\n");
 
   const content = [
@@ -614,10 +660,10 @@ async function reviewWithGpt(mode: "ui" | "code", context: Record<string, unknow
               additionalProperties: false,
               properties: {
                 issue: { type: "string" },
-                file: { type: "string" },
+                file: { type: "string", enum: UI_REVIEW_FILES },
                 task: { type: "string" },
                 confidence: { type: "number" },
-                category: { type: "string" },
+                category: { type: "string", enum: UI_REVIEW_CATEGORIES },
               },
               required: ["issue", "file", "task", "confidence", "category"],
             },
@@ -630,15 +676,40 @@ async function reviewWithGpt(mode: "ui" | "code", context: Record<string, unknow
     const text = responseTextFromOpenAI(payload);
     const parsed = JSON.parse(text) as ReviewResult;
     return {
-      issue: String(parsed.issue || fallback.issue),
-      file: String(parsed.file || fallback.file),
-      task: String(parsed.task || fallback.task),
+      issue: String(parsed.issue || fallback.issue).trim(),
+      file: String(parsed.file || fallback.file).trim(),
+      task: String(parsed.task || fallback.task).trim(),
       confidence: Number(parsed.confidence || 0),
-      category: String(parsed.category || fallback.category) as ReviewCategory,
+      category: String(parsed.category || fallback.category).trim() as ReviewCategory,
     };
   } catch {
     return fallback;
   }
+}
+
+async function reviewUiWithRetry(context: Record<string, unknown> = {}, attempts = 3): Promise<ReviewResult> {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const review = await reviewWithGpt(UI_REVIEW_MODE, context);
+    if (isAllowedUiReview(review)) return review;
+  }
+  return fallbackUiReview();
+}
+
+async function runBuildHealth(): Promise<BuildHealthResult> {
+  const typecheck = await executeAction("runCommand", { command: "npx tsc --noEmit", timeoutMs: 120_000 }, true);
+  const test = await executeAction("runCommand", { command: "npx playwright test -c tests mobile-nav.spec.ts --reporter=list", timeoutMs: 120_000 }, true);
+  const failures = [
+    typecheck.ok ? "" : `Typecheck failed: ${typecheck.summary}`,
+    test.ok ? "" : `Tests failed: ${test.summary}`,
+  ].filter(Boolean);
+
+  return {
+    mode: BUILD_HEALTH_MODE,
+    ok: typecheck.ok && test.ok,
+    typecheck: { ok: typecheck.ok, summary: typecheck.summary, output: typecheck.output?.slice(-4000), code: typecheck.code },
+    test: { ok: test.ok, summary: test.summary, output: test.output?.slice(-4000), code: test.code },
+    failures,
+  };
 }
 
 async function runCodex(task: string) {
@@ -677,6 +748,7 @@ async function processTask(task: TaskRecord) {
   const iterations: unknown[] = [];
   let finalStatus: TaskStatus = "failed";
   let lastReview: ReviewResult | null = null;
+  let lastBuildHealth: BuildHealthResult | null = null;
   let snapshot: RunSnapshot | null = null;
   let taskError: string | null = null;
 
@@ -696,13 +768,13 @@ async function processTask(task: TaskRecord) {
 
       const desktop = await executeAction("screenshotDesktop");
       const mobile = await executeAction("screenshotMobile");
-      const beforeReview = await reviewWithGpt("ui", {
+      const beforeReview = await reviewUiWithRetry({
         screenshots: [desktop.screenshotPath, mobile.screenshotPath].filter(Boolean),
-        diff: runSync("git diff --stat; git diff", 30_000),
       });
       lastReview = beforeReview;
       const plannedTask = [
         `Alex goal: ${task.goal}`,
+        `Review mode: ${UI_REVIEW_MODE}`,
         `Reviewer issue: ${beforeReview.issue}`,
         `Target file: ${beforeReview.file}`,
         `Reviewer task: ${beforeReview.task}`,
@@ -710,30 +782,27 @@ async function processTask(task: TaskRecord) {
       ].join("\n");
 
       const codex = await runCodex(plannedTask);
-      const typecheck = await executeAction("runCommand", { command: "npx tsc --noEmit", timeoutMs: 120_000 }, true);
-      const test = await executeAction("runCommand", { command: "npx playwright test -c tests mobile-nav.spec.ts --reporter=list", timeoutMs: 120_000 }, true);
+      const buildHealth = await runBuildHealth();
+      lastBuildHealth = buildHealth;
       const afterDesktop = await executeAction("screenshotDesktop");
       const afterMobile = await executeAction("screenshotMobile");
       const diff = runSync("git diff --stat; git diff", 30_000);
-      const afterReview = await reviewWithGpt("ui", {
+      const afterReview = await reviewUiWithRetry({
         screenshots: [afterDesktop.screenshotPath, afterMobile.screenshotPath].filter(Boolean),
-        diff,
-        buildOutput: typecheck.output,
-        testOutput: test.output,
       });
       lastReview = afterReview;
-      const improved = scoreReview(afterReview) >= scoreReview(beforeReview) && Boolean(diff.trim()) && typecheck.ok && test.ok;
+      const improved = scoreReview(afterReview) >= scoreReview(beforeReview) && Boolean(diff.trim());
       let restored: string[] = [];
       if (!improved && snapshot) restored = rollback(snapshot);
 
       iterations.push({
         iteration,
+        reviewMode: UI_REVIEW_MODE,
         beforeReview,
         afterReview,
         improved,
         codex: { ok: codex.ok, summary: codex.summary, output: codex.output?.slice(-4000) },
-        typecheck: { ok: typecheck.ok, output: typecheck.output?.slice(-4000) },
-        test: { ok: test.ok, output: test.output?.slice(-4000) },
+        buildHealth,
         screenshots: {
           before: { desktop: desktop.screenshotPath, mobile: mobile.screenshotPath },
           after: { desktop: afterDesktop.screenshotPath, mobile: afterMobile.screenshotPath },
@@ -759,7 +828,7 @@ async function processTask(task: TaskRecord) {
   } catch (err: any) {
     finalStatus = "failed";
     taskError = err.message ?? String(err);
-    addHistory({ taskId: task.id, action: "task.error", ok: false, summary: taskError });
+    addHistory({ taskId: task.id, action: "task.error", ok: false, summary: taskError ?? "Unknown task error" });
   }
 
   const report = {
@@ -769,6 +838,7 @@ async function processTask(task: TaskRecord) {
     status: finalStatus,
     error: taskError,
     lastReview,
+    lastBuildHealth,
     iterations,
     gitStatus: runSync("git status --short", 30_000),
     generatedAt: now(),
