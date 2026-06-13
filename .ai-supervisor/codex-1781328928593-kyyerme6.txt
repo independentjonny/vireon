@@ -1,0 +1,17 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Run Neven supervisor health task and report readiness without manual steps.
+Review mode: UI_REVIEW_MODE
+Reviewer issue: The navigation sidebar is extensive with many options but lacks a clear visual hierarchy or grouping, making it potentially overwhelming to users. Introducing grouped sections or collapsible categories would improve navigation efficiency and usability.
+Target file: src/app/components/OverviewV3.tsx
+Reviewer task: Group sidebar navigation items into logical collapsible sections to improve navigation usability and reduce cognitive load.
+Category: navigation
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

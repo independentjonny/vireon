@@ -1,26 +1,56 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 
-const NAV_ITEMS = [
-  ["Overview", "#overview"],
-  ["Transactions", "#transactions"],
-  ["Subscriptions", "#subscriptions"],
-  ["Financial Intelligence", "#financial-intelligence"],
-  ["AI Copilot", "#ai-copilot"],
-  ["Analytics", "#analytics"],
-  ["Roadmap", "#roadmap"],
-  ["Telemetry", "#telemetry"],
-  ["Deployment", "#deployment"],
-  ["Remote Control", "#remote-control"],
-  ["Build Automation", "#build-automation"],
-  ["Architecture Governance", "#architecture-governance"],
-  ["Settings", "#settings"],
+const NAV_SECTIONS = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    items: [
+      ["Overview", "#overview"],
+      ["Transactions", "#transactions"],
+      ["Subscriptions", "#subscriptions"],
+    ],
+  },
+  {
+    id: "intelligence",
+    label: "Intelligence",
+    items: [
+      ["Financial Intelligence", "#financial-intelligence"],
+      ["AI Copilot", "#ai-copilot"],
+      ["Analytics", "#analytics"],
+      ["Roadmap", "#roadmap"],
+    ],
+  },
+  {
+    id: "operations",
+    label: "Operations",
+    items: [
+      ["Telemetry", "#telemetry"],
+      ["Deployment", "#deployment"],
+      ["Remote Control", "#remote-control"],
+      ["Build Automation", "#build-automation"],
+    ],
+  },
+  {
+    id: "admin",
+    label: "Admin",
+    items: [
+      ["Architecture Governance", "#architecture-governance"],
+      ["Settings", "#settings"],
+    ],
+  },
 ];
 
 export default function MobileNav() {
   const [open, setOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    dashboard: true,
+    intelligence: true,
+    operations: false,
+    admin: false,
+  });
   const suppressNextClickRef = useRef(false);
 
   useEffect(() => {
@@ -89,7 +119,7 @@ export default function MobileNav() {
         <div className="fixed inset-0 z-[2147483645] bg-black/70 lg:hidden">
           <button
             type="button"
-            aria-label="Close navigation menu"
+            aria-label="Close navigation backdrop"
             className="absolute inset-y-0 left-0 w-[calc(100%-min(20rem,86vw))] cursor-default"
             onClick={() => setOpen(false)}
           />
@@ -121,21 +151,64 @@ export default function MobileNav() {
         </div>
 
         <nav className="h-[calc(100vh-82px)] overflow-y-auto p-3">
-          {NAV_ITEMS.map(([label, href], i) => (
-            <a
-              key={href}
-              href={href}
-              onClick={() => setOpen(false)}
-              className={[
-                "flex min-h-12 items-center rounded-xl px-4 text-sm",
-                i === 0
-                  ? "bg-emerald-400/15 text-emerald-300"
-                  : "text-white/70 hover:bg-white/[0.06] hover:text-white",
-              ].join(" ")}
-            >
-              {label}
-            </a>
-          ))}
+          {NAV_SECTIONS.map((section) => {
+            const expanded = expandedSections[section.id];
+
+            return (
+              <section
+                key={section.id}
+                className="border-b border-white/[0.06] py-2 last:border-b-0"
+              >
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-controls={`mobile-nav-${section.id}`}
+                  onClick={() =>
+                    setExpandedSections((current) => ({
+                      ...current,
+                      [section.id]: !current[section.id],
+                    }))
+                  }
+                  className="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-white/38 hover:bg-white/[0.04] hover:text-white/60"
+                >
+                  <span>{section.label}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold tracking-normal text-white/35">
+                      {section.items.length}
+                    </span>
+                    <ChevronDown
+                      aria-hidden="true"
+                      className={[
+                        "h-4 w-4 transition-transform",
+                        expanded ? "rotate-180" : "",
+                      ].join(" ")}
+                      strokeWidth={2}
+                    />
+                  </span>
+                </button>
+
+                {expanded && (
+                  <div id={`mobile-nav-${section.id}`} className="mt-1 space-y-1">
+                    {section.items.map(([label, href]) => (
+                      <a
+                        key={href}
+                        href={href}
+                        onClick={() => setOpen(false)}
+                        className={[
+                          "flex min-h-11 items-center rounded-xl px-4 text-sm transition",
+                          href === "#overview"
+                            ? "bg-emerald-400/15 text-emerald-300"
+                            : "text-white/70 hover:bg-white/[0.06] hover:text-white",
+                        ].join(" ")}
+                      >
+                        {label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </nav>
       </aside>
     </>

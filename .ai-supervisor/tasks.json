@@ -42,10 +42,23 @@
     "id": "task-1781328183026-l543fr01",
     "goal": "Run Neven supervisor health task and report readiness without manual steps.",
     "approved": true,
-    "status": "running",
+    "status": "complete",
     "createdAt": "2026-06-13T05:23:03.026Z",
-    "updatedAt": "2026-06-13T05:23:03.135Z",
+    "updatedAt": "2026-06-13T05:26:34.417Z",
     "attempts": 1,
-    "startedAt": "2026-06-13T05:23:03.135Z"
+    "startedAt": "2026-06-13T05:23:03.135Z",
+    "completedAt": "2026-06-13T05:26:34.417Z",
+    "lastIssue": "On smaller screens, the Financial Health metric is removed, reducing the completeness of the financial overview snapshot compared to larger screens.",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
+  },
+  {
+    "id": "task-1781328916137-3dm90mga",
+    "goal": "Run Neven supervisor health task and report readiness without manual steps.",
+    "approved": true,
+    "status": "running",
+    "createdAt": "2026-06-13T05:35:16.137Z",
+    "updatedAt": "2026-06-13T05:35:18.118Z",
+    "attempts": 1,
+    "startedAt": "2026-06-13T05:35:18.118Z"
   }
 ]
