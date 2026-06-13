@@ -107,10 +107,23 @@
     "id": "task-1781332031707-jsxz7fur",
     "goal": "Run Neven supervisor health task and report readiness without manual steps.",
     "approved": true,
-    "status": "running",
+    "status": "complete",
     "createdAt": "2026-06-13T06:27:11.707Z",
-    "updatedAt": "2026-06-13T06:31:04.758Z",
+    "updatedAt": "2026-06-13T06:34:13.277Z",
     "attempts": 1,
-    "startedAt": "2026-06-13T06:31:04.758Z"
+    "startedAt": "2026-06-13T06:31:04.758Z",
+    "completedAt": "2026-06-13T06:34:13.277Z",
+    "lastIssue": "The dashboard lacks interactive explanations for financial health indicators that provide deeper insights on how to improve scores, which would increase user understanding and actionable value.",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
+  },
+  {
+    "id": "task-1781332477793-2scy0d0w",
+    "goal": "Run Neven supervisor health task and report readiness without manual steps.",
+    "approved": true,
+    "status": "running",
+    "createdAt": "2026-06-13T06:34:37.793Z",
+    "updatedAt": "2026-06-13T06:34:38.342Z",
+    "attempts": 1,
+    "startedAt": "2026-06-13T06:34:38.342Z"
   }
 ]

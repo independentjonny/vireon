@@ -62,6 +62,7 @@ export default function OverviewV3({
     label: string;
     value: string;
     accent: string;
+    priority: "core" | "signal" | "status";
     detail?: string;
     explanation: string;
     progress?: number;
@@ -70,30 +71,35 @@ export default function OverviewV3({
       label: "Cash Flow",
       value: cashFlow,
       accent: "emerald",
+      priority: "core",
       explanation: "Net money expected to move in or out this period.",
     },
     {
       label: "Savings Rate",
       value: savingsRate,
       accent: "sky",
+      priority: "core",
       explanation: "Share of income being kept after regular spending.",
     },
     {
       label: "Runway",
       value: runway,
       accent: "white",
+      priority: "signal",
       explanation: "How long current cash could cover expenses without new income.",
     },
     {
       label: "AI Score",
       value: aiConfidence,
       accent: "violet",
+      priority: "signal",
       explanation: "Model confidence in the dashboard signals and recommendations.",
     },
     {
       label: "Financial Health",
       value: String(healthScore),
       accent: "health",
+      priority: "status",
       detail: `${healthLabel} overall`,
       explanation: "Composite 0-100 score from cash flow, savings, debt, and portfolio signals.",
       progress: healthScore,
@@ -106,6 +112,27 @@ export default function OverviewV3({
     white: "text-white/70",
     violet: "text-violet-400",
     health: healthColor,
+  };
+
+  const accentBarClass: Record<string, string> = {
+    emerald: "bg-emerald-400",
+    sky: "bg-sky-400",
+    white: "bg-white/45",
+    violet: "bg-violet-400",
+    health:
+      healthScore >= 90
+        ? "bg-emerald-400"
+        : healthScore >= 75
+        ? "bg-sky-400"
+        : healthScore >= 60
+        ? "bg-amber-400"
+        : "bg-red-400",
+  };
+
+  const priorityLabel: Record<"core" | "signal" | "status", string> = {
+    core: "Core metric",
+    signal: "Planning signal",
+    status: "Composite status",
   };
 
   const levelColor: Record<string, string> = {
@@ -218,20 +245,39 @@ export default function OverviewV3({
             <div className="mt-6 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
 
             {/* KPI row */}
-            <div className="mt-5">
-              <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-5">
+            <div className="mt-6">
+              <div className="mb-3 flex items-center justify-between gap-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                  Key metrics
+                </div>
+                <div className="hidden text-[11px] font-medium text-white/30 sm:block">
+                  Cash flow, resilience, and health at a glance
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {secondaryMetrics.map((m) => (
                   <div
                     key={m.label}
-                    className={`flex h-full flex-col rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 ${
-                      m.accent === "health" ? "col-span-2 md:col-span-1" : ""
+                    className={`relative flex h-full min-h-[152px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_16px_36px_rgba(0,0,0,0.16)] ${
+                      m.priority === "status"
+                        ? "border-emerald-400/25 bg-emerald-400/[0.07] sm:col-span-2 lg:col-span-1"
+                        : "border-white/[0.1] bg-white/[0.045]"
                     }`}
                   >
-                    <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-white/55">
-                      <span>{m.label}</span>
+                    <div className={`absolute inset-x-0 top-0 h-0.5 ${accentBarClass[m.accent]}`} />
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                          {priorityLabel[m.priority]}
+                        </div>
+                        <div className="mt-1 text-sm font-semibold leading-tight text-white/72">
+                          {m.label}
+                        </div>
+                      </div>
                       <span
                         aria-label={`${m.label}: ${m.explanation}`}
-                        className="group relative inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-white/[0.12] text-[10px] font-bold text-white/35 outline-none transition hover:border-white/25 hover:text-white/70 focus-visible:border-emerald-300/60 focus-visible:text-white"
+                        className="group relative inline-flex h-5 w-5 shrink-0 cursor-help items-center justify-center rounded-full border border-white/[0.14] bg-black/10 text-[10px] font-bold text-white/38 outline-none transition hover:border-white/25 hover:text-white/70 focus-visible:border-emerald-300/60 focus-visible:text-white"
                         role="img"
                         tabIndex={0}
                         title={m.explanation}
@@ -243,23 +289,23 @@ export default function OverviewV3({
                       </span>
                     </div>
                     <div
-                      className={`font-bold tabular-nums leading-none ${accentClass[m.accent]}`}
-                      style={{ fontSize: "clamp(1.65rem, 3.5vw, 2.35rem)" }}
+                      className={`font-bold tabular-nums leading-none tracking-normal ${accentClass[m.accent]}`}
+                      style={{ fontSize: "clamp(1.9rem, 4vw, 2.45rem)" }}
                     >
                       {m.value}
                     </div>
                     {m.detail && (
-                      <div className={`mt-1.5 text-xs font-semibold ${accentClass[m.accent]} opacity-60`}>
+                      <div className={`mt-2 text-xs font-semibold ${accentClass[m.accent]} opacity-75`}>
                         {m.detail}
                       </div>
                     )}
-                    <p className="mt-2 min-h-8 flex-1 text-[11px] leading-snug text-white/38">
+                    <p className="mt-3 flex-1 text-[11px] leading-snug text-white/45">
                       {m.explanation}
                     </p>
                     {m.progress !== undefined && (
-                      <div className="mt-2 h-[2px] w-20 rounded-full bg-white/[0.06]">
+                      <div className="mt-3 h-1.5 w-full rounded-full bg-white/[0.08]">
                         <div
-                          className="h-full rounded-full bg-emerald-400"
+                          className={`h-full rounded-full ${accentBarClass[m.accent]}`}
                           style={{ width: `${m.progress}%` }}
                         />
                       </div>
