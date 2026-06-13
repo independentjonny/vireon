@@ -1,10 +1,9 @@
 $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
-$AppPort = 3000
-$SupervisorPort = 4010
-$AppUrl = "http://localhost:$AppPort"
-$SupervisorUrl = "http://localhost:$SupervisorPort"
+$AppUrl = "http://localhost:3000"
+$SupervisorUrl = "http://localhost:4010"
+$EvidenceDir = Join-Path $Root ".ai-supervisor"
 
 function Test-Url {
   param([string]$Url)
@@ -15,57 +14,6 @@ function Test-Url {
   } catch {
     return $false
   }
-}
-
-function Test-PortAvailable {
-  param([int]$Port)
-
-  $Listener = $null
-  try {
-    $Listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
-    $Listener.Start()
-    return $true
-  } catch {
-    return $false
-  } finally {
-    if ($null -ne $Listener) {
-      $Listener.Stop()
-    }
-  }
-}
-
-function Get-ServicePort {
-  param(
-    [string]$Name,
-    [int]$PreferredPort,
-    [int]$FallbackPortLimit,
-    [scriptblock]$Healthy
-  )
-
-  if (& $Healthy $PreferredPort) {
-    return @{
-      Port = $PreferredPort
-      Reuse = $true
-    }
-  }
-
-  if (Test-PortAvailable $PreferredPort) {
-    return @{
-      Port = $PreferredPort
-      Reuse = $false
-    }
-  }
-
-  for ($Port = $PreferredPort + 1; $Port -le $FallbackPortLimit; $Port++) {
-    if (Test-PortAvailable $Port) {
-      return @{
-        Port = $Port
-        Reuse = $false
-      }
-    }
-  }
-
-  throw "$Name is not healthy on localhost:$PreferredPort and no fallback port is available."
 }
 
 function Wait-Url {
@@ -100,7 +48,7 @@ function Invoke-SupervisorJson {
   }
 
   if ($null -ne $Body) {
-    $Arguments.Body = ($Body | ConvertTo-Json -Compress)
+    $Arguments.Body = ($Body | ConvertTo-Json -Compress -Depth 8)
   }
 
   Invoke-RestMethod @Arguments
@@ -125,75 +73,150 @@ function Wait-Task {
       }
 
       if ($Task.lastIssue) {
-        throw "Supervisor health task failed: $($Task.lastIssue)"
+        throw "Supervisor task failed: $($Task.lastIssue)"
       }
 
-      throw "Supervisor health task ended with status $($Task.status)."
+      throw "Supervisor task ended with status $($Task.status)."
     }
 
     Start-Sleep -Seconds 2
   }
 
-  throw "Supervisor health task did not complete."
+  throw "Supervisor task did not complete."
 }
 
-try {
-  $AppService = Get-ServicePort -Name "App" -PreferredPort 3000 -FallbackPortLimit 3020 -Healthy {
-    param([int]$Port)
-    Test-Url "http://localhost:$Port"
-  }
-  $AppPort = $AppService.Port
-  $AppUrl = "http://localhost:$AppPort"
+function Invoke-BrowserHealthCheck {
+  param(
+    [string]$Url,
+    [string]$ScreenshotName
+  )
 
-  $SupervisorService = Get-ServicePort -Name "Supervisor" -PreferredPort 4010 -FallbackPortLimit 4030 -Healthy {
-    param([int]$Port)
-    if ($AppPort -ne 3000) {
-      return $false
+  New-Item -ItemType Directory -Force -Path $EvidenceDir | Out-Null
+  $ScreenshotPath = Join-Path $EvidenceDir $ScreenshotName
+  $ScriptPath = Join-Path ([System.IO.Path]::GetTempPath()) "neven-browser-health.cjs"
+  $BrowserScript = @'
+const { chromium } = require("playwright");
+
+const url = process.argv[2];
+const screenshotPath = process.argv[3];
+const issues = [];
+const issuePattern = /hydration|react|uncaught|exception|error boundary|failed to load resource/i;
+
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
+
+  page.on("console", (msg) => {
+    const text = msg.text();
+    if (msg.type() === "error" || issuePattern.test(text)) {
+      issues.push(`console ${msg.type()}: ${text}`);
     }
-    Test-Url "http://localhost:$Port/health"
-  }
-  $SupervisorPort = $SupervisorService.Port
-  $SupervisorUrl = "http://localhost:$SupervisorPort"
+  });
 
-  if (-not $AppService.Reuse) {
-    Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -WorkingDirectory $Root -ArgumentList @(
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-Command",
-      "npm run dev -- --port $AppPort"
-    ) | Out-Null
-  }
+  page.on("pageerror", (error) => {
+    issues.push(`page error: ${error.message}`);
+  });
 
-  if (-not $SupervisorService.Reuse) {
-    Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -WorkingDirectory $Root -ArgumentList @(
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-Command",
-      "`$env:NEVEN_SUPERVISOR_PORT='$SupervisorPort'; `$env:NEVEN_APP_URL='$AppUrl'; node --experimental-strip-types tools/neven-supervisor/supervisor.ts"
-    ) | Out-Null
+  page.on("response", (response) => {
+    const status = response.status();
+    if (status >= 500) {
+      issues.push(`http ${status}: ${response.url()}`);
+    }
+  });
+
+  try {
+    await page.goto(url, { waitUntil: "networkidle", timeout: 60000 });
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+  } catch (error) {
+    issues.push(`browser check failed: ${error.message}`);
+  } finally {
+    await browser.close();
   }
 
-  Wait-Url -Url $AppUrl -Name "App"
-  Write-Output "APP CHECK OK"
-  Wait-Url -Url "$SupervisorUrl/health" -Name "Supervisor"
-  Write-Output "SUPERVISOR CHECK OK"
+  const uniqueIssues = [...new Set(issues)];
+  process.stdout.write(JSON.stringify({
+    ok: uniqueIssues.length === 0,
+    issues: uniqueIssues,
+    screenshotPath
+  }));
+})().catch((error) => {
+  process.stdout.write(JSON.stringify({
+    ok: false,
+    issues: [`browser check failed: ${error.message}`],
+    screenshotPath
+  }));
+});
+'@
+
+  [System.IO.File]::WriteAllText($ScriptPath, $BrowserScript)
+  $Output = & node $ScriptPath $Url $ScreenshotPath 2>$null
+  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($Output)) {
+    throw "Browser health check failed."
+  }
+
+  $Output | ConvertFrom-Json
+}
+
+function Submit-Task {
+  param([string]$Goal)
 
   $SubmittedTask = Invoke-SupervisorJson -Path "/task" -Body @{
-    goal = "Run Neven supervisor health task and report readiness without manual steps."
+    goal = $Goal
     approved = $true
   }
 
   if ($null -eq $SubmittedTask.task -or [string]::IsNullOrWhiteSpace($SubmittedTask.task.id)) {
-    throw "Supervisor did not accept the health task."
+    throw "Supervisor did not accept the task."
   }
 
   Wait-Task -TaskId $SubmittedTask.task.id
-  Write-Output "HEALTH TASK OK"
+}
+
+try {
+  if (-not (Test-Url $AppUrl)) {
+    Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -WorkingDirectory $Root -ArgumentList @(
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-Command",
+      "npm run dev"
+    ) | Out-Null
+  }
+
+  if (-not (Test-Url "$SupervisorUrl/health")) {
+    Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -WorkingDirectory $Root -ArgumentList @(
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-Command",
+      "`$env:NEVEN_SUPERVISOR_PORT='4010'; `$env:NEVEN_APP_URL='$AppUrl'; node --experimental-strip-types tools/neven-supervisor/supervisor.ts"
+    ) | Out-Null
+  }
+
+  Wait-Url -Url $AppUrl -Name "App"
+  Wait-Url -Url "$SupervisorUrl/health" -Name "Supervisor"
+
+  $BrowserCheck = Invoke-BrowserHealthCheck -Url $AppUrl -ScreenshotName "browser-health-before.png"
+  $LastTaskOk = $true
+
+  if (-not $BrowserCheck.ok) {
+    $IssueSummary = ($BrowserCheck.issues | Select-Object -First 8) -join "; "
+    Submit-Task -Goal "Fix Neven browser health errors from automated Playwright check. Evidence: $($BrowserCheck.screenshotPath). Errors: $IssueSummary"
+    $BrowserCheck = Invoke-BrowserHealthCheck -Url $AppUrl -ScreenshotName "browser-health-after.png"
+    if (-not $BrowserCheck.ok) {
+      $IssueSummary = ($BrowserCheck.issues | Select-Object -First 3) -join "; "
+      throw "Browser health check failed: $IssueSummary"
+    }
+  }
+
+  if (-not $LastTaskOk) {
+    throw "Supervisor task failed."
+  }
 
   Write-Output "APP=OK"
   Write-Output "SUPERVISOR=OK"
+  Write-Output "BROWSER=OK"
   Write-Output "LAST_TASK=OK"
 } catch {
   Write-Output ($_.Exception.Message -replace "\s+", " ")

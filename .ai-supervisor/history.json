@@ -2758,5 +2758,190 @@
         "restored": []
       }
     }
+  },
+  {
+    "id": "hist-1781332716338-559aab68",
+    "createdAt": "2026-06-13T06:38:36.338Z",
+    "taskId": "task-1781332477793-2scy0d0w",
+    "action": "task.finish",
+    "ok": true,
+    "summary": "complete",
+    "data": {
+      "ok": true,
+      "taskId": "task-1781332477793-2scy0d0w",
+      "goal": "Run Neven supervisor health task and report readiness without manual steps.",
+      "status": "complete",
+      "error": null,
+      "lastReview": {
+        "issue": "The Portfolio Allocation chart is not visible on mobile view, limiting the user's ability to see this important financial distribution visually and impeding comprehensive insight on smaller screens.",
+        "file": "src/app/components/OverviewV3.tsx",
+        "task": "Implement responsive design improvements to ensure the Portfolio Allocation chart is visible and well-formatted on mobile devices, possibly by enabling horizontal scrolling or stacking elements vertically.",
+        "confidence": 0.9,
+        "category": "responsiveness"
+      },
+      "lastBuildHealth": {
+        "mode": "BUILD_HEALTH_MODE",
+        "ok": true,
+        "typecheck": {
+          "ok": true,
+          "summary": "Command completed: npx tsc --noEmit",
+          "output": "",
+          "code": 0
+        },
+        "test": {
+          "ok": true,
+          "summary": "Command completed: npx playwright test -c tests mobile-nav.spec.ts --reporter=list",
+          "output": "\nRunning 1 test using 1 worker\n\n  ok 1 tests\\mobile-nav.spec.ts:6:7 › Neven mobile navigation › hamburger opens and closes the mobile drawer (6.5s)\n\n  1 passed (7.4s)\n",
+          "code": 0
+        },
+        "failures": []
+      },
+      "iterations": [
+        {
+          "iteration": 1,
+          "reviewMode": "UI_REVIEW_MODE",
+          "beforeReview": {
+            "issue": "The financial dashboard's top summary metrics (Net Worth, Cash Flow, Savings Rate, Runway, AI Score, Financial Health) could benefit from clearer visual separation and hierarchy to enhance quick scanning and comprehension, especially on mobile view where the compact layout makes it harder to distinguish individual metric cards and their importance.",
+            "file": "src/app/components/OverviewV3.tsx",
+            "task": "Improve visual hierarchy and spacing of the key financial metrics summary cards to enhance readability and information hierarchy, especially for responsiveness on mobile devices.",
+            "confidence": 0.9,
+            "category": "information_hierarchy"
+          },
+          "afterReview": {
+            "issue": "The Portfolio Allocation chart is not visible on mobile view, limiting the user's ability to see this important financial distribution visually and impeding comprehensive insight on smaller screens.",
+            "file": "src/app/components/OverviewV3.tsx",
+            "task": "Implement responsive design improvements to ensure the Portfolio Allocation chart is visible and well-formatted on mobile devices, possibly by enabling horizontal scrolling or stacking elements vertically.",
+            "confidence": 0.9,
+            "category": "responsiveness"
+          },
+          "improved": true,
+          "codex": {
+            "ok": true,
+            "summary": "Command completed: Get-Content -Raw \"C:\\Users\\summe\\liberva\\.ai-supervisor\\codex-1781332489438-my5p3wk8.txt\" | codex exec -s workspace-write -",
+            "output": "                 key={m.label}\n-                    className={`flex h-full flex-col rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 ${\n-                      m.accent === \"health\" ? \"col-span-2 md:col-span-1\" : \"\"\n+                    className={`relative flex h-full min-h-[152px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_16px_36px_rgba(0,0,0,0.16)] ${\n+                      m.priority === \"status\"\n+                        ? \"border-emerald-400/25 bg-emerald-400/[0.07] sm:col-span-2 lg:col-span-1\"\n+                        : \"border-white/[0.1] bg-white/[0.045]\"\n                     }`}\n                   >\n-                    <div className=\"mb-2 flex items-center gap-1.5 text-xs font-medium text-white/55\">\n-                      <span>{m.label}</span>\n+                    <div className={`absolute inset-x-0 top-0 h-0.5 ${accentBarClass[m.accent]}`} />\n+                    <div className=\"mb-3 flex items-start justify-between gap-3\">\n+                      <div className=\"min-w-0\">\n+                        <div className=\"text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35\">\n+                          {priorityLabel[m.priority]}\n+                        </div>\n+                        <div className=\"mt-1 text-sm font-semibold leading-tight text-white/72\">\n+                          {m.label}\n+                        </div>\n+                      </div>\n                       <span\n                         aria-label={`${m.label}: ${m.explanation}`}\n-                        className=\"group relative inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-white/[0.12] text-[10px] font-bold text-white/35 outline-none transition hover:border-white/25 hover:text-white/70 focus-visible:border-emerald-300/60 focus-visible:text-white\"\n+                        className=\"group relative inline-flex h-5 w-5 shrink-0 cursor-help items-center justify-center rounded-full border border-white/[0.14] bg-black/10 text-[10px] font-bold text-white/38 outline-none transition hover:border-white/25 hover:text-white/70 focus-visible:border-emerald-300/60 focus-visible:text-white\"\n                         role=\"img\"\n                         tabIndex={0}\n                         title={m.explanation}\n@@ -243,23 +289,23 @@\n                       </span>\n                     </div>\n                     <div\n-                      className={`font-bold tabular-nums leading-none ${accentClass[m.accent]}`}\n-                      style={{ fontSize: \"clamp(1.65rem, 3.5vw, 2.35rem)\" }}\n+                      className={`font-bold tabular-nums leading-none tracking-normal ${accentClass[m.accent]}`}\n+                      style={{ fontSize: \"clamp(1.9rem, 4vw, 2.45rem)\" }}\n                     >\n                       {m.value}\n                     </div>\n                     {m.detail && (\n-                      <div className={`mt-1.5 text-xs font-semibold ${accentClass[m.accent]} opacity-60`}>\n+                      <div className={`mt-2 text-xs font-semibold ${accentClass[m.accent]} opacity-75`}>\n                         {m.detail}\n                       </div>\n                     )}\n-                    <p className=\"mt-2 min-h-8 flex-1 text-[11px] leading-snug text-white/38\">\n+                    <p className=\"mt-3 flex-1 text-[11px] leading-snug text-white/45\">\n                       {m.explanation}\n                     </p>\n                     {m.progress !== undefined && (\n-                      <div className=\"mt-2 h-[2px] w-20 rounded-full bg-white/[0.06]\">\n+                      <div className=\"mt-3 h-1.5 w-full rounded-full bg-white/[0.08]\">\n                         <div\n-                          className=\"h-full rounded-full bg-emerald-400\"\n+                          className={`h-full rounded-full ${accentBarClass[m.accent]}`}\n                           style={{ width: `${m.progress}%` }}\n                         />\n                       </div>\n\ntokens used\n162,431\n"
+          },
+          "buildHealth": {
+            "mode": "BUILD_HEALTH_MODE",
+            "ok": true,
+            "typecheck": {
+              "ok": true,
+              "summary": "Command completed: npx tsc --noEmit",
+              "output": "",
+              "code": 0
+            },
+            "test": {
+              "ok": true,
+              "summary": "Command completed: npx playwright test -c tests mobile-nav.spec.ts --reporter=list",
+              "output": "\nRunning 1 test using 1 worker\n\n  ok 1 tests\\mobile-nav.spec.ts:6:7 › Neven mobile navigation › hamburger opens and closes the mobile drawer (6.5s)\n\n  1 passed (7.4s)\n",
+              "code": 0
+            },
+            "failures": []
+          },
+          "screenshots": {
+            "before": {
+              "desktop": ".ai-supervisor/screenshots/2026-06-13T06-34-39-371Z-desktop.png",
+              "mobile": ".ai-supervisor/screenshots/2026-06-13T06-34-42-256Z-mobile.png"
+            },
+            "after": {
+              "desktop": ".ai-supervisor/screenshots/2026-06-13T06-38-22-882Z-desktop.png",
+              "mobile": ".ai-supervisor/screenshots/2026-06-13T06-38-25-841Z-mobile.png"
+            }
+          },
+          "rollback": {
+            "occurred": false,
+            "restored": []
+          }
+        },
+        {
+          "commit": {
+            "action": "gitCommit",
+            "ok": true,
+            "summary": "Git commit attempted.",
+            "output": "[master 4694667] Improve Neven: Run Neven supervisor health task and report readiness withou\n 8 files changed, 285 insertions(+), 97 deletions(-)\n"
+          }
+        }
+      ],
+      "gitStatus": "",
+      "generatedAt": "2026-06-13T06:38:36.335Z"
+    }
+  },
+  {
+    "id": "hist-1781337566901-ifhr7r4v",
+    "createdAt": "2026-06-13T07:59:26.901Z",
+    "taskId": "task-1781337566897-fs4tdt72",
+    "action": "task.queued",
+    "ok": true,
+    "summary": "Fix Neven browser health errors from automated Playwright check. Evidence: C:\\Users\\summe\\liberva\\.ai-supervisor\\browser-health-before.png. Errors: console error: Access to fetch at 'http://localhost:4010/status' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.; console error: Failed to load resource: net::ERR_FAILED; console info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold; console error: Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template).; page error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RedirectBoundary>\n      <RedirectErrorBoundary router={{...}}>\n        <InnerLayoutRouter url=\"/\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>\n          <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n            <SegmentTrieNode>\n            <HomePage>\n              <main className=\"min-h-scre...\">\n                <MobileNav>\n                <div>\n                <div className=\"flex min-h...\">\n                  <aside>\n                  <section className=\"min-w-0 fl...\">\n                    <div className=\"w-full spa...\">\n                      <OverviewV3>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <SectionShell>\n                        <section id=\"supervisor...\" className=\"scroll-mt-20\">\n                          <div>\n                          <div className=\"rounded-2x...\">\n                            <SupervisorInbox>\n                              <div className=\"space-y-4\">\n                                <form id=\"neven-supe...\" className=\"space-y-3\">\n                                  <textarea>\n                                  <div className=\"flex flex-...\">\n                                    <button>\n                                    <div id=\"neven-supervisor-status\" className=\"text-sm text-white/55\">\n+                                     Supervisor: checking\n-                                     Supervisor unavailable.\n                                ...\n                      ...\n          ...\n        ..."
+  },
+  {
+    "id": "hist-1781337568115-v6x51hv6",
+    "createdAt": "2026-06-13T07:59:28.115Z",
+    "taskId": "task-1781337566897-fs4tdt72",
+    "action": "task.start",
+    "ok": true,
+    "summary": "Fix Neven browser health errors from automated Playwright check. Evidence: C:\\Users\\summe\\liberva\\.ai-supervisor\\browser-health-before.png. Errors: console error: Access to fetch at 'http://localhost:4010/status' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.; console error: Failed to load resource: net::ERR_FAILED; console info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold; console error: Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template).; page error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RedirectBoundary>\n      <RedirectErrorBoundary router={{...}}>\n        <InnerLayoutRouter url=\"/\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>\n          <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n            <SegmentTrieNode>\n            <HomePage>\n              <main className=\"min-h-scre...\">\n                <MobileNav>\n                <div>\n                <div className=\"flex min-h...\">\n                  <aside>\n                  <section className=\"min-w-0 fl...\">\n                    <div className=\"w-full spa...\">\n                      <OverviewV3>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <SectionShell>\n                        <section id=\"supervisor...\" className=\"scroll-mt-20\">\n                          <div>\n                          <div className=\"rounded-2x...\">\n                            <SupervisorInbox>\n                              <div className=\"space-y-4\">\n                                <form id=\"neven-supe...\" className=\"space-y-3\">\n                                  <textarea>\n                                  <div className=\"flex flex-...\">\n                                    <button>\n                                    <div id=\"neven-supervisor-status\" className=\"text-sm text-white/55\">\n+                                     Supervisor: checking\n-                                     Supervisor unavailable.\n                                ...\n                      ...\n          ...\n        ..."
+  },
+  {
+    "id": "hist-1781337886172-0m42bp21",
+    "createdAt": "2026-06-13T08:04:46.172Z",
+    "taskId": "task-1781337566897-fs4tdt72",
+    "action": "loop.iteration",
+    "ok": true,
+    "summary": "Improvement accepted.",
+    "data": {
+      "iteration": 1,
+      "reviewMode": "UI_REVIEW_MODE",
+      "beforeReview": {
+        "issue": "The dashboard overview lacks quick access or visible summaries for recent transactions and subscriptions, which are critical for an operational financial system. Adding these summaries or shortcuts on the overview page would improve immediate insight and workflow efficiency.",
+        "file": "src/app/components/OverviewV3.tsx",
+        "task": "Add summary sections or quick links for recent Transactions and Subscriptions on the Overview dashboard to enhance user workflow and information access.",
+        "confidence": 0.9,
+        "category": "workflow"
+      },
+      "afterReview": {
+        "issue": "In the mobile view screenshot, the layout of the key financial metrics cards becomes a vertical stacked column, which may require excessive scrolling and reduces at-a-glance comparability of metrics shown as a horizontal row in desktop view.",
+        "file": "src/app/components/OverviewV3.tsx",
+        "task": "Improve responsive layout of key financial metrics to maintain horizontal grouping on wider mobile screens or use a more space-efficient multi-column layout to reduce excessive vertical scrolling and preserve quick comparison.",
+        "confidence": 0.9,
+        "category": "responsiveness"
+      },
+      "improved": true,
+      "codex": {
+        "ok": true,
+        "summary": "Command completed: Get-Content -Raw \"C:\\Users\\summe\\liberva\\.ai-supervisor\\codex-1781337579848-uwm3n5pa.txt\" | codex exec -s workspace-write -",
+        "output": "ald-300/[0.14]\"\n+              href=\"#transactions\"\n+            >\n+              View all\n+            </a>\n+          </div>\n+\n+          <div className=\"mt-4 space-y-2\">\n+            {recentTransactions.map((tx) => (\n+              <div\n+                key={tx.merchant}\n+                className=\"flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-3\"\n+              >\n+                <div className=\"min-w-0\">\n+                  <div className=\"truncate text-sm font-semibold text-white/78\">\n+                    {tx.merchant}\n+                  </div>\n+                  <div className=\"mt-1 text-xs text-white/38\">\n+                    {tx.category} / {tx.timing}\n+                  </div>\n+                </div>\n+                <div className={`shrink-0 text-sm font-bold tabular-nums ${tx.tone}`}>\n+                  {tx.amount}\n+                </div>\n+              </div>\n+            ))}\n+          </div>\n+        </div>\n+\n+        <div className=\"rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5\">\n+          <div className=\"flex items-start justify-between gap-4 border-b border-white/[0.08] pb-4\">\n+            <div>\n+              <h2 className=\"text-sm font-semibold text-white\">\n+                Subscriptions\n+              </h2>\n+              <p className=\"mt-1 text-xs text-white/42\">\n+                Renewal pressure and savings checks surfaced early\n+              </p>\n+            </div>\n+            <a\n+              className=\"shrink-0 rounded-lg border border-sky-300/25 bg-sky-300/[0.08] px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:bg-sky-300/[0.14]\"\n+              href=\"#subscriptions\"\n+            >\n+              Review\n+            </a>\n+          </div>\n+\n+          <div className=\"mt-4 space-y-2\">\n+            {subscriptionSnapshot.map((sub) => (\n+              <div\n+                key={sub.merchant}\n+                className=\"flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-3\"\n+              >\n+                <div className=\"min-w-0\">\n+                  <div className=\"truncate text-sm font-semibold text-white/78\">\n+                    {sub.merchant}\n+                  </div>\n+                  <div className=\"mt-1 text-xs text-white/38\">\n+                    {sub.amount} / {sub.renewal}\n+                  </div>\n+                </div>\n+                <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold ${sub.tone}`}>\n+                  {sub.risk}\n+                </span>\n+              </div>\n+            ))}\n+          </div>\n+        </div>\n+\n+        <div className=\"rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.045] p-5\">\n+          <h2 className=\"border-b border-white/[0.08] pb-4 text-sm font-semibold text-white\">\n+            Workflow Shortcuts\n+          </h2>\n+          <div className=\"mt-4 space-y-3\">\n+            {workflowShortcuts.map((shortcut) => (\n+              <a\n+                key={shortcut.href}\n+                className=\"block rounded-xl border border-white/[0.08] bg-black/10 p-4 transition hover:border-emerald-300/30 hover:bg-emerald-300/[0.06]\"\n+                href={shortcut.href}\n+              >\n+                <div className=\"flex items-center justify-between gap-3\">\n+                  <span className=\"text-sm font-semibold text-white/78\">\n+                    {shortcut.label}\n+                  </span>\n+                  <span className=\"shrink-0 text-xs font-bold text-emerald-300\">\n+                    {shortcut.metric}\n+                  </span>\n+                </div>\n+                <p className=\"mt-2 text-xs leading-relaxed text-white/42\">\n+                  {shortcut.detail}\n+                </p>\n+              </a>\n+            ))}\n+          </div>\n+        </div>\n+      </section>\n+\n       <div>\n         <div className={`${LAYER_LABEL} mb-5`}>\n           Intelligence Workspace\n\ntokens used\n119,265\n"
+      },
+      "buildHealth": {
+        "mode": "BUILD_HEALTH_MODE",
+        "ok": true,
+        "typecheck": {
+          "ok": true,
+          "summary": "Command completed: npx tsc --noEmit",
+          "output": "",
+          "code": 0
+        },
+        "test": {
+          "ok": true,
+          "summary": "Command completed: npx playwright test -c tests mobile-nav.spec.ts --reporter=list",
+          "output": "\nRunning 1 test using 1 worker\n\n  ok 1 tests\\mobile-nav.spec.ts:6:7 › Neven mobile navigation › hamburger opens and closes the mobile drawer (6.8s)\n\n  1 passed (8.1s)\n",
+          "code": 0
+        },
+        "failures": []
+      },
+      "screenshots": {
+        "before": {
+          "desktop": ".ai-supervisor/screenshots/2026-06-13T07-59-29-375Z-desktop.png",
+          "mobile": ".ai-supervisor/screenshots/2026-06-13T07-59-32-577Z-mobile.png"
+        },
+        "after": {
+          "desktop": ".ai-supervisor/screenshots/2026-06-13T08-04-34-101Z-desktop.png",
+          "mobile": ".ai-supervisor/screenshots/2026-06-13T08-04-37-161Z-mobile.png"
+        }
+      },
+      "rollback": {
+        "occurred": false,
+        "restored": []
+      }
+    }
   }
 ]

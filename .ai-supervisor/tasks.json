@@ -120,10 +120,23 @@
     "id": "task-1781332477793-2scy0d0w",
     "goal": "Run Neven supervisor health task and report readiness without manual steps.",
     "approved": true,
-    "status": "running",
+    "status": "complete",
     "createdAt": "2026-06-13T06:34:37.793Z",
-    "updatedAt": "2026-06-13T06:34:38.342Z",
+    "updatedAt": "2026-06-13T06:38:36.335Z",
     "attempts": 1,
-    "startedAt": "2026-06-13T06:34:38.342Z"
+    "startedAt": "2026-06-13T06:34:38.342Z",
+    "completedAt": "2026-06-13T06:38:36.335Z",
+    "lastIssue": "The Portfolio Allocation chart is not visible on mobile view, limiting the user's ability to see this important financial distribution visually and impeding comprehensive insight on smaller screens.",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
+  },
+  {
+    "id": "task-1781337566897-fs4tdt72",
+    "goal": "Fix Neven browser health errors from automated Playwright check. Evidence: C:\\Users\\summe\\liberva\\.ai-supervisor\\browser-health-before.png. Errors: console error: Access to fetch at 'http://localhost:4010/status' from origin 'http://localhost:3000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.; console error: Failed to load resource: net::ERR_FAILED; console info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold; console error: Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using template tag instead (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template).; page error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RedirectBoundary>\n      <RedirectErrorBoundary router={{...}}>\n        <InnerLayoutRouter url=\"/\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>\n          <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n            <SegmentTrieNode>\n            <HomePage>\n              <main className=\"min-h-scre...\">\n                <MobileNav>\n                <div>\n                <div className=\"flex min-h...\">\n                  <aside>\n                  <section className=\"min-w-0 fl...\">\n                    <div className=\"w-full spa...\">\n                      <OverviewV3>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <section>\n                      <SectionShell>\n                        <section id=\"supervisor...\" className=\"scroll-mt-20\">\n                          <div>\n                          <div className=\"rounded-2x...\">\n                            <SupervisorInbox>\n                              <div className=\"space-y-4\">\n                                <form id=\"neven-supe...\" className=\"space-y-3\">\n                                  <textarea>\n                                  <div className=\"flex flex-...\">\n                                    <button>\n                                    <div id=\"neven-supervisor-status\" className=\"text-sm text-white/55\">\n+                                     Supervisor: checking\n-                                     Supervisor unavailable.\n                                ...\n                      ...\n          ...\n        ...",
+    "approved": true,
+    "status": "running",
+    "createdAt": "2026-06-13T07:59:26.897Z",
+    "updatedAt": "2026-06-13T07:59:28.112Z",
+    "attempts": 1,
+    "startedAt": "2026-06-13T07:59:28.111Z"
   }
 ]

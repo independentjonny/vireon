@@ -165,6 +165,69 @@ export default function OverviewV3({
     { label: "Cash flow Aug", value: "+$6,800", trend: "up" as const },
   ];
 
+  const recentTransactions = [
+    {
+      merchant: "Salary deposit",
+      category: "Income",
+      amount: "+$8,950",
+      timing: "Today",
+      tone: "text-emerald-300",
+    },
+    {
+      merchant: "Offset mortgage",
+      category: "Home loan",
+      amount: "-$4,120",
+      timing: "Yesterday",
+      tone: "text-sky-300",
+    },
+    {
+      merchant: "Coles",
+      category: "Groceries",
+      amount: "-$186",
+      timing: "2d ago",
+      tone: "text-white/78",
+    },
+  ];
+
+  const subscriptionSnapshot = [
+    {
+      merchant: "Adobe Creative Cloud",
+      amount: "$79/mo",
+      renewal: "Renews in 4 days",
+      risk: "Review",
+      tone: "border-amber-300/25 bg-amber-300/[0.07] text-amber-200",
+    },
+    {
+      merchant: "Netflix",
+      amount: "$22/mo",
+      renewal: "Renews in 9 days",
+      risk: "Keep",
+      tone: "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200",
+    },
+    {
+      merchant: "Dropbox",
+      amount: "$184/yr",
+      renewal: "Annual plan due",
+      risk: "Switch?",
+      tone: "border-sky-300/20 bg-sky-300/[0.06] text-sky-200",
+    },
+  ];
+
+  const workflowShortcuts = [
+    {
+      label: "Open transactions",
+      href: "#transactions",
+      detail: "Import CSVs, inspect spend, and confirm recurring activity.",
+      metric: "12 recent",
+    },
+    {
+      label: "Open subscriptions",
+      href: "#subscriptions",
+      detail: "Review renewals, risk levels, and annual savings opportunities.",
+      metric: "3 due soon",
+    },
+  ];
+
   const healthScoreTone =
     healthScore >= 90
       ? "border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-300"
@@ -434,6 +497,115 @@ export default function OverviewV3({
       {/* ══════════════════════════════════════════════════════════════
           LAYER 2 — Intelligence Workspace
       ══════════════════════════════════════════════════════════════ */}
+      <section className="grid gap-6 xl:grid-cols-[1fr_1fr_0.78fr]">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+          <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-white">
+                Recent Transactions
+              </h2>
+              <p className="mt-1 text-xs text-white/42">
+                Latest cash-flow items that need quick review
+              </p>
+            </div>
+            <a
+              className="shrink-0 rounded-lg border border-emerald-300/25 bg-emerald-300/[0.08] px-3 py-1.5 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-300/[0.14]"
+              href="#transactions"
+            >
+              View all
+            </a>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {recentTransactions.map((tx) => (
+              <div
+                key={tx.merchant}
+                className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-white/78">
+                    {tx.merchant}
+                  </div>
+                  <div className="mt-1 text-xs text-white/38">
+                    {tx.category} / {tx.timing}
+                  </div>
+                </div>
+                <div className={`shrink-0 text-sm font-bold tabular-nums ${tx.tone}`}>
+                  {tx.amount}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
+          <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-white">
+                Subscriptions
+              </h2>
+              <p className="mt-1 text-xs text-white/42">
+                Renewal pressure and savings checks surfaced early
+              </p>
+            </div>
+            <a
+              className="shrink-0 rounded-lg border border-sky-300/25 bg-sky-300/[0.08] px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:bg-sky-300/[0.14]"
+              href="#subscriptions"
+            >
+              Review
+            </a>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {subscriptionSnapshot.map((sub) => (
+              <div
+                key={sub.merchant}
+                className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-white/78">
+                    {sub.merchant}
+                  </div>
+                  <div className="mt-1 text-xs text-white/38">
+                    {sub.amount} / {sub.renewal}
+                  </div>
+                </div>
+                <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold ${sub.tone}`}>
+                  {sub.risk}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.045] p-5">
+          <h2 className="border-b border-white/[0.08] pb-4 text-sm font-semibold text-white">
+            Workflow Shortcuts
+          </h2>
+          <div className="mt-4 space-y-3">
+            {workflowShortcuts.map((shortcut) => (
+              <a
+                key={shortcut.href}
+                className="block rounded-xl border border-white/[0.08] bg-black/10 p-4 transition hover:border-emerald-300/30 hover:bg-emerald-300/[0.06]"
+                href={shortcut.href}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-white/78">
+                    {shortcut.label}
+                  </span>
+                  <span className="shrink-0 text-xs font-bold text-emerald-300">
+                    {shortcut.metric}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-white/42">
+                  {shortcut.detail}
+                </p>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <div>
         <div className={`${LAYER_LABEL} mb-5`}>
           Intelligence Workspace
