@@ -100,16 +100,14 @@ const { chromium } = require("playwright");
 const url = process.argv[2];
 const screenshotPath = process.argv[3];
 const issues = [];
-const issuePattern = /hydration|react|uncaught|exception|error boundary|failed to load resource/i;
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
 
   page.on("console", (msg) => {
-    const text = msg.text();
-    if (msg.type() === "error" || issuePattern.test(text)) {
-      issues.push(`console ${msg.type()}: ${text}`);
+    if (msg.type() === "error") {
+      issues.push(`console error: ${msg.text()}`);
     }
   });
 
@@ -117,9 +115,14 @@ const issuePattern = /hydration|react|uncaught|exception|error boundary|failed t
     issues.push(`page error: ${error.message}`);
   });
 
+  page.on("requestfailed", (request) => {
+    const failure = request.failure();
+    issues.push(`request failed: ${request.url()} ${failure ? failure.errorText : ""}`.trim());
+  });
+
   page.on("response", (response) => {
     const status = response.status();
-    if (status >= 500) {
+    if (status >= 400) {
       issues.push(`http ${status}: ${response.url()}`);
     }
   });

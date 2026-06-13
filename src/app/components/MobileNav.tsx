@@ -150,14 +150,14 @@ export default function MobileNav() {
           </button>
         </div>
 
-        <nav className="h-[calc(100vh-82px)] overflow-y-auto p-3">
+        <nav className="h-[calc(100vh-82px)] overflow-y-auto bg-[#091525] p-3">
           {NAV_SECTIONS.map((section) => {
             const expanded = expandedSections[section.id];
 
             return (
               <section
                 key={section.id}
-                className="border-b border-white/[0.06] py-2 last:border-b-0"
+                className="mb-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] last:mb-0"
               >
                 <button
                   type="button"
@@ -169,11 +169,11 @@ export default function MobileNav() {
                       [section.id]: !current[section.id],
                     }))
                   }
-                  className="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-white/38 hover:bg-white/[0.04] hover:text-white/60"
+                  className="flex min-h-11 w-full items-center justify-between rounded-xl border border-transparent px-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-white/55 transition hover:border-white/[0.08] hover:bg-white/[0.06] hover:text-white/75"
                 >
                   <span>{section.label}</span>
                   <span className="flex items-center gap-2">
-                    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold tracking-normal text-white/35">
+                    <span className="rounded-full border border-white/[0.08] bg-white/[0.08] px-2 py-0.5 text-[10px] font-bold tracking-normal text-white/55">
                       {section.items.length}
                     </span>
                     <ChevronDown
@@ -188,17 +188,17 @@ export default function MobileNav() {
                 </button>
 
                 {expanded && (
-                  <div id={`mobile-nav-${section.id}`} className="mt-1 space-y-1">
+                  <div id={`mobile-nav-${section.id}`} className="mt-2 space-y-1.5">
                     {section.items.map(([label, href]) => (
                       <a
                         key={href}
                         href={href}
                         onClick={() => setOpen(false)}
                         className={[
-                          "flex min-h-11 items-center rounded-xl px-4 text-sm transition",
+                          "flex min-h-12 items-center rounded-xl border px-4 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition",
                           href === "#overview"
-                            ? "bg-emerald-400/15 text-emerald-300"
-                            : "text-white/70 hover:bg-white/[0.06] hover:text-white",
+                            ? "border-emerald-300/25 bg-emerald-400/16 text-emerald-200"
+                            : "border-white/[0.075] bg-[#0d1b2c] text-white/78 hover:border-white/[0.14] hover:bg-[#13263a] hover:text-white",
                         ].join(" ")}
                       >
                         {label}
