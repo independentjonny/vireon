@@ -45,6 +45,11 @@ type ActivityTask = {
   startedAt?: string;
   completedAt?: string;
   lastIssue?: string;
+  planner?: ActivityWorkflow["planner"];
+  breakdown?: { title?: string; type?: string; instructions?: string }[];
+  codex?: ActivityWorkflow["codex"];
+  validation?: ActivityWorkflow["buildTest"];
+  reviewer?: ActivityWorkflow["reviewer"];
   workflow?: ActivityWorkflow;
 };
 
@@ -129,6 +134,21 @@ function StagePill({ label, status }: { label: string; status?: string }) {
       {label}: {status ?? "pending"}
     </span>
   );
+}
+
+function workflowFields(task: ActivityTask) {
+  const planner = task.planner ?? task.workflow?.planner;
+  const reviewer = task.reviewer ?? task.workflow?.reviewer;
+  return {
+    planner,
+    breakdown: task.breakdown ?? planner?.output?.tasks ?? task.workflow?.planner?.output?.tasks ?? [],
+    codex: task.codex ?? task.workflow?.codex,
+    validation: task.validation ?? task.workflow?.buildTest,
+    reviewer,
+    recommendedNextTask:
+      task.workflow?.recommendedNextTask ??
+      reviewer?.output?.recommendedNextTask,
+  };
 }
 
 function AutonomousActivityFeed() {
@@ -243,7 +263,10 @@ function AutonomousActivityFeed() {
 
               <div className="space-y-2">
                 {items.length > 0 ? (
-                  items.slice(0, 4).map((task) => (
+                  items.slice(0, 4).map((task) => {
+                    const fields = workflowFields(task);
+
+                    return (
                     <div key={task.id} className="rounded-lg border border-white/[0.06] bg-black/15 p-3">
                       <div className="flex items-start justify-between gap-3">
                         <p className="min-w-0 flex-1 text-sm font-medium leading-snug text-white/74 line-clamp-2">
@@ -264,21 +287,21 @@ function AutonomousActivityFeed() {
                       )}
                       <div className="mt-3 space-y-2 border-t border-white/[0.06] pt-3">
                           <div className="flex flex-wrap gap-1.5">
-                            <StagePill label="GPT Planner" status={task.workflow?.planner?.status} />
-                            <StagePill label="Codex" status={task.workflow?.codex?.status} />
-                            <StagePill label="Build/Test" status={task.workflow?.buildTest?.status} />
-                            <StagePill label="GPT Reviewer" status={task.workflow?.reviewer?.status} />
+                            <StagePill label="GPT Planner" status={fields.planner?.status} />
+                            <StagePill label="Codex" status={fields.codex?.status} />
+                            <StagePill label="Build/Test" status={fields.validation?.status} />
+                            <StagePill label="GPT Reviewer" status={fields.reviewer?.status} />
                           </div>
 
-                          {(task.workflow?.planner?.reason || task.workflow?.planner?.output?.summary) && (
+                          {(fields.planner?.reason || fields.planner?.output?.summary) && (
                             <p className="text-xs leading-relaxed text-white/42">
-                              {task.workflow.planner.reason ?? task.workflow.planner.output?.summary}
+                              {fields.planner.reason ?? fields.planner.output?.summary}
                             </p>
                           )}
 
-                          {task.workflow?.planner?.output?.tasks && task.workflow.planner.output.tasks.length > 0 && (
+                          {fields.breakdown.length > 0 && (
                             <div className="space-y-1">
-                              {task.workflow.planner.output.tasks.slice(0, 3).map((item, index) => (
+                              {fields.breakdown.slice(0, 3).map((item, index) => (
                                 <div key={`${task.id}-plan-${index}`} className="rounded-md border border-white/[0.05] bg-black/10 px-2 py-1.5">
                                   <div className="flex items-center gap-2">
                                     <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-white/38">
@@ -298,32 +321,33 @@ function AutonomousActivityFeed() {
                             </div>
                           )}
 
-                          {task.workflow?.codex?.summaries && task.workflow.codex.summaries.length > 0 && (
+                          {fields.codex?.summaries && fields.codex.summaries.length > 0 && (
                             <p className="line-clamp-2 text-xs leading-relaxed text-sky-100/55">
-                              {task.workflow.codex.summaries.at(-1)}
+                              {fields.codex.summaries.at(-1)}
                             </p>
                           )}
 
-                          {task.workflow?.buildTest?.failures && task.workflow.buildTest.failures.length > 0 && (
+                          {fields.validation?.failures && fields.validation.failures.length > 0 && (
                             <p className="line-clamp-2 text-xs leading-relaxed text-red-200/70">
-                              {task.workflow.buildTest.failures.join("; ")}
+                              {fields.validation.failures.join("; ")}
                             </p>
                           )}
 
-                          {(task.workflow?.reviewer?.reason || task.workflow?.reviewer?.output?.reviewSummary) && (
+                          {(fields.reviewer?.reason || fields.reviewer?.output?.reviewSummary) && (
                             <p className="line-clamp-2 text-xs leading-relaxed text-white/42">
-                              {task.workflow.reviewer.reason ?? task.workflow.reviewer.output?.reviewSummary}
+                              {fields.reviewer.reason ?? fields.reviewer.output?.reviewSummary}
                             </p>
                           )}
 
-                          {(task.workflow?.recommendedNextTask || task.workflow?.reviewer?.output?.recommendedNextTask) && (
+                          {fields.recommendedNextTask && (
                             <div className="rounded-md border border-emerald-300/15 bg-emerald-300/[0.045] px-2 py-1.5 text-[11px] leading-relaxed text-emerald-100/70">
-                              Next: {task.workflow.reviewer?.output?.recommendedNextTask || task.workflow.recommendedNextTask}
+                              Next: {fields.recommendedNextTask}
                             </div>
                           )}
                         </div>
                     </div>
-                  ))
+                  );
+                  })
                 ) : (
                   <div className="rounded-lg border border-white/[0.06] bg-black/10 px-3 py-4 text-xs text-white/32">
                     No {group.title.toLowerCase()} yet.

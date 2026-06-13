@@ -102,7 +102,7 @@ export default function MobileNav() {
           }
         }}
         className={[
-          "fixed right-4 top-4 z-[2147483647] flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-[#07111f] text-white shadow-2xl transition-opacity lg:hidden [&>span]:hidden",
+          "fixed right-3 top-1 z-[2147483647] flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-[#07111f] text-white shadow-2xl transition-opacity lg:hidden [&>span]:hidden",
           open ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100",
         ].join(" ")}
         style={{

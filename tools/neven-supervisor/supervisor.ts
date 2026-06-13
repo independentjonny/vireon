@@ -83,6 +83,11 @@ type TaskRecord = {
   attempts: number;
   lastIssue?: string;
   lastReportPath?: string;
+  planner?: PlannerResult;
+  breakdown?: PlannerTask[];
+  codex?: WorkflowStatus["codex"];
+  validation?: WorkflowStatus["buildTest"];
+  reviewer?: GptReviewerResult;
   workflow?: WorkflowStatus;
 };
 
@@ -292,6 +297,17 @@ function updateTask(taskId: string, patch: Partial<TaskRecord>) {
   );
   writeTasks(next);
   return next.find((task) => task.id === taskId) ?? null;
+}
+
+function updateTaskWorkflow(taskId: string, workflow: WorkflowStatus) {
+  return updateTask(taskId, {
+    planner: workflow.planner,
+    breakdown: workflow.planner?.output?.tasks ?? [],
+    codex: workflow.codex,
+    validation: workflow.buildTest,
+    reviewer: workflow.reviewer,
+    workflow,
+  });
 }
 
 function repairStaleRunningTasks() {
@@ -715,7 +731,7 @@ function recentFailures() {
 
 async function runGptPlanner(task: TaskRecord): Promise<PlannerResult> {
   if (!process.env.OPENAI_API_KEY) {
-    return { status: "skipped", reason: "GPT Planner skipped: missing OPENAI_API_KEY", output: fallbackPlanner() };
+    return { status: "skipped", reason: "missing OPENAI_API_KEY", output: fallbackPlanner() };
   }
 
   const schema = {
@@ -780,7 +796,7 @@ async function runGptReviewer(input: {
   screenshots: string[];
 }): Promise<GptReviewerResult> {
   if (!process.env.OPENAI_API_KEY) {
-    return { status: "skipped", reason: "GPT Reviewer skipped: missing OPENAI_API_KEY" };
+    return { status: "skipped", reason: "missing OPENAI_API_KEY" };
   }
 
   const schema = {
@@ -996,14 +1012,12 @@ async function processTask(task: TaskRecord) {
   try {
     snapshot = trackedSnapshot();
     plannerResult = await runGptPlanner(task);
-    updateTask(task.id, {
-      workflow: {
-        planner: plannerResult,
-        codex: { status: "pending", summaries: [] },
-        buildTest: { status: "pending" },
-        reviewer: { status: "skipped", reason: "GPT Reviewer has not run yet." },
-        recommendedNextTask: plannerResult.output?.tasks[0]?.title,
-      },
+    updateTaskWorkflow(task.id, {
+      planner: plannerResult,
+      codex: { status: "pending", summaries: [] },
+      buildTest: { status: "pending" },
+      reviewer: { status: "skipped", reason: "GPT Reviewer has not run yet." },
+      recommendedNextTask: plannerResult.output?.tasks[0]?.title,
     });
     addHistory({
       taskId: task.id,
@@ -1043,14 +1057,12 @@ async function processTask(task: TaskRecord) {
         ? plannerResult.output.tasks
         : fallbackPlanner().tasks;
       const codexResults: CommandResult[] = [];
-      updateTask(task.id, {
-        workflow: {
-          planner: plannerResult ?? undefined,
-          codex: { status: "running", summaries: [] },
-          buildTest: { status: "pending" },
-          reviewer: { status: "skipped", reason: "GPT Reviewer has not run yet." },
-          recommendedNextTask: plannerResult?.output?.tasks[0]?.title,
-        },
+      updateTaskWorkflow(task.id, {
+        planner: plannerResult ?? undefined,
+        codex: { status: "running", summaries: [] },
+        buildTest: { status: "pending" },
+        reviewer: { status: "skipped", reason: "GPT Reviewer has not run yet." },
+        recommendedNextTask: plannerResult?.output?.tasks[0]?.title,
       });
 
       if (plannerResult?.status === "skipped") {
@@ -1072,17 +1084,15 @@ async function processTask(task: TaskRecord) {
       }
 
       const codexOk = codexResults.every((result) => result.ok);
-      updateTask(task.id, {
-        workflow: {
-          planner: plannerResult ?? undefined,
-          codex: {
-            status: codexOk ? "complete" : "failed",
-            summaries: codexResults.map((result) => result.summary),
-          },
-          buildTest: { status: "running" },
-          reviewer: { status: "skipped", reason: "GPT Reviewer has not run yet." },
-          recommendedNextTask: plannerResult?.output?.tasks[0]?.title,
+      updateTaskWorkflow(task.id, {
+        planner: plannerResult ?? undefined,
+        codex: {
+          status: codexOk ? "complete" : "failed",
+          summaries: codexResults.map((result) => result.summary),
         },
+        buildTest: { status: "running" },
+        reviewer: { status: "skipped", reason: "GPT Reviewer has not run yet." },
+        recommendedNextTask: plannerResult?.output?.tasks[0]?.title,
       });
       const buildHealth = await runBuildHealth();
       lastBuildHealth = buildHealth;
@@ -1096,20 +1106,18 @@ async function processTask(task: TaskRecord) {
         buildHealth,
         screenshots: [afterDesktop.screenshotPath, afterMobile.screenshotPath].filter(Boolean) as string[],
       });
-      updateTask(task.id, {
-        workflow: {
-          planner: plannerResult ?? undefined,
-          codex: {
-            status: codexOk ? "complete" : "failed",
-            summaries: codexResults.map((result) => result.summary),
-          },
-          buildTest: {
-            status: buildHealth.ok ? "passed" : "failed",
-            failures: buildHealth.failures,
-          },
-          reviewer: gptReviewerResult,
-          recommendedNextTask: gptReviewerResult.output?.recommendedNextTask ?? plannerResult?.output?.tasks[0]?.title,
+      updateTaskWorkflow(task.id, {
+        planner: plannerResult ?? undefined,
+        codex: {
+          status: codexOk ? "complete" : "failed",
+          summaries: codexResults.map((result) => result.summary),
         },
+        buildTest: {
+          status: buildHealth.ok ? "passed" : "failed",
+          failures: buildHealth.failures,
+        },
+        reviewer: gptReviewerResult,
+        recommendedNextTask: gptReviewerResult.output?.recommendedNextTask ?? plannerResult?.output?.tasks[0]?.title,
       });
       addHistory({
         taskId: task.id,
@@ -1289,12 +1297,13 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
           tasks,
           workflows: tasks.map((task) => ({
             taskId: task.id,
-            planner: task.workflow?.planner,
-            taskBreakdown: task.workflow?.planner?.output?.tasks ?? [],
-            codex: task.workflow?.codex,
-            buildTest: task.workflow?.buildTest,
-            reviewer: task.workflow?.reviewer,
-            recommendedNextTask: task.workflow?.recommendedNextTask,
+            planner: task.planner ?? task.workflow?.planner,
+            taskBreakdown: task.breakdown ?? task.workflow?.planner?.output?.tasks ?? [],
+            codex: task.codex ?? task.workflow?.codex,
+            validation: task.validation ?? task.workflow?.buildTest,
+            buildTest: task.validation ?? task.workflow?.buildTest,
+            reviewer: task.reviewer ?? task.workflow?.reviewer,
+            recommendedNextTask: task.workflow?.recommendedNextTask ?? task.reviewer?.output?.recommendedNextTask,
           })),
           processing,
           queueLength: tasks.filter((task) => task.status === "queued").length,

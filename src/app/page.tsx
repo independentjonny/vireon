@@ -26,10 +26,12 @@ const navItems = [
 
 function RuntimeBanner() {
   return (
-    <div className="sticky top-0 z-40 border-b border-emerald-500/[0.15] bg-[#07111f]/85 px-4 py-2 text-xs text-emerald-300/80 backdrop-blur-xl">
-      <span className="inline-flex items-center gap-2">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        Autonomous AI Runtime Active — Supervisor online • 10 agents nominal • Multi-agent v2
+    <div className="sticky top-0 z-40 border-b border-emerald-500/[0.15] bg-[#07111f]/85 px-4 py-2 pr-20 text-xs text-emerald-300/80 backdrop-blur-xl lg:pr-4">
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="min-w-0 truncate">
+          Autonomous AI Runtime Active — Supervisor online • 10 agents nominal • Multi-agent v2
+        </span>
       </span>
     </div>
   );

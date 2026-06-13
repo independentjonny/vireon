@@ -185,10 +185,142 @@
     "id": "task-1781347869766-bjmp3xc6",
     "goal": "Test GPT Planner only. Create a task breakdown for one safe dashboard improvement. Do not modify files.",
     "approved": false,
-    "status": "running",
+    "status": "complete",
     "createdAt": "2026-06-13T10:51:09.766Z",
-    "updatedAt": "2026-06-13T10:51:10.918Z",
+    "updatedAt": "2026-06-13T10:52:13.854Z",
     "attempts": 1,
-    "startedAt": "2026-06-13T10:51:10.918Z"
+    "startedAt": "2026-06-13T10:51:10.918Z",
+    "completedAt": "2026-06-13T10:52:13.853Z",
+    "lastIssue": "The dashboard snapshot's key financial metrics section lacks interactive explanations or tooltips for each metric, which could help users understand complex terms like 'Runway' and 'AI Score' better.",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
+  },
+  {
+    "id": "task-1781348200072-qh1mh76r",
+    "goal": "Validation task: confirm GPT workflow status fields are persisted. Keep any code changes minimal and only if needed.",
+    "approved": true,
+    "status": "running",
+    "createdAt": "2026-06-13T10:56:40.072Z",
+    "updatedAt": "2026-06-13T11:26:20.246Z",
+    "attempts": 1,
+    "startedAt": "2026-06-13T10:56:40.578Z",
+    "planner": {
+      "status": "complete",
+      "output": {
+        "summary": "Validate whether GPT workflow status fields are already persisted in the local supervisor/app code, preserving existing work and making only a minimal targeted change if inspection shows a gap.",
+        "tasks": [
+          {
+            "title": "Inspect current status-field persistence implementation",
+            "type": "inspect",
+            "instructions": "Review the existing modified files without overwriting them: tools/neven-supervisor/supervisor.ts, src/app/components/OverviewV3.tsx, and relevant .ai-supervisor JSON state/report/task files. Identify the exact GPT workflow status fields expected to persist, where they are written, and where they are read/displayed. Do not revert or clean working-tree changes."
+          },
+          {
+            "title": "Apply minimal persistence fix only if a gap is found",
+            "type": "edit",
+            "instructions": "If inspection shows GPT workflow status fields are not persisted across supervisor state/report/task updates, make the smallest local code change necessary in the appropriate existing file. Avoid broad refactors, formatting churn, package changes, or edits to secrets/config unrelated to this validation. If persistence is already implemented, make no code changes."
+          },
+          {
+            "title": "Run focused validation",
+            "type": "test",
+            "instructions": "Run npx tsc --noEmit to validate TypeScript. If there is a more focused existing local check for the supervisor workflow that does not require installs or external services, run it as well; otherwise do not invent new heavy tests. Do not run destructive commands."
+          },
+          {
+            "title": "Review diff and summarize evidence",
+            "type": "review",
+            "instructions": "Review the final git diff for only relevant minimal changes. Summarize whether GPT workflow status fields are persisted, cite the files/fields inspected or changed, and include validation command results. Note any pre-existing unrelated modified files or failures without attempting to revert them."
+          }
+        ],
+        "riskLevel": "medium",
+        "requiresApproval": false
+      }
+    },
+    "breakdown": [
+      {
+        "title": "Inspect current status-field persistence implementation",
+        "type": "inspect",
+        "instructions": "Review the existing modified files without overwriting them: tools/neven-supervisor/supervisor.ts, src/app/components/OverviewV3.tsx, and relevant .ai-supervisor JSON state/report/task files. Identify the exact GPT workflow status fields expected to persist, where they are written, and where they are read/displayed. Do not revert or clean working-tree changes."
+      },
+      {
+        "title": "Apply minimal persistence fix only if a gap is found",
+        "type": "edit",
+        "instructions": "If inspection shows GPT workflow status fields are not persisted across supervisor state/report/task updates, make the smallest local code change necessary in the appropriate existing file. Avoid broad refactors, formatting churn, package changes, or edits to secrets/config unrelated to this validation. If persistence is already implemented, make no code changes."
+      },
+      {
+        "title": "Run focused validation",
+        "type": "test",
+        "instructions": "Run npx tsc --noEmit to validate TypeScript. If there is a more focused existing local check for the supervisor workflow that does not require installs or external services, run it as well; otherwise do not invent new heavy tests. Do not run destructive commands."
+      },
+      {
+        "title": "Review diff and summarize evidence",
+        "type": "review",
+        "instructions": "Review the final git diff for only relevant minimal changes. Summarize whether GPT workflow status fields are persisted, cite the files/fields inspected or changed, and include validation command results. Note any pre-existing unrelated modified files or failures without attempting to revert them."
+      }
+    ],
+    "codex": {
+      "status": "complete",
+      "summaries": [
+        "Command completed: Get-Content -Raw \"C:\\Users\\summe\\liberva\\.ai-supervisor\\codex-1781349413122-dvuj2u63.txt\" | codex exec -s workspace-write -",
+        "Command completed: Get-Content -Raw \"C:\\Users\\summe\\liberva\\.ai-supervisor\\codex-1781349573722-hckt3aa2.txt\" | codex exec -s workspace-write -",
+        "Command completed: Get-Content -Raw \"C:\\Users\\summe\\liberva\\.ai-supervisor\\codex-1781349691943-i3r6lwy1.txt\" | codex exec -s workspace-write -",
+        "Command completed: Get-Content -Raw \"C:\\Users\\summe\\liberva\\.ai-supervisor\\codex-1781349812153-pburcgfb.txt\" | codex exec -s workspace-write -"
+      ]
+    },
+    "validation": {
+      "status": "passed",
+      "failures": []
+    },
+    "reviewer": {
+      "status": "failed",
+      "reason": "OpenAI request failed with 520"
+    },
+    "workflow": {
+      "planner": {
+        "status": "complete",
+        "output": {
+          "summary": "Validate whether GPT workflow status fields are already persisted in the local supervisor/app code, preserving existing work and making only a minimal targeted change if inspection shows a gap.",
+          "tasks": [
+            {
+              "title": "Inspect current status-field persistence implementation",
+              "type": "inspect",
+              "instructions": "Review the existing modified files without overwriting them: tools/neven-supervisor/supervisor.ts, src/app/components/OverviewV3.tsx, and relevant .ai-supervisor JSON state/report/task files. Identify the exact GPT workflow status fields expected to persist, where they are written, and where they are read/displayed. Do not revert or clean working-tree changes."
+            },
+            {
+              "title": "Apply minimal persistence fix only if a gap is found",
+              "type": "edit",
+              "instructions": "If inspection shows GPT workflow status fields are not persisted across supervisor state/report/task updates, make the smallest local code change necessary in the appropriate existing file. Avoid broad refactors, formatting churn, package changes, or edits to secrets/config unrelated to this validation. If persistence is already implemented, make no code changes."
+            },
+            {
+              "title": "Run focused validation",
+              "type": "test",
+              "instructions": "Run npx tsc --noEmit to validate TypeScript. If there is a more focused existing local check for the supervisor workflow that does not require installs or external services, run it as well; otherwise do not invent new heavy tests. Do not run destructive commands."
+            },
+            {
+              "title": "Review diff and summarize evidence",
+              "type": "review",
+              "instructions": "Review the final git diff for only relevant minimal changes. Summarize whether GPT workflow status fields are persisted, cite the files/fields inspected or changed, and include validation command results. Note any pre-existing unrelated modified files or failures without attempting to revert them."
+            }
+          ],
+          "riskLevel": "medium",
+          "requiresApproval": false
+        }
+      },
+      "codex": {
+        "status": "complete",
+        "summaries": [
+          "Command completed: Get-Content -Raw \"C:\\Users\\summe\\liberva\\.ai-supervisor\\codex-1781349413122-dvuj2u63.txt\" | codex exec -s workspace-write -",
+          "Command completed: Get-Content -Raw \"C:\\Users\\summe\\liberva\\.ai-supervisor\\codex-1781349573722-hckt3aa2.txt\" | codex exec -s workspace-write -",
+          "Command completed: Get-Content -Raw \"C:\\Users\\summe\\liberva\\.ai-supervisor\\codex-1781349691943-i3r6lwy1.txt\" | codex exec -s workspace-write -",
+          "Command completed: Get-Content -Raw \"C:\\Users\\summe\\liberva\\.ai-supervisor\\codex-1781349812153-pburcgfb.txt\" | codex exec -s workspace-write -"
+        ]
+      },
+      "buildTest": {
+        "status": "passed",
+        "failures": []
+      },
+      "reviewer": {
+        "status": "failed",
+        "reason": "OpenAI request failed with 520"
+      },
+      "recommendedNextTask": "Inspect current status-field persistence implementation"
+    }
   }
 ]
