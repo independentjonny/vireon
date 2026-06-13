@@ -216,6 +216,57 @@ function updateTask(taskId: string, patch: Partial<TaskRecord>) {
   return next.find((task) => task.id === taskId) ?? null;
 }
 
+function repairStaleRunningTasks() {
+  const tasks = readTasks();
+  const repaired: string[] = [];
+  const repairedAt = now();
+  const nextTasks = tasks.map((task) => {
+    if (task.status !== "running") return task;
+    repaired.push(task.id);
+    return {
+      ...task,
+      status: "failed" as TaskStatus,
+      completedAt: repairedAt,
+      updatedAt: repairedAt,
+      lastIssue: "Repaired stale running task",
+      lastReportPath: ".ai-supervisor/latest-report.json",
+    };
+  });
+
+  writeTasks(nextTasks);
+
+  const currentState = readState();
+  const state = writeState({
+    activeTaskId: null,
+    status: currentState.paused ? "paused" : "idle",
+    stopped: false,
+    lastError: repaired.length > 0 ? "Repaired stale running task" : currentState.lastError,
+  });
+
+  writeJson(REPORT_PATH, {
+    ok: true,
+    status: "repaired",
+    repaired,
+    summary:
+      repaired.length > 0
+        ? `Repaired stale running tasks: ${repaired.join(", ")}`
+        : "No stale running tasks found.",
+    generatedAt: repairedAt,
+  });
+
+  addHistory({
+    action: "repair",
+    ok: true,
+    summary:
+      repaired.length > 0
+        ? `Repaired stale running tasks: ${repaired.join(", ")}`
+        : "No stale running tasks found.",
+    data: { repaired },
+  });
+
+  return { repaired, state };
+}
+
 function createId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -829,6 +880,26 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
     case "/stop":
       sendJson(res, 200, { ok: true, state: writeState({ stopped: true, paused: false, status: "stopped" }) });
       return;
+    case "/repair": {
+      const { repaired, state } = repairStaleRunningTasks();
+      setTimeout(() => {
+        supervisorTick().catch((err) => {
+          const error = err.message ?? String(err);
+          processing = false;
+          addHistory({ action: "supervisor.error", ok: false, summary: error });
+          writeJson(REPORT_PATH, {
+            ok: false,
+            status: "failed",
+            error,
+            generatedAt: now(),
+            gitStatus: runSync("git status --short", 30_000),
+          });
+          writeState({ status: "idle", activeTaskId: null, lastError: error });
+        });
+      }, 0);
+      sendJson(res, 200, { ok: true, repaired, state });
+      return;
+    }
     case "/report":
       sendJson(res, 200, {
         ok: true,
