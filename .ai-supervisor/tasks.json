@@ -55,10 +55,32 @@
     "id": "task-1781328916137-3dm90mga",
     "goal": "Run Neven supervisor health task and report readiness without manual steps.",
     "approved": true,
-    "status": "running",
+    "status": "complete",
     "createdAt": "2026-06-13T05:35:16.137Z",
-    "updatedAt": "2026-06-13T05:35:18.118Z",
+    "updatedAt": "2026-06-13T05:40:50.232Z",
     "attempts": 1,
-    "startedAt": "2026-06-13T05:35:18.118Z"
+    "startedAt": "2026-06-13T05:35:18.118Z",
+    "completedAt": "2026-06-13T05:40:50.231Z",
+    "lastIssue": "The 'Savings Rate' metric is shown but without context or actionable insights, making it less informative compared to other metrics that include qualitative statuses or comparative data. This limits user understanding of its significance and next steps.",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
+  },
+  {
+    "id": "task-1781330636110-sh607pvq",
+    "goal": "Run Neven supervisor health task and report readiness without manual steps.",
+    "approved": true,
+    "status": "running",
+    "createdAt": "2026-06-13T06:03:56.110Z",
+    "updatedAt": "2026-06-13T06:03:57.480Z",
+    "attempts": 1,
+    "startedAt": "2026-06-13T06:03:57.480Z"
+  },
+  {
+    "id": "task-1781330739052-qgtluxbq",
+    "goal": "Run Neven supervisor health task and report readiness without manual steps.",
+    "approved": true,
+    "status": "queued",
+    "createdAt": "2026-06-13T06:05:39.052Z",
+    "updatedAt": "2026-06-13T06:05:39.052Z",
+    "attempts": 0
   }
 ]

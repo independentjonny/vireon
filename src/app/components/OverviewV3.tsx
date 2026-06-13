@@ -73,7 +73,7 @@ export default function OverviewV3({
       label: "Financial Health",
       value: String(healthScore),
       accent: "health",
-      detail: healthLabel,
+      detail: `${healthLabel} overall`,
       progress: healthScore,
     },
   ];
@@ -116,29 +116,12 @@ export default function OverviewV3({
     { label: "Cash flow Aug", value: "+$6,800", trend: "up" as const },
   ];
 
-  const healthAverage =
-    healthScores.length > 0
-      ? Math.round(
-          healthScores.reduce((total, item) => total + item.score, 0) /
-            healthScores.length
-        )
-      : 0;
-
-  const healthAverageLabel =
-    healthAverage >= 90
-      ? "Excellent"
-      : healthAverage >= 75
-      ? "Stable"
-      : healthAverage >= 60
-      ? "Watch"
-      : "Action needed";
-
-  const healthAverageTone =
-    healthAverage >= 90
+  const healthScoreTone =
+    healthScore >= 90
       ? "border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-300"
-      : healthAverage >= 75
+      : healthScore >= 75
       ? "border-sky-400/30 bg-sky-400/[0.08] text-sky-300"
-      : healthAverage >= 60
+      : healthScore >= 60
       ? "border-amber-400/30 bg-amber-400/[0.08] text-amber-300"
       : "border-red-400/30 bg-red-400/[0.08] text-red-300";
 
@@ -272,15 +255,18 @@ export default function OverviewV3({
                   Health Indicators
                 </h2>
                 <p className="mt-1 text-xs text-white/42">
-                  Grouped risk signals across the dashboard snapshot
+                  Drivers behind the Financial Health score
                 </p>
               </div>
-              <div className={`rounded-xl border px-3 py-2 text-right ${healthAverageTone}`}>
+              <div className={`rounded-xl border px-3 py-2 text-right ${healthScoreTone}`}>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.16em] opacity-70">
-                  Overall
+                  Financial Health
                 </div>
                 <div className="mt-1 text-2xl font-bold tabular-nums leading-none">
-                  {healthAverage}
+                  {healthScore}
+                </div>
+                <div className="mt-1 text-[10px] font-semibold opacity-70">
+                  {healthLabel}
                 </div>
               </div>
             </div>
@@ -292,7 +278,7 @@ export default function OverviewV3({
                     Focus area
                   </span>
                   <span className="text-xs font-semibold text-white/55">
-                    {healthAverageLabel}
+                    {healthLabel} overall
                   </span>
                 </div>
                 <div className="mt-2 flex items-baseline justify-between gap-4">

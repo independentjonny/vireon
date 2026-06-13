@@ -1,0 +1,17 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Run Neven supervisor health task and report readiness without manual steps.
+Review mode: UI_REVIEW_MODE
+Reviewer issue: The Financial Health score is shown twice with different values (Financial Health shows 93 and Health Indicators overall shows 87). This inconsistency can confuse users about their actual financial status and reduce trust in the dashboard data.
+Target file: src/app/components/OverviewV3.tsx
+Reviewer task: Unify and clarify Financial Health and Health Indicators metrics to present a single, consistent financial health score with clear definitions and distinctions if both must be shown.
+Category: dashboard_insight
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.
