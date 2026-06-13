@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface OverviewV3Props {
   netWorth: string;
@@ -33,6 +33,310 @@ const RESPONSIVE_COPY =
   "text-[0.8rem] leading-relaxed text-white/48 sm:text-xs";
 const RESPONSIVE_VALUE =
   "font-bold tabular-nums leading-none tracking-normal";
+
+const SUPERVISOR_API = "http://localhost:4010";
+
+type ActivityTask = {
+  id: string;
+  goal?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  lastIssue?: string;
+  workflow?: ActivityWorkflow;
+};
+
+type SupervisorStatusPayload = {
+  tasks?: ActivityTask[];
+};
+
+type ActivityWorkflow = {
+  planner?: {
+    status?: "skipped" | "complete" | "failed";
+    reason?: string;
+    output?: {
+      summary?: string;
+      tasks?: { title?: string; type?: string; instructions?: string }[];
+      riskLevel?: string;
+      requiresApproval?: boolean;
+    };
+  };
+  codex?: {
+    status?: "pending" | "running" | "complete" | "failed";
+    summaries?: string[];
+  };
+  buildTest?: {
+    status?: "pending" | "running" | "passed" | "failed";
+    failures?: string[];
+  };
+  reviewer?: {
+    status?: "skipped" | "complete" | "failed";
+    reason?: string;
+    output?: {
+      accepted?: boolean;
+      reviewSummary?: string;
+      issues?: string[];
+      recommendedNextTask?: string;
+    };
+  };
+  recommendedNextTask?: string;
+};
+
+function formatTaskTime(value?: string) {
+  if (!value) return "No timestamp";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function taskTimestamp(task: ActivityTask) {
+  return task.completedAt ?? task.updatedAt ?? task.startedAt ?? task.createdAt;
+}
+
+function statusLabel(status?: string) {
+  return (status ?? "unknown").replaceAll("_", " ");
+}
+
+function taskGroup(status?: string) {
+  if (status === "complete") return "completed";
+  if (status === "failed" || status === "stopped") return "failed";
+  if (["queued", "running", "paused", "needs_approval"].includes(status ?? "")) {
+    return "running";
+  }
+
+  return "running";
+}
+
+function stageTone(status?: string) {
+  if (status === "complete" || status === "passed") return "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200";
+  if (status === "failed") return "border-red-300/20 bg-red-300/[0.06] text-red-200";
+  if (status === "running") return "border-sky-300/20 bg-sky-300/[0.06] text-sky-200";
+  if (status === "skipped") return "border-amber-300/20 bg-amber-300/[0.06] text-amber-200";
+  return "border-white/[0.08] bg-white/[0.04] text-white/45";
+}
+
+function StagePill({ label, status }: { label: string; status?: string }) {
+  return (
+    <span className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${stageTone(status)}`}>
+      {label}: {status ?? "pending"}
+    </span>
+  );
+}
+
+function AutonomousActivityFeed() {
+  const [tasks, setTasks] = useState<ActivityTask[]>([]);
+  const [status, setStatus] = useState("Connecting");
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  const refresh = useCallback(async () => {
+    try {
+      const response = await fetch(`${SUPERVISOR_API}/status`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Supervisor returned ${response.status}`);
+      const payload = (await response.json()) as SupervisorStatusPayload;
+      const nextTasks = Array.isArray(payload.tasks) ? payload.tasks : [];
+
+      setTasks(
+        nextTasks
+          .slice()
+          .sort((a, b) => {
+            const aTime = new Date(taskTimestamp(a) ?? 0).getTime();
+            const bTime = new Date(taskTimestamp(b) ?? 0).getTime();
+            return bTime - aTime;
+          })
+          .slice(0, 12)
+      );
+      setStatus("Live");
+      setLastUpdated(formatTaskTime(new Date().toISOString()));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Supervisor unavailable");
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const interval = window.setInterval(refresh, 5000);
+    return () => window.clearInterval(interval);
+  }, [refresh]);
+
+  const groupedTasks = {
+    completed: tasks.filter((task) => taskGroup(task.status) === "completed"),
+    running: tasks.filter((task) => taskGroup(task.status) === "running"),
+    failed: tasks.filter((task) => taskGroup(task.status) === "failed"),
+  };
+
+  const groups: {
+    key: keyof typeof groupedTasks;
+    title: string;
+    tone: string;
+    dot: string;
+  }[] = [
+    {
+      key: "running",
+      title: "Running Tasks",
+      tone: "border-sky-300/20 bg-sky-300/[0.045]",
+      dot: "bg-sky-300",
+    },
+    {
+      key: "completed",
+      title: "Completed Tasks",
+      tone: "border-emerald-300/20 bg-emerald-300/[0.045]",
+      dot: "bg-emerald-300",
+    },
+    {
+      key: "failed",
+      title: "Failed Tasks",
+      tone: "border-red-300/20 bg-red-300/[0.045]",
+      dot: "bg-red-300",
+    },
+  ];
+
+  return (
+    <section className="mt-7 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.16)] sm:p-5">
+      <div className="flex flex-col gap-3 border-b border-white/[0.08] pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className={RESPONSIVE_EYEBROW}>Autonomous Activity</div>
+          <h2 className="mt-1 text-base font-semibold text-white sm:text-sm">
+            Supervisor task feed
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-white/42">
+            Live task state from the local supervisor, refreshed every 5 seconds.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-white/38">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/15 px-3 py-1">
+            <span className={`h-1.5 w-1.5 rounded-full ${status === "Live" ? "bg-emerald-300" : "bg-amber-300"}`} />
+            {status}
+          </span>
+          {lastUpdated && (
+            <span className="rounded-full border border-white/[0.08] bg-black/15 px-3 py-1">
+              Updated {lastUpdated}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        {groups.map((group) => {
+          const items = groupedTasks[group.key];
+
+          return (
+            <div key={group.key} className={`min-w-0 rounded-xl border p-3 ${group.tone}`}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${group.dot}`} />
+                  <h3 className="truncate text-xs font-semibold uppercase tracking-[0.13em] text-white/55">
+                    {group.title}
+                  </h3>
+                </div>
+                <span className="shrink-0 rounded-full bg-black/20 px-2 py-0.5 text-xs font-bold tabular-nums text-white/65">
+                  {items.length}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {items.length > 0 ? (
+                  items.slice(0, 4).map((task) => (
+                    <div key={task.id} className="rounded-lg border border-white/[0.06] bg-black/15 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="min-w-0 flex-1 text-sm font-medium leading-snug text-white/74 line-clamp-2">
+                          {task.goal || "Untitled supervisor task"}
+                        </p>
+                        <span className="shrink-0 rounded bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/42">
+                          {statusLabel(task.status)}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/34">
+                        <span>{formatTaskTime(taskTimestamp(task))}</span>
+                        <span className="font-mono">{task.id.slice(-8)}</span>
+                      </div>
+                      {task.lastIssue && (
+                        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-red-200/70">
+                          {task.lastIssue}
+                        </p>
+                      )}
+                      <div className="mt-3 space-y-2 border-t border-white/[0.06] pt-3">
+                          <div className="flex flex-wrap gap-1.5">
+                            <StagePill label="GPT Planner" status={task.workflow?.planner?.status} />
+                            <StagePill label="Codex" status={task.workflow?.codex?.status} />
+                            <StagePill label="Build/Test" status={task.workflow?.buildTest?.status} />
+                            <StagePill label="GPT Reviewer" status={task.workflow?.reviewer?.status} />
+                          </div>
+
+                          {(task.workflow?.planner?.reason || task.workflow?.planner?.output?.summary) && (
+                            <p className="text-xs leading-relaxed text-white/42">
+                              {task.workflow.planner.reason ?? task.workflow.planner.output?.summary}
+                            </p>
+                          )}
+
+                          {task.workflow?.planner?.output?.tasks && task.workflow.planner.output.tasks.length > 0 && (
+                            <div className="space-y-1">
+                              {task.workflow.planner.output.tasks.slice(0, 3).map((item, index) => (
+                                <div key={`${task.id}-plan-${index}`} className="rounded-md border border-white/[0.05] bg-black/10 px-2 py-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-white/38">
+                                      {item.type ?? "task"}
+                                    </span>
+                                    <span className="min-w-0 truncate text-xs font-medium text-white/58">
+                                      {item.title ?? "Planned task"}
+                                    </span>
+                                  </div>
+                                  {item.instructions && (
+                                    <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-white/34">
+                                      {item.instructions}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {task.workflow?.codex?.summaries && task.workflow.codex.summaries.length > 0 && (
+                            <p className="line-clamp-2 text-xs leading-relaxed text-sky-100/55">
+                              {task.workflow.codex.summaries.at(-1)}
+                            </p>
+                          )}
+
+                          {task.workflow?.buildTest?.failures && task.workflow.buildTest.failures.length > 0 && (
+                            <p className="line-clamp-2 text-xs leading-relaxed text-red-200/70">
+                              {task.workflow.buildTest.failures.join("; ")}
+                            </p>
+                          )}
+
+                          {(task.workflow?.reviewer?.reason || task.workflow?.reviewer?.output?.reviewSummary) && (
+                            <p className="line-clamp-2 text-xs leading-relaxed text-white/42">
+                              {task.workflow.reviewer.reason ?? task.workflow.reviewer.output?.reviewSummary}
+                            </p>
+                          )}
+
+                          {(task.workflow?.recommendedNextTask || task.workflow?.reviewer?.output?.recommendedNextTask) && (
+                            <div className="rounded-md border border-emerald-300/15 bg-emerald-300/[0.045] px-2 py-1.5 text-[11px] leading-relaxed text-emerald-100/70">
+                              Next: {task.workflow.reviewer?.output?.recommendedNextTask || task.workflow.recommendedNextTask}
+                            </div>
+                          )}
+                        </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-white/[0.06] bg-black/10 px-3 py-4 text-xs text-white/32">
+                    No {group.title.toLowerCase()} yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 export default function OverviewV3({
   netWorth,
@@ -406,6 +710,8 @@ export default function OverviewV3({
             </div>
           </div>
         </section>
+
+        <AutonomousActivityFeed />
 
         {/* Portfolio + Health sub-scores below hero */}
         <div className="mt-7 grid gap-6 xl:grid-cols-3">

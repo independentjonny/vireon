@@ -15,6 +15,7 @@ const LOG_PATH = path.join(SUPERVISOR_DIR, "actions.log");
 const POLL_MS = Number(process.env.NEVEN_SUPERVISOR_POLL_MS ?? 2500);
 const MAX_ITERATIONS = Number(process.env.NEVEN_SUPERVISOR_MAX_ITERATIONS ?? 5);
 const APP_URL = process.env.NEVEN_APP_URL ?? "http://localhost:3000";
+const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-5.5";
 const UI_REVIEW_MODE = "UI_REVIEW_MODE" as const;
 const BUILD_HEALTH_MODE = "BUILD_HEALTH_MODE" as const;
 const UI_REVIEW_FILES = [
@@ -82,6 +83,7 @@ type TaskRecord = {
   attempts: number;
   lastIssue?: string;
   lastReportPath?: string;
+  workflow?: WorkflowStatus;
 };
 
 type HistoryEvent = {
@@ -128,6 +130,52 @@ type BuildHealthResult = {
   typecheck: Pick<CommandResult, "ok" | "summary" | "output" | "code">;
   test: Pick<CommandResult, "ok" | "summary" | "output" | "code">;
   failures: string[];
+};
+
+type PlannerTask = {
+  title: string;
+  type: "inspect" | "edit" | "test" | "review";
+  instructions: string;
+};
+
+type PlannerOutput = {
+  summary: string;
+  tasks: PlannerTask[];
+  riskLevel: "low" | "medium" | "high";
+  requiresApproval: boolean;
+};
+
+type PlannerResult = {
+  status: "skipped" | "complete" | "failed";
+  reason?: string;
+  output?: PlannerOutput;
+};
+
+type GptReviewerOutput = {
+  accepted: boolean;
+  reviewSummary: string;
+  issues: string[];
+  recommendedNextTask: string;
+};
+
+type GptReviewerResult = {
+  status: "skipped" | "complete" | "failed";
+  reason?: string;
+  output?: GptReviewerOutput;
+};
+
+type WorkflowStatus = {
+  planner?: PlannerResult;
+  codex?: {
+    status: "pending" | "running" | "complete" | "failed";
+    summaries: string[];
+  };
+  buildTest?: {
+    status: "pending" | "running" | "passed" | "failed";
+    failures?: string[];
+  };
+  reviewer?: GptReviewerResult;
+  recommendedNextTask?: string;
 };
 
 type RunSnapshot = {
@@ -582,6 +630,197 @@ function responseTextFromOpenAI(payload: any) {
   return parts.join("\n").trim();
 }
 
+function fallbackPlanner(): PlannerOutput {
+  return {
+    summary: "Direct Codex execution without GPT planning.",
+    tasks: [
+      {
+        title: "Execute requested improvement",
+        type: "edit",
+        instructions: "Use the existing Neven autonomous flow to inspect, edit, validate, and summarize the requested task.",
+      },
+    ],
+    riskLevel: "medium",
+    requiresApproval: false,
+  };
+}
+
+function sanitizePlannerOutput(value: Partial<PlannerOutput> | null | undefined): PlannerOutput {
+  const fallback = fallbackPlanner();
+  const validTypes = new Set(["inspect", "edit", "test", "review"]);
+  const tasks = Array.isArray(value?.tasks)
+    ? value.tasks
+        .map((item) => ({
+          title: String(item?.title ?? "").trim(),
+          type: validTypes.has(String(item?.type)) ? (String(item?.type) as PlannerTask["type"]) : "edit",
+          instructions: String(item?.instructions ?? "").trim(),
+        }))
+        .filter((item) => item.title && item.instructions)
+        .slice(0, 6)
+    : [];
+  const risk = String(value?.riskLevel ?? fallback.riskLevel);
+
+  return {
+    summary: String(value?.summary ?? fallback.summary).trim() || fallback.summary,
+    tasks: tasks.length > 0 ? tasks : fallback.tasks,
+    riskLevel: risk === "low" || risk === "medium" || risk === "high" ? risk : fallback.riskLevel,
+    requiresApproval: Boolean(value?.requiresApproval),
+  };
+}
+
+function sanitizeReviewerOutput(value: Partial<GptReviewerOutput> | null | undefined): GptReviewerOutput {
+  return {
+    accepted: Boolean(value?.accepted),
+    reviewSummary: String(value?.reviewSummary ?? "GPT reviewer did not return a summary.").trim(),
+    issues: Array.isArray(value?.issues) ? value.issues.map(String).filter(Boolean).slice(0, 8) : [],
+    recommendedNextTask: String(value?.recommendedNextTask ?? "").trim(),
+  };
+}
+
+async function callOpenAIJson<T>(name: string, schema: Record<string, unknown>, prompt: string): Promise<T | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }],
+      text: {
+        format: {
+          type: "json_schema",
+          name,
+          strict: true,
+          schema,
+        },
+      },
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(String(payload.error?.message ?? `OpenAI request failed with ${response.status}`));
+  return JSON.parse(responseTextFromOpenAI(payload)) as T;
+}
+
+function recentFailures() {
+  return readJson<HistoryEvent[]>(HISTORY_PATH, [])
+    .filter((event) => !event.ok)
+    .slice(-8)
+    .map((event) => `${event.createdAt} ${event.action}: ${event.summary}`)
+    .join("\n") || "No recent failures.";
+}
+
+async function runGptPlanner(task: TaskRecord): Promise<PlannerResult> {
+  if (!process.env.OPENAI_API_KEY) {
+    return { status: "skipped", reason: "GPT Planner skipped: missing OPENAI_API_KEY", output: fallbackPlanner() };
+  }
+
+  const schema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      summary: { type: "string" },
+      tasks: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            title: { type: "string" },
+            type: { type: "string", enum: ["inspect", "edit", "test", "review"] },
+            instructions: { type: "string" },
+          },
+          required: ["title", "type", "instructions"],
+        },
+      },
+      riskLevel: { type: "string", enum: ["low", "medium", "high"] },
+      requiresApproval: { type: "boolean" },
+    },
+    required: ["summary", "tasks", "riskLevel", "requiresApproval"],
+  };
+  const prompt = [
+    "You are the GPT Planner for Neven's local autonomous coding supervisor.",
+    "Return strict JSON matching the schema.",
+    "Plan only safe local repository work. Do not request package installs, secret edits, git push, force operations, or destructive deletes.",
+    "",
+    `User task goal:\n${task.goal}`,
+    "",
+    `Current repo status:\n${runSync("git status --short", 30_000).slice(-6000) || "Clean working tree."}`,
+    "",
+    `Recent failures:\n${recentFailures()}`,
+    "",
+    "Available commands:",
+    "- codex exec -s workspace-write",
+    "- npx tsc --noEmit",
+    "- npx playwright test",
+    "- npm run build",
+    "- Playwright screenshot capture",
+  ].join("\n");
+
+  try {
+    const output = sanitizePlannerOutput(await callOpenAIJson<PlannerOutput>("neven_planner", schema, prompt));
+    return { status: "complete", output };
+  } catch (error) {
+    return {
+      status: "failed",
+      reason: error instanceof Error ? error.message : "GPT Planner failed.",
+      output: fallbackPlanner(),
+    };
+  }
+}
+
+async function runGptReviewer(input: {
+  goal: string;
+  planner: PlannerResult;
+  diffSummary: string;
+  buildHealth: BuildHealthResult;
+  screenshots: string[];
+}): Promise<GptReviewerResult> {
+  if (!process.env.OPENAI_API_KEY) {
+    return { status: "skipped", reason: "GPT Reviewer skipped: missing OPENAI_API_KEY" };
+  }
+
+  const schema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      accepted: { type: "boolean" },
+      reviewSummary: { type: "string" },
+      issues: { type: "array", items: { type: "string" } },
+      recommendedNextTask: { type: "string" },
+    },
+    required: ["accepted", "reviewSummary", "issues", "recommendedNextTask"],
+  };
+  const prompt = [
+    "You are the GPT Reviewer for Neven's autonomous coding workflow.",
+    "Return strict JSON matching the schema.",
+    "Accept only if the code change appears aligned with the goal and validation is acceptable.",
+    "",
+    `Task goal:\n${input.goal}`,
+    "",
+    `Planner output:\n${JSON.stringify(input.planner.output ?? null, null, 2)}`,
+    "",
+    `Git diff summary:\n${input.diffSummary.slice(-8000) || "No diff."}`,
+    "",
+    `Build/test result:\n${JSON.stringify(input.buildHealth, null, 2).slice(-8000)}`,
+    "",
+    `Screenshot paths:\n${input.screenshots.join("\n")}`,
+  ].join("\n");
+
+  try {
+    const output = sanitizeReviewerOutput(await callOpenAIJson<GptReviewerOutput>("neven_reviewer", schema, prompt));
+    return { status: "complete", output };
+  } catch (error) {
+    return {
+      status: "failed",
+      reason: error instanceof Error ? error.message : "GPT Reviewer failed.",
+    };
+  }
+}
+
 function screenshotInput(relativePath: string) {
   const fullPath = path.join(REPO, relativePath);
   if (!fs.existsSync(fullPath)) return null;
@@ -648,7 +887,7 @@ async function reviewWithGpt(mode: typeof UI_REVIEW_MODE, context: Record<string
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
+        model: OPENAI_MODEL,
         input: [{ role: "user", content }],
         text: {
           format: {
@@ -751,9 +990,28 @@ async function processTask(task: TaskRecord) {
   let lastBuildHealth: BuildHealthResult | null = null;
   let snapshot: RunSnapshot | null = null;
   let taskError: string | null = null;
+  let plannerResult: PlannerResult | null = null;
+  let gptReviewerResult: GptReviewerResult | null = null;
 
   try {
     snapshot = trackedSnapshot();
+    plannerResult = await runGptPlanner(task);
+    updateTask(task.id, {
+      workflow: {
+        planner: plannerResult,
+        codex: { status: "pending", summaries: [] },
+        buildTest: { status: "pending" },
+        reviewer: { status: "skipped", reason: "GPT Reviewer has not run yet." },
+        recommendedNextTask: plannerResult.output?.tasks[0]?.title,
+      },
+    });
+    addHistory({
+      taskId: task.id,
+      action: "gpt.planner",
+      ok: plannerResult.status !== "failed",
+      summary: plannerResult.reason ?? plannerResult.output?.summary ?? "GPT Planner completed.",
+      data: plannerResult,
+    });
 
     for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration += 1) {
       const state = readState();
@@ -781,17 +1039,91 @@ async function processTask(task: TaskRecord) {
         `Category: ${beforeReview.category}`,
       ].join("\n");
 
-      const codex = await runCodex(plannedTask);
+      const plannerTasks = plannerResult?.status === "complete" && plannerResult.output?.tasks.length
+        ? plannerResult.output.tasks
+        : fallbackPlanner().tasks;
+      const codexResults: CommandResult[] = [];
+      updateTask(task.id, {
+        workflow: {
+          planner: plannerResult ?? undefined,
+          codex: { status: "running", summaries: [] },
+          buildTest: { status: "pending" },
+          reviewer: { status: "skipped", reason: "GPT Reviewer has not run yet." },
+          recommendedNextTask: plannerResult?.output?.tasks[0]?.title,
+        },
+      });
+
+      if (plannerResult?.status === "skipped") {
+        codexResults.push(await runCodex(plannedTask));
+      } else {
+        for (const plannerTask of plannerTasks) {
+          const codexPrompt = [
+            plannedTask,
+            "",
+            "GPT Planner task:",
+            `Title: ${plannerTask.title}`,
+            `Type: ${plannerTask.type}`,
+            `Instructions: ${plannerTask.instructions}`,
+            "",
+            "Preserve all existing supervisor safety rules. Keep changes focused on this planner task.",
+          ].join("\n");
+          codexResults.push(await runCodex(codexPrompt));
+        }
+      }
+
+      const codexOk = codexResults.every((result) => result.ok);
+      updateTask(task.id, {
+        workflow: {
+          planner: plannerResult ?? undefined,
+          codex: {
+            status: codexOk ? "complete" : "failed",
+            summaries: codexResults.map((result) => result.summary),
+          },
+          buildTest: { status: "running" },
+          reviewer: { status: "skipped", reason: "GPT Reviewer has not run yet." },
+          recommendedNextTask: plannerResult?.output?.tasks[0]?.title,
+        },
+      });
       const buildHealth = await runBuildHealth();
       lastBuildHealth = buildHealth;
       const afterDesktop = await executeAction("screenshotDesktop");
       const afterMobile = await executeAction("screenshotMobile");
       const diff = runSync("git diff --stat; git diff", 30_000);
+      gptReviewerResult = await runGptReviewer({
+        goal: task.goal,
+        planner: plannerResult ?? { status: "skipped", reason: "GPT Planner skipped.", output: fallbackPlanner() },
+        diffSummary: diff,
+        buildHealth,
+        screenshots: [afterDesktop.screenshotPath, afterMobile.screenshotPath].filter(Boolean) as string[],
+      });
+      updateTask(task.id, {
+        workflow: {
+          planner: plannerResult ?? undefined,
+          codex: {
+            status: codexOk ? "complete" : "failed",
+            summaries: codexResults.map((result) => result.summary),
+          },
+          buildTest: {
+            status: buildHealth.ok ? "passed" : "failed",
+            failures: buildHealth.failures,
+          },
+          reviewer: gptReviewerResult,
+          recommendedNextTask: gptReviewerResult.output?.recommendedNextTask ?? plannerResult?.output?.tasks[0]?.title,
+        },
+      });
+      addHistory({
+        taskId: task.id,
+        action: "gpt.reviewer",
+        ok: gptReviewerResult.status !== "failed" && gptReviewerResult.output?.accepted !== false,
+        summary: gptReviewerResult.reason ?? gptReviewerResult.output?.reviewSummary ?? "GPT Reviewer skipped.",
+        data: gptReviewerResult,
+      });
       const afterReview = await reviewUiWithRetry({
         screenshots: [afterDesktop.screenshotPath, afterMobile.screenshotPath].filter(Boolean),
       });
       lastReview = afterReview;
-      const improved = scoreReview(afterReview) >= scoreReview(beforeReview) && Boolean(diff.trim());
+      const gptAccepted = gptReviewerResult.status === "complete" ? Boolean(gptReviewerResult.output?.accepted) : true;
+      const improved = codexOk && buildHealth.ok && gptAccepted && scoreReview(afterReview) >= scoreReview(beforeReview) && Boolean(diff.trim());
       let restored: string[] = [];
       if (!improved && snapshot) restored = rollback(snapshot);
 
@@ -800,8 +1132,10 @@ async function processTask(task: TaskRecord) {
         reviewMode: UI_REVIEW_MODE,
         beforeReview,
         afterReview,
+        planner: plannerResult,
+        gptReviewer: gptReviewerResult,
         improved,
-        codex: { ok: codex.ok, summary: codex.summary, output: codex.output?.slice(-4000) },
+        codex: codexResults.map((result) => ({ ok: result.ok, summary: result.summary, output: result.output?.slice(-4000) })),
         buildHealth,
         screenshots: {
           before: { desktop: desktop.screenshotPath, mobile: mobile.screenshotPath },
@@ -837,6 +1171,8 @@ async function processTask(task: TaskRecord) {
     goal: task.goal,
     status: finalStatus,
     error: taskError,
+    planner: plannerResult,
+    gptReviewer: gptReviewerResult,
     lastReview,
     lastBuildHealth,
     iterations,
@@ -951,6 +1287,15 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
           ok: true,
           state,
           tasks,
+          workflows: tasks.map((task) => ({
+            taskId: task.id,
+            planner: task.workflow?.planner,
+            taskBreakdown: task.workflow?.planner?.output?.tasks ?? [],
+            codex: task.workflow?.codex,
+            buildTest: task.workflow?.buildTest,
+            reviewer: task.workflow?.reviewer,
+            recommendedNextTask: task.workflow?.recommendedNextTask,
+          })),
           processing,
           queueLength: tasks.filter((task) => task.status === "queued").length,
           activeTaskId: state.activeTaskId,

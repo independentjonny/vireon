@@ -101,6 +101,10 @@ const url = process.argv[2];
 const screenshotPath = process.argv[3];
 const issues = [];
 
+function conciseError(error) {
+  return String(error && error.message ? error.message : error).split(/\r?\n/)[0];
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
@@ -132,7 +136,7 @@ const issues = [];
     await page.waitForTimeout(1500);
     await page.screenshot({ path: screenshotPath, fullPage: true });
   } catch (error) {
-    issues.push(`browser check failed: ${error.message}`);
+    issues.push(`browser check failed: ${conciseError(error)}`);
   } finally {
     await browser.close();
   }
@@ -146,7 +150,7 @@ const issues = [];
 })().catch((error) => {
   process.stdout.write(JSON.stringify({
     ok: false,
-    issues: [`browser check failed: ${error.message}`],
+    issues: [`browser check failed: ${conciseError(error)}`],
     screenshotPath
   }));
 });

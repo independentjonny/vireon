@@ -172,10 +172,23 @@
     "id": "task-1781340011874-b5icqcyk",
     "goal": "Fix Neven browser health errors from automated Playwright check. Evidence: C:\\Users\\summe\\liberva\\.ai-supervisor\\browser-health-before.png. Errors: browser check failed: browserType.launch: spawn EPERM\nCall log:\n\u001b[2m  - <launching> C:\\Users\\summe\\AppData\\Local\\ms-playwright\\chromium_headless_shell-1223\\chrome-headless-shell-win64\\chrome-headless-shell.exe --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=C:\\Users\\summe\\AppData\\Local\\Temp\\playwright_chromiumdev_profile-GuBE7E --remote-debugging-pipe --no-startup-window\u001b[22m",
     "approved": true,
-    "status": "running",
+    "status": "complete",
     "createdAt": "2026-06-13T08:40:11.874Z",
-    "updatedAt": "2026-06-13T08:40:12.668Z",
+    "updatedAt": "2026-06-13T08:41:47.880Z",
     "attempts": 1,
-    "startedAt": "2026-06-13T08:40:12.668Z"
+    "startedAt": "2026-06-13T08:40:12.668Z",
+    "completedAt": "2026-06-13T08:41:47.879Z",
+    "lastIssue": "On mobile, the sidebar navigation is hidden behind a hamburger menu requiring an extra tap to access, which may reduce discoverability and ease of navigation compared to the always visible sidebar on desktop. Improving the mobile navigation to show more options or a more intuitive menu could enhance usability.",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
+  },
+  {
+    "id": "task-1781347869766-bjmp3xc6",
+    "goal": "Test GPT Planner only. Create a task breakdown for one safe dashboard improvement. Do not modify files.",
+    "approved": false,
+    "status": "running",
+    "createdAt": "2026-06-13T10:51:09.766Z",
+    "updatedAt": "2026-06-13T10:51:10.918Z",
+    "attempts": 1,
+    "startedAt": "2026-06-13T10:51:10.918Z"
   }
 ]
