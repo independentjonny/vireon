@@ -1,6 +1,7 @@
 import MobileNav from "./components/MobileNav";
 import OverviewV3 from "./components/OverviewV3";
 import AutonomousTaskComposer from "./components/AutonomousTaskComposer";
+import SupervisorInbox from "./components/SupervisorInbox";
 import TransactionsSection from "./components/sections/TransactionsSection";
 import SubscriptionsSection from "./components/sections/SubscriptionsSection";
 
@@ -123,128 +124,6 @@ function ScreenshotPanel() {
           <div key={p}>{p}</div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function SupervisorInbox() {
-  const script = String.raw`
-(function () {
-  var api = "http://localhost:4010";
-  var form = document.getElementById("neven-supervisor-form");
-  var goal = document.getElementById("neven-supervisor-goal");
-  var button = document.getElementById("neven-supervisor-run");
-  var statusEl = document.getElementById("neven-supervisor-status");
-  var reportEl = document.getElementById("neven-supervisor-report");
-  var activeTaskId = "";
-
-  function setText(node, value) {
-    if (node) node.textContent = value;
-  }
-
-  function summarizeReport(payload) {
-    var report = payload && payload.report ? payload.report : {};
-    if (report.error) return report.error;
-    if (report.lastBuildHealth && report.lastBuildHealth.summary) return report.lastBuildHealth.summary;
-    if (report.status) return "Latest report: " + report.status;
-    return "No report yet.";
-  }
-
-  function isTaskRunning(task) {
-    return task && ["queued", "running", "paused", "needs_approval"].indexOf(task.status) !== -1;
-  }
-
-  async function refresh() {
-    try {
-      var statusRes = await fetch(api + "/status", { cache: "no-store" });
-      var status = await statusRes.json();
-      var tasks = Array.isArray(status.tasks) ? status.tasks : [];
-      var latest = activeTaskId
-        ? tasks.find(function (task) { return task.id === activeTaskId; })
-        : tasks[tasks.length - 1];
-      var supervisorState = status.state && status.state.status ? status.state.status : "unknown";
-      var taskState = latest && latest.status ? latest.status : "no task";
-      setText(statusEl, "Supervisor: " + supervisorState + " | Task: " + taskState);
-      if (button) button.disabled = isTaskRunning(latest);
-
-      var reportRes = await fetch(api + "/report", { cache: "no-store" });
-      setText(reportEl, summarizeReport(await reportRes.json()));
-    } catch (error) {
-      setText(statusEl, "Supervisor unavailable.");
-      setText(reportEl, error && error.message ? error.message : "Unable to reach supervisor.");
-      if (button) button.disabled = false;
-    }
-  }
-
-  if (form) {
-    form.addEventListener("submit", async function (event) {
-      event.preventDefault();
-      var value = goal && goal.value ? goal.value.trim() : "";
-      if (!value) {
-        setText(reportEl, "Enter a goal before running.");
-        return;
-      }
-
-      if (button) button.disabled = true;
-      setText(statusEl, "Submitting task...");
-
-      try {
-        var response = await fetch(api + "/task", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ goal: value, approved: true })
-        });
-        var payload = await response.json();
-        if (!response.ok || !payload.ok) throw new Error(payload.error || "Task submission failed.");
-        activeTaskId = payload.task && payload.task.id ? payload.task.id : "";
-        setText(reportEl, "Task queued.");
-        await refresh();
-      } catch (error) {
-        setText(statusEl, "Task submission failed.");
-        setText(reportEl, error && error.message ? error.message : "Unable to submit task.");
-        if (button) button.disabled = false;
-      }
-    });
-  }
-
-  refresh();
-  window.setInterval(refresh, 3000);
-})();
-`;
-
-  return (
-    <div className="space-y-4">
-      <form id="neven-supervisor-form" className="space-y-3">
-        <textarea
-          id="neven-supervisor-goal"
-          rows={4}
-          className="w-full resize-none rounded-xl border border-white/[0.1] bg-black/25 px-3 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-emerald-300/60"
-          placeholder="Enter a supervisor goal"
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            id="neven-supervisor-run"
-            type="submit"
-            className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-[#07111f] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40"
-          >
-            Run
-          </button>
-          <div id="neven-supervisor-status" className="text-sm text-white/55">
-            Supervisor: checking
-          </div>
-        </div>
-      </form>
-
-      <div className="rounded-xl border border-white/[0.08] bg-black/20 p-4">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/35">
-          Latest Report
-        </div>
-        <div id="neven-supervisor-report" className="text-sm leading-relaxed text-white/60">
-          Loading latest report.
-        </div>
-      </div>
-
-      <script dangerouslySetInnerHTML={{ __html: script }} />
     </div>
   );
 }

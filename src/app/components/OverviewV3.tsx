@@ -260,6 +260,24 @@ export default function OverviewV3({
     (lowest, item) => (!lowest || item.score < lowest.score ? item : lowest),
     null
   );
+  const portfolioTotal = portfolioAllocation.reduce((sum, item) => sum + item.pct, 0);
+  const largestAllocation = portfolioAllocation.reduce<
+    { label: string; pct: number; color: string } | null
+  >((largest, item) => (!largest || item.pct > largest.pct ? item : largest), null);
+  const allocationBalance =
+    largestAllocation && largestAllocation.pct >= 50
+      ? "Concentrated"
+      : largestAllocation && largestAllocation.pct >= 35
+      ? "Balanced tilt"
+      : "Diversified";
+  const averageHealthScore =
+    uniqueHealthScores.length > 0
+      ? Math.round(
+          uniqueHealthScores.reduce((sum, item) => sum + item.score, 0) /
+            uniqueHealthScores.length
+        )
+      : healthScore;
+  const healthBand = healthScore >= 90 ? "Strong" : healthScore >= 75 ? "Stable" : healthScore >= 60 ? "Watch" : "At risk";
 
   return (
     <div id="overview" className="space-y-12 sm:space-y-14">
@@ -391,13 +409,64 @@ export default function OverviewV3({
 
         {/* Portfolio + Health sub-scores below hero */}
         <div className="mt-7 grid gap-6 xl:grid-cols-3">
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 xl:col-span-2">
-            <h2 className="border-b border-white/[0.08] pb-4 text-base font-semibold leading-snug text-white sm:text-sm">
-              Portfolio Allocation
-            </h2>
-            <div className="mt-5 space-y-5">
+          <div className="rounded-2xl border border-sky-300/15 bg-sky-300/[0.035] p-5 shadow-[0_0_42px_rgba(56,189,248,0.05)] xl:col-span-2">
+            <div className="border-b border-white/[0.08] pb-4">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className={RESPONSIVE_EYEBROW}>Asset distribution</div>
+                  <h2 className="mt-1 text-base font-semibold leading-snug text-white sm:text-sm">
+                    Portfolio Allocation
+                  </h2>
+                  <p className={`mt-1 max-w-2xl ${RESPONSIVE_COPY}`}>
+                    Allocation mix by asset group, with concentration called out before the detail rows.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div className="rounded-xl border border-white/[0.08] bg-black/10 px-3 py-2">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-white/35 sm:text-[10px]">
+                      Coverage
+                    </div>
+                    <div className="mt-1 text-lg font-bold tabular-nums leading-none text-white sm:text-base">
+                      {portfolioTotal}%
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-white/[0.08] bg-black/10 px-3 py-2">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-white/35 sm:text-[10px]">
+                      Largest
+                    </div>
+                    <div className="mt-1 truncate text-lg font-bold leading-none text-sky-200 sm:text-base">
+                      {largestAllocation?.label ?? "N/A"}
+                    </div>
+                  </div>
+                  <div className="col-span-2 rounded-xl border border-sky-300/20 bg-sky-300/[0.07] px-3 py-2 sm:col-span-1">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-sky-100/55 sm:text-[10px]">
+                      Mix
+                    </div>
+                    <div className="mt-1 text-lg font-bold leading-none text-sky-100 sm:text-base">
+                      {allocationBalance}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                aria-label="Portfolio allocation stacked bar"
+                className="mt-4 flex h-3 overflow-hidden rounded-full bg-white/[0.06]"
+              >
+                {portfolioAllocation.map((item) => (
+                  <div
+                    key={item.label}
+                    className={`${item.color} opacity-85`}
+                    style={{ width: `${item.pct}%` }}
+                    title={`${item.label}: ${item.pct}%`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
               {portfolioAllocation.map((item) => (
-                <div key={item.label}>
+                <div key={item.label} className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
                   <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <span className={`h-2 w-2 rounded-full shrink-0 ${item.color}`} />
@@ -428,13 +497,28 @@ export default function OverviewV3({
               </div>
               <div className={`self-start rounded-xl border px-3 py-2 text-left min-[420px]:text-right ${healthScoreTone}`}>
                 <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] opacity-70 sm:text-[10px] sm:tracking-[0.16em]">
-                  Financial Health
+                  {healthBand}
                 </div>
                 <div className="mt-1 text-[2rem] font-bold tabular-nums leading-none sm:text-2xl">
                   {healthScore}
                 </div>
                 <div className="mt-1 text-[0.72rem] font-semibold opacity-70 sm:text-[10px]">
                   {healthLabel}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
+                <div className={RESPONSIVE_EYEBROW}>Indicator avg</div>
+                <div className="mt-2 text-2xl font-bold tabular-nums leading-none text-white sm:text-xl">
+                  {averageHealthScore}
+                </div>
+              </div>
+              <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
+                <div className={RESPONSIVE_EYEBROW}>Weakest driver</div>
+                <div className="mt-2 truncate text-sm font-bold leading-snug text-amber-200">
+                  {healthFocus?.label ?? "None"}
                 </div>
               </div>
             </div>
