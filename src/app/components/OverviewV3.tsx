@@ -219,9 +219,14 @@ export default function OverviewV3({
 
             {/* KPI row */}
             <div className="mt-5">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+              <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-5">
                 {secondaryMetrics.map((m) => (
-                  <div key={m.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
+                  <div
+                    key={m.label}
+                    className={`flex h-full flex-col rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 ${
+                      m.accent === "health" ? "col-span-2 md:col-span-1" : ""
+                    }`}
+                  >
                     <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-white/55">
                       <span>{m.label}</span>
                       <span
@@ -248,7 +253,7 @@ export default function OverviewV3({
                         {m.detail}
                       </div>
                     )}
-                    <p className="mt-2 min-h-8 text-[11px] leading-snug text-white/38">
+                    <p className="mt-2 min-h-8 flex-1 text-[11px] leading-snug text-white/38">
                       {m.explanation}
                     </p>
                     {m.progress !== undefined && (

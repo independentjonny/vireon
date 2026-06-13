@@ -94,19 +94,23 @@
     "id": "task-1781331766731-14ado0xs",
     "goal": "Run Neven supervisor health task and report readiness without manual steps.",
     "approved": true,
-    "status": "running",
+    "status": "complete",
     "createdAt": "2026-06-13T06:22:46.731Z",
-    "updatedAt": "2026-06-13T06:22:48.155Z",
+    "updatedAt": "2026-06-13T06:31:04.751Z",
     "attempts": 1,
-    "startedAt": "2026-06-13T06:22:48.155Z"
+    "startedAt": "2026-06-13T06:22:48.155Z",
+    "completedAt": "2026-06-13T06:31:04.750Z",
+    "lastIssue": "The dashboard overview lacks quick access or summaries to upcoming or recent transactions and subscription statuses that can provide immediate actionable insights to the user.",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
   },
   {
     "id": "task-1781332031707-jsxz7fur",
     "goal": "Run Neven supervisor health task and report readiness without manual steps.",
     "approved": true,
-    "status": "queued",
+    "status": "running",
     "createdAt": "2026-06-13T06:27:11.707Z",
-    "updatedAt": "2026-06-13T06:27:11.707Z",
-    "attempts": 0
+    "updatedAt": "2026-06-13T06:31:04.758Z",
+    "attempts": 1,
+    "startedAt": "2026-06-13T06:31:04.758Z"
   }
 ]

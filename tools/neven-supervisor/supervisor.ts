@@ -890,26 +890,33 @@ function readRequestBody(req: http.IncomingMessage) {
 function sendJson(res: http.ServerResponse, statusCode: number, payload: unknown) {
   res.statusCode = statusCode;
   res.setHeader("Content-Type", "application/json");
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.end(JSON.stringify(payload, null, 2));
 }
 
 async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
+  if (req.method === "OPTIONS") {
+    sendJson(res, 204, {});
+    return;
+  }
+
   if (req.method === "GET" && req.url === "/health") {
     sendJson(res, 200, { ok: true, status: readState().status });
     return;
   }
 
-  if (req.method !== "POST") {
-    sendJson(res, 404, { ok: false, error: "Not found" });
-    return;
-  }
-
-  const body = await readRequestBody(req);
-  const payload = body ? JSON.parse(body) : {};
-
   switch (req.url) {
     case "/task":
     case "/task-submit": {
+      if (req.method !== "POST") {
+        sendJson(res, 404, { ok: false, error: "Not found" });
+        return;
+      }
+
+      const body = await readRequestBody(req);
+      const payload = body ? JSON.parse(body) : {};
       const goal = String(payload.goal ?? "").trim();
       if (!goal) throw new Error("Missing goal");
       const task: TaskRecord = {
@@ -928,6 +935,11 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
       return;
     }
     case "/status":
+      if (req.method !== "GET" && req.method !== "POST") {
+        sendJson(res, 404, { ok: false, error: "Not found" });
+        return;
+      }
+
       {
         const state = readState();
         const tasks = readTasks();
@@ -943,15 +955,35 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
       }
       return;
     case "/pause":
+      if (req.method !== "POST") {
+        sendJson(res, 404, { ok: false, error: "Not found" });
+        return;
+      }
+
       sendJson(res, 200, { ok: true, state: writeState({ paused: true, status: "paused" }) });
       return;
     case "/resume":
+      if (req.method !== "POST") {
+        sendJson(res, 404, { ok: false, error: "Not found" });
+        return;
+      }
+
       sendJson(res, 200, { ok: true, state: writeState({ paused: false, stopped: false, status: "idle" }) });
       return;
     case "/stop":
+      if (req.method !== "POST") {
+        sendJson(res, 404, { ok: false, error: "Not found" });
+        return;
+      }
+
       sendJson(res, 200, { ok: true, state: writeState({ stopped: true, paused: false, status: "stopped" }) });
       return;
     case "/repair": {
+      if (req.method !== "POST") {
+        sendJson(res, 404, { ok: false, error: "Not found" });
+        return;
+      }
+
       const { repaired, state } = repairStaleRunningTasks();
       setTimeout(() => {
         supervisorTick().catch((err) => {
@@ -972,6 +1004,11 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
       return;
     }
     case "/report":
+      if (req.method !== "GET" && req.method !== "POST") {
+        sendJson(res, 404, { ok: false, error: "Not found" });
+        return;
+      }
+
       sendJson(res, 200, {
         ok: true,
         report: fs.existsSync(REPORT_PATH) ? readJson(REPORT_PATH, {}) : {},
