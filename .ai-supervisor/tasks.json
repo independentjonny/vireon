@@ -81,10 +81,32 @@
     "id": "task-1781330739052-qgtluxbq",
     "goal": "Run Neven supervisor health task and report readiness without manual steps.",
     "approved": true,
-    "status": "running",
+    "status": "complete",
     "createdAt": "2026-06-13T06:05:39.052Z",
-    "updatedAt": "2026-06-13T06:09:33.401Z",
+    "updatedAt": "2026-06-13T06:13:26.086Z",
     "attempts": 1,
-    "startedAt": "2026-06-13T06:09:33.401Z"
+    "startedAt": "2026-06-13T06:09:33.401Z",
+    "completedAt": "2026-06-13T06:13:26.086Z",
+    "lastIssue": "In the mobile view, the vertical scrolling for the Overview dashboard causes some key financial metrics and health indicators to be less immediately visible. Adding a sticky summary or collapsible sections for quick access to primary financial stats could improve usability.",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
+  },
+  {
+    "id": "task-1781331766731-14ado0xs",
+    "goal": "Run Neven supervisor health task and report readiness without manual steps.",
+    "approved": true,
+    "status": "running",
+    "createdAt": "2026-06-13T06:22:46.731Z",
+    "updatedAt": "2026-06-13T06:22:48.155Z",
+    "attempts": 1,
+    "startedAt": "2026-06-13T06:22:48.155Z"
+  },
+  {
+    "id": "task-1781332031707-jsxz7fur",
+    "goal": "Run Neven supervisor health task and report readiness without manual steps.",
+    "approved": true,
+    "status": "queued",
+    "createdAt": "2026-06-13T06:27:11.707Z",
+    "updatedAt": "2026-06-13T06:27:11.707Z",
+    "attempts": 0
   }
 ]

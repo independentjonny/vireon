@@ -63,17 +63,39 @@ export default function OverviewV3({
     value: string;
     accent: string;
     detail?: string;
+    explanation: string;
     progress?: number;
   }[] = [
-    { label: "Cash Flow", value: cashFlow, accent: "emerald" },
-    { label: "Savings Rate", value: savingsRate, accent: "sky" },
-    { label: "Runway", value: runway, accent: "white" },
-    { label: "AI Score", value: aiConfidence, accent: "violet" },
+    {
+      label: "Cash Flow",
+      value: cashFlow,
+      accent: "emerald",
+      explanation: "Net money expected to move in or out this period.",
+    },
+    {
+      label: "Savings Rate",
+      value: savingsRate,
+      accent: "sky",
+      explanation: "Share of income being kept after regular spending.",
+    },
+    {
+      label: "Runway",
+      value: runway,
+      accent: "white",
+      explanation: "How long current cash could cover expenses without new income.",
+    },
+    {
+      label: "AI Score",
+      value: aiConfidence,
+      accent: "violet",
+      explanation: "Model confidence in the dashboard signals and recommendations.",
+    },
     {
       label: "Financial Health",
       value: String(healthScore),
       accent: "health",
       detail: `${healthLabel} overall`,
+      explanation: "Composite 0-100 score from cash flow, savings, debt, and portfolio signals.",
       progress: healthScore,
     },
   ];
@@ -200,8 +222,20 @@ export default function OverviewV3({
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
                 {secondaryMetrics.map((m) => (
                   <div key={m.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4">
-                    <div className="mb-2 text-xs font-medium text-white/55">
-                      {m.label}
+                    <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-white/55">
+                      <span>{m.label}</span>
+                      <span
+                        aria-label={`${m.label}: ${m.explanation}`}
+                        className="group relative inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-white/[0.12] text-[10px] font-bold text-white/35 outline-none transition hover:border-white/25 hover:text-white/70 focus-visible:border-emerald-300/60 focus-visible:text-white"
+                        role="img"
+                        tabIndex={0}
+                        title={m.explanation}
+                      >
+                        ?
+                        <span className="pointer-events-none absolute left-1/2 top-5 z-10 hidden w-52 -translate-x-1/2 rounded-lg border border-white/[0.1] bg-[#07111f] px-3 py-2 text-left text-[11px] font-medium leading-snug text-white/72 shadow-2xl group-hover:block group-focus-visible:block">
+                          {m.explanation}
+                        </span>
+                      </span>
                     </div>
                     <div
                       className={`font-bold tabular-nums leading-none ${accentClass[m.accent]}`}
@@ -214,6 +248,9 @@ export default function OverviewV3({
                         {m.detail}
                       </div>
                     )}
+                    <p className="mt-2 min-h-8 text-[11px] leading-snug text-white/38">
+                      {m.explanation}
+                    </p>
                     {m.progress !== undefined && (
                       <div className="mt-2 h-[2px] w-20 rounded-full bg-white/[0.06]">
                         <div
