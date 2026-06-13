@@ -1,9 +1,9 @@
 {
-  "status": "idle",
-  "activeTaskId": "task-1781330636110-sh607pvq",
+  "status": "running",
+  "activeTaskId": "task-1781330739052-qgtluxbq",
   "paused": false,
   "stopped": false,
-  "lastBeat": "2026-06-13T06:09:30.886Z",
+  "lastBeat": "2026-06-13T06:13:24.355Z",
   "processes": {},
   "lastError": null
 }

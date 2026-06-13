@@ -125,7 +125,16 @@ export default function OverviewV3({
       ? "border-amber-400/30 bg-amber-400/[0.08] text-amber-300"
       : "border-red-400/30 bg-red-400/[0.08] text-red-300";
 
-  const healthFocus = healthScores.reduce<
+  const uniqueHealthScores = healthScores.filter((item, index) => {
+    const label = item.label.trim().toLowerCase();
+    return (
+      healthScores.findIndex(
+        (candidate) => candidate.label.trim().toLowerCase() === label
+      ) === index
+    );
+  });
+
+  const healthFocus = uniqueHealthScores.reduce<
     { label: string; score: number; note: string } | null
   >(
     (lowest, item) => (!lowest || item.score < lowest.score ? item : lowest),
@@ -180,7 +189,7 @@ export default function OverviewV3({
                   {netWorthTrend}
                 </span>
                 <span className="text-white/[0.12]">·</span>
-                <span className="text-white/25 text-sm">Good morning, Alex</span>
+                <span className="text-white/70 text-sm">Good morning, Alex</span>
               </div>
             </div>
 
@@ -294,7 +303,7 @@ export default function OverviewV3({
             )}
 
             <div className="mt-4 space-y-3">
-              {healthScores.map((item) => {
+              {uniqueHealthScores.map((item) => {
                 const borderCol =
                   item.score >= 90 ? "border-emerald-400/35" :
                   item.score >= 75 ? "border-sky-400/35" :

@@ -1,0 +1,17 @@
+You are working in the Neven repo at C:\Users\summe\liberva.
+
+Task:
+Alex goal: Run Neven supervisor health task and report readiness without manual steps.
+Review mode: UI_REVIEW_MODE
+Reviewer issue: The 'Health Indicators' section includes two 'Diversification' entries with identical scores (74), which is redundant and may confuse users. Also, the user's greeting 'Good morning, Alex' is low contrast and hard to read against the dark background, impacting accessibility.
+Target file: src/app/components/OverviewV3.tsx
+Reviewer task: Remove the duplicate 'Diversification' entry in the Health Indicators section to reduce redundancy and confusion. Improve the contrast of the user greeting text 'Good morning, Alex' for better readability and accessibility.
+Category: accessibility
+
+Rules:
+- Make a substantive, reviewable improvement.
+- Do not modify secrets, package files, lockfiles, migrations, or API integrations unless explicitly required.
+- Do not install packages.
+- Do not run npm run build unless explicitly asked.
+- Do not commit.
+- Return summary only.

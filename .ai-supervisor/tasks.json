@@ -68,19 +68,23 @@
     "id": "task-1781330636110-sh607pvq",
     "goal": "Run Neven supervisor health task and report readiness without manual steps.",
     "approved": true,
-    "status": "running",
+    "status": "complete",
     "createdAt": "2026-06-13T06:03:56.110Z",
-    "updatedAt": "2026-06-13T06:03:57.480Z",
+    "updatedAt": "2026-06-13T06:09:32.113Z",
     "attempts": 1,
-    "startedAt": "2026-06-13T06:03:57.480Z"
+    "startedAt": "2026-06-13T06:03:57.480Z",
+    "completedAt": "2026-06-13T06:09:32.112Z",
+    "lastIssue": "The mobile view of the financial dashboard omits the right-side panel containing detailed Financial Health indicators, thus reducing access to important health metrics and insights when on smaller screens.",
+    "lastReportPath": ".ai-supervisor/latest-report.json"
   },
   {
     "id": "task-1781330739052-qgtluxbq",
     "goal": "Run Neven supervisor health task and report readiness without manual steps.",
     "approved": true,
-    "status": "queued",
+    "status": "running",
     "createdAt": "2026-06-13T06:05:39.052Z",
-    "updatedAt": "2026-06-13T06:05:39.052Z",
-    "attempts": 0
+    "updatedAt": "2026-06-13T06:09:33.401Z",
+    "attempts": 1,
+    "startedAt": "2026-06-13T06:09:33.401Z"
   }
 ]
