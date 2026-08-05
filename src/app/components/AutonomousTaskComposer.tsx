@@ -236,7 +236,7 @@ export default function AutonomousTaskComposer({ suggestedGoal }: { suggestedGoa
   const activeStep = STEP_ORDER.indexOf(timelineState);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-black [&_*]:!text-black [&_textarea::placeholder]:!text-black/60">
       {/* Header — Build From UI / No Copy Paste Required */}
       <div className="rounded-xl border border-purple-400/20 bg-purple-400/5 px-4 py-3">
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-semibold text-purple-300">
@@ -284,6 +284,7 @@ export default function AutonomousTaskComposer({ suggestedGoal }: { suggestedGoa
       <div>
         <div className="text-xs font-semibold uppercase tracking-wide text-white/50 mb-2">Build Goal</div>
         <textarea
+          suppressHydrationWarning
           value={goal}
           onChange={(e) => handleGoalChange(e.target.value)}
           placeholder="Describe the build goal — or pick a Task Template above…"

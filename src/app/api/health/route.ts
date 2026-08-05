@@ -4,7 +4,7 @@ export async function GET() {
   );
   return Response.json({
     ok: true,
-    service: "Liberva API",
+    service: "Vireon API",
     runtime: "Pass 2 multi-file autonomous editing",
     database: {
       status: dbConfigured ? "green" : "yellow",

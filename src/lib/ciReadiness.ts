@@ -53,7 +53,7 @@ const CI_STEPS: CIStep[] = [
   },
 ];
 
-const WORKFLOW_YAML = `name: Liberva CI
+const WORKFLOW_YAML = `name: Vireon CI
 
 on:
   push:
@@ -95,10 +95,10 @@ jobs:
 
 export function generateCIReadiness(): CIReadiness {
   const pkgPath = path.join(process.cwd(), "package.json");
-  let projectName = "liberva";
+  let projectName = "vireon";
   try {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as { name?: string };
-    projectName = pkg.name || "liberva";
+    projectName = pkg.name || "vireon";
   } catch {
     // ignore
   }

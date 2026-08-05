@@ -2,7 +2,7 @@ import { expect, test, devices } from "@playwright/test";
 
 test.use({ ...devices["iPhone 13"] });
 
-test.describe("Neven mobile navigation", () => {
+test.describe("Vireon mobile navigation", () => {
   test("hamburger opens and closes the mobile drawer", async ({ page }) => {
     await page.goto("http://localhost:3000");
 
@@ -11,27 +11,27 @@ test.describe("Neven mobile navigation", () => {
 
     await expect(hamburger).toBeVisible();
     await expect(hamburger).toHaveAttribute("aria-expanded", "false");
-    await expect(drawer).toHaveCSS("pointer-events", "none");
+    await expect(drawer).toHaveCount(0);
 
     await page.screenshot({ path: "mobile-before-click.png" });
 
     await hamburger.click();
 
     await expect(hamburger).toHaveAttribute("aria-expanded", "true");
-    await expect(drawer).toHaveCSS("pointer-events", "auto");
-    await expect(drawer.getByRole("link", { name: "Overview" })).toBeVisible();
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "Dashboard" })).toBeVisible();
 
     await page.screenshot({ path: "mobile-after-click.png" });
 
     await page.keyboard.press("Escape");
 
     await expect(hamburger).toHaveAttribute("aria-expanded", "false");
-    await expect(drawer).toHaveCSS("pointer-events", "none");
+    await expect(drawer).toHaveCount(0);
 
     await hamburger.click();
 
     await expect(hamburger).toHaveAttribute("aria-expanded", "true");
-    await expect(drawer).toHaveCSS("pointer-events", "auto");
+    await expect(drawer).toBeVisible();
 
     const backdropCloseButton = page.getByRole("button", {
       name: /close navigation menu/i,
@@ -39,11 +39,11 @@ test.describe("Neven mobile navigation", () => {
     await backdropCloseButton.click();
 
     await expect(hamburger).toHaveAttribute("aria-expanded", "false");
-    await expect(drawer).toHaveCSS("pointer-events", "none");
+    await expect(drawer).toHaveCount(0);
 
     await hamburger.tap();
 
     await expect(hamburger).toHaveAttribute("aria-expanded", "true");
-    await expect(drawer).toHaveCSS("pointer-events", "auto");
+    await expect(drawer).toBeVisible();
   });
 });

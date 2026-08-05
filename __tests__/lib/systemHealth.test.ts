@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildSystemComponents } from "../../src/lib/systemHealth.js";
+import { buildSystemComponents } from "../../src/lib/systemHealth.ts";
 
 describe("systemHealth — Database health card regression guard", () => {
   it("Database component exists in system health list", () => {

@@ -1,9 +1,37 @@
-"use client";
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import type { ElementType, ReactNode } from "react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  CircleDollarSign,
+  FileCheck2,
+  Goal,
+  Home,
+  ListChecks,
+  MessageCircle,
+  PiggyBank,
+  ShieldAlert,
+  Sparkles,
+  TrendingUp,
+  WalletCards,
+} from "lucide-react";
+import DailyReviewCard from "./DailyReviewCard";
+import type { ActionWorkflow, ActionWorkflowSummary } from "@/lib/actionWorkflows";
+import type { AiDecision } from "@/lib/aiDecisionCentre";
+import type { DailyReviewHistoryRecord } from "@/lib/aiCfoDailyReview";
+import {
+  buildDashboardBriefing,
+  selectDashboardSecondaryActions,
+  selectDashboardTopPriority,
+  selectVerifiedFinancialWins,
+  type DashboardAction,
+} from "@/lib/dashboardPresentation";
 
 interface OverviewV3Props {
   netWorth: string;
+  netWorthValue: number;
   netWorthTrend: string;
+  netWorthTrendValue: number;
   cashFlow: string;
   savingsRate: string;
   runway: string;
@@ -14,1339 +42,465 @@ interface OverviewV3Props {
   portfolioAllocation: { label: string; pct: number; color: string }[];
   healthScores: { label: string; score: number; note: string }[];
   dateStr: string;
-  agents?: { label: string; value: string; role: string }[];
-  telemetryEvents?: { event: string; level: "info" | "warn" | "error"; agent: string; detail: string }[];
-  dbConfigured?: boolean;
-  currentTask?: { runId: string; goal: string; startedAt: string } | null;
-  lastTask?: { runId: string; goalPreview: string; status: string } | null;
-  nextTask?: { id: string; title: string } | null;
-  totalRuns?: number;
-}
-
-const LAYER_LABEL =
-  "text-xs font-semibold uppercase tracking-[0.18em] text-white/45";
-const RESPONSIVE_EYEBROW =
-  "text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-white/45 sm:text-xs sm:tracking-[0.18em]";
-const RESPONSIVE_LABEL =
-  "text-[0.95rem] font-semibold leading-snug text-white/74 sm:text-sm";
-const RESPONSIVE_COPY =
-  "text-[0.8rem] leading-relaxed text-white/48 sm:text-xs";
-const RESPONSIVE_VALUE =
-  "font-bold tabular-nums leading-none tracking-normal";
-
-const SUPERVISOR_API = "http://localhost:4010";
-
-type ActivityTask = {
-  id: string;
-  goal?: string;
-  status?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  startedAt?: string;
-  completedAt?: string;
-  lastIssue?: string;
-  planner?: ActivityWorkflow["planner"];
-  breakdown?: { title?: string; type?: string; instructions?: string }[];
-  codex?: ActivityWorkflow["codex"];
-  validation?: ActivityWorkflow["buildTest"];
-  reviewer?: ActivityWorkflow["reviewer"];
-  workflow?: ActivityWorkflow;
-};
-
-type SupervisorStatusPayload = {
-  tasks?: ActivityTask[];
-};
-
-type ActivityWorkflow = {
-  planner?: {
-    status?: "skipped" | "complete" | "failed";
-    reason?: string;
-    output?: {
-      summary?: string;
-      tasks?: { title?: string; type?: string; instructions?: string }[];
-      riskLevel?: string;
-      requiresApproval?: boolean;
-    };
+  vaultSummary?: {
+    documentsUploaded: number;
+    profileConfidence: number;
+    estimatedBorrowingCapacity: number;
+    refinanceSavingEstimate: number;
+    lenderPackReadiness: number;
   };
-  codex?: {
-    status?: "pending" | "running" | "complete" | "failed";
-    summaries?: string[];
+  housingSummary?: {
+    readinessScore: number;
+    readinessBand: string;
+    estimatedBorrowingCapacity: number;
+    bestScenario: number;
+    largestObstacle: string;
+    nextRecommendedAction: string;
   };
-  buildTest?: {
-    status?: "pending" | "running" | "passed" | "failed";
-    failures?: string[];
-  };
-  reviewer?: {
-    status?: "skipped" | "complete" | "failed";
-    reason?: string;
-    output?: {
-      accepted?: boolean;
-      reviewSummary?: string;
-      issues?: string[];
-      recommendedNextTask?: string;
-    };
-  };
-  recommendedNextTask?: string;
-};
-
-function formatTaskTime(value?: string) {
-  if (!value) return "No timestamp";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  decisions: AiDecision[];
+  workflows?: ActionWorkflow[];
+  workflowSummary?: ActionWorkflowSummary;
+  dailyReview?: DailyReviewHistoryRecord;
 }
 
-function taskTimestamp(task: ActivityTask) {
-  return task.completedAt ?? task.updatedAt ?? task.startedAt ?? task.createdAt;
+const netWorthSeries = [
+  { date: "Mar", value: 1360000 },
+  { date: "Apr", value: 1540000 },
+  { date: "May", value: 1760000 },
+  { date: "Jun", value: 1840000 },
+  { date: "Jul", value: 2000000 },
+];
+
+function formatMoney(value: number, compact = false) {
+  return new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "AUD",
+    maximumFractionDigits: 0,
+    notation: compact ? "compact" : "standard",
+  }).format(value);
 }
 
-function statusLabel(status?: string) {
-  return (status ?? "unknown").replaceAll("_", " ");
+function toneForAction(action: DashboardAction | null): string {
+  if (!action) return "border-l-emerald-500";
+  if (action.priority === "Critical") return "border-l-red-500";
+  if (action.priority === "High") return "border-l-amber-500";
+  if (action.source === "workflow") return "border-l-blue-500";
+  return "border-l-slate-300";
 }
 
-function taskGroup(status?: string) {
-  if (status === "complete") return "completed";
-  if (status === "failed" || status === "stopped") return "failed";
-  if (["queued", "running", "paused", "needs_approval"].includes(status ?? "")) {
-    return "running";
-  }
-
-  return "running";
+function confidenceClass(confidence: DashboardAction["confidence"]): string {
+  if (confidence === "High") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (confidence === "Medium") return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-red-200 bg-red-50 text-red-700";
 }
 
-function stageTone(status?: string) {
-  if (status === "complete" || status === "passed") return "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200";
-  if (status === "failed") return "border-red-300/20 bg-red-300/[0.06] text-red-200";
-  if (status === "running") return "border-sky-300/20 bg-sky-300/[0.06] text-sky-200";
-  if (status === "skipped") return "border-amber-300/20 bg-amber-300/[0.06] text-amber-200";
-  return "border-white/[0.08] bg-white/[0.04] text-white/45";
+function actionButtonLabel(action: DashboardAction | null): string {
+  if (!action) return "Ask AI CFO";
+  if (action.source === "workflow") return "Continue workflow";
+  return action.actionLabel;
 }
 
-function StagePill({ label, status }: { label: string; status?: string }) {
+function priorityStatusLine(action: DashboardAction | null): string {
+  if (!action) return "No urgent action currently requires execution.";
+  if (action.source === "workflow" && /vault|document|information/i.test(action.title)) return `Complete financial profile - ${action.status}`;
+  if (action.source === "workflow") return `${action.title} - ${action.status}`;
+  return `${action.title} - ${action.impact}`;
+}
+
+function DashboardBriefingHero({
+  label,
+  headline,
+  summary,
+  topAction,
+}: {
+  label: string;
+  headline: string;
+  summary: string;
+  topAction: DashboardAction | null;
+}) {
   return (
-    <span className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${stageTone(status)}`}>
-      {label}: {status ?? "pending"}
-    </span>
-  );
-}
-
-function workflowFields(task: ActivityTask) {
-  const planner = task.planner ?? task.workflow?.planner;
-  const reviewer = task.reviewer ?? task.workflow?.reviewer;
-  return {
-    planner,
-    breakdown: task.breakdown ?? planner?.output?.tasks ?? task.workflow?.planner?.output?.tasks ?? [],
-    codex: task.codex ?? task.workflow?.codex,
-    validation: task.validation ?? task.workflow?.buildTest,
-    reviewer,
-    recommendedNextTask:
-      task.workflow?.recommendedNextTask ??
-      reviewer?.output?.recommendedNextTask,
-  };
-}
-
-function AutonomousActivityFeed() {
-  const [tasks, setTasks] = useState<ActivityTask[]>([]);
-  const [status, setStatus] = useState("Connecting");
-  const [lastUpdated, setLastUpdated] = useState("");
-
-  const refresh = useCallback(async () => {
-    try {
-      const response = await fetch(`${SUPERVISOR_API}/status`, { cache: "no-store" });
-      if (!response.ok) throw new Error(`Supervisor returned ${response.status}`);
-      const payload = (await response.json()) as SupervisorStatusPayload;
-      const nextTasks = Array.isArray(payload.tasks) ? payload.tasks : [];
-
-      setTasks(
-        nextTasks
-          .slice()
-          .sort((a, b) => {
-            const aTime = new Date(taskTimestamp(a) ?? 0).getTime();
-            const bTime = new Date(taskTimestamp(b) ?? 0).getTime();
-            return bTime - aTime;
-          })
-          .slice(0, 12)
-      );
-      setStatus("Live");
-      setLastUpdated(formatTaskTime(new Date().toISOString()));
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Supervisor unavailable");
-    }
-  }, []);
-
-  useEffect(() => {
-    refresh();
-    const interval = window.setInterval(refresh, 5000);
-    return () => window.clearInterval(interval);
-  }, [refresh]);
-
-  const groupedTasks = {
-    completed: tasks.filter((task) => taskGroup(task.status) === "completed"),
-    running: tasks.filter((task) => taskGroup(task.status) === "running"),
-    failed: tasks.filter((task) => taskGroup(task.status) === "failed"),
-  };
-
-  const groups: {
-    key: keyof typeof groupedTasks;
-    title: string;
-    tone: string;
-    dot: string;
-  }[] = [
-    {
-      key: "running",
-      title: "Running Tasks",
-      tone: "border-sky-300/20 bg-sky-300/[0.045]",
-      dot: "bg-sky-300",
-    },
-    {
-      key: "completed",
-      title: "Completed Tasks",
-      tone: "border-emerald-300/20 bg-emerald-300/[0.045]",
-      dot: "bg-emerald-300",
-    },
-    {
-      key: "failed",
-      title: "Failed Tasks",
-      tone: "border-red-300/20 bg-red-300/[0.045]",
-      dot: "bg-red-300",
-    },
-  ];
-
-  return (
-    <section className="mt-7 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.16)] sm:p-5">
-      <div className="flex flex-col gap-3 border-b border-white/[0.08] pb-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className={RESPONSIVE_EYEBROW}>Autonomous Activity</div>
-          <h2 className="mt-1 text-base font-semibold text-white sm:text-sm">
-            Supervisor task feed
-          </h2>
-          <p className="mt-1 text-xs leading-relaxed text-white/42">
-            Live task state from the local supervisor, refreshed every 5 seconds.
-          </p>
+    <section className={`rounded-lg border border-l-4 border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.045)] sm:p-6 ${toneForAction(topAction)}`}>
+      <div className="min-w-0">
+        <div className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+          <Sparkles className="h-4 w-4 fill-blue-600 text-blue-600" aria-hidden="true" />
+          {label}
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-white/38">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/15 px-3 py-1">
-            <span className={`h-1.5 w-1.5 rounded-full ${status === "Live" ? "bg-emerald-300" : "bg-amber-300"}`} />
-            {status}
-          </span>
-          {lastUpdated && (
-            <span className="rounded-full border border-white/[0.08] bg-black/15 px-3 py-1">
-              Updated {lastUpdated}
-            </span>
-          )}
+        <h1 className="mt-3 max-w-4xl text-2xl font-semibold leading-8 tracking-normal text-slate-950 sm:text-3xl">
+          {headline}
+        </h1>
+        <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">{summary}</p>
+        <div className="mt-4 flex flex-col">
+          <div className="order-2 mt-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm sm:order-1 sm:mt-0">
+            <span className="font-semibold text-slate-500">Current priority: </span>
+            <span className="font-semibold text-slate-950">{priorityStatusLine(topAction)}</span>
+          </div>
+          <div className="order-1 flex flex-col gap-2 sm:order-2 sm:mt-5 sm:flex-row">
+            <Link href={topAction?.href ?? "/ai-cfo"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#10243b] px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+              {actionButtonLabel(topAction)}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+            <Link href="/ai-cfo/daily-review" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+              Open Daily Review
+            </Link>
+          </div>
         </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        {groups.map((group) => {
-          const items = groupedTasks[group.key];
-
-          return (
-            <div key={group.key} className={`min-w-0 rounded-xl border p-3 ${group.tone}`}>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${group.dot}`} />
-                  <h3 className="truncate text-xs font-semibold uppercase tracking-[0.13em] text-white/55">
-                    {group.title}
-                  </h3>
-                </div>
-                <span className="shrink-0 rounded-full bg-black/20 px-2 py-0.5 text-xs font-bold tabular-nums text-white/65">
-                  {items.length}
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                {items.length > 0 ? (
-                  items.slice(0, 4).map((task) => {
-                    const fields = workflowFields(task);
-
-                    return (
-                    <div key={task.id} className="rounded-lg border border-white/[0.06] bg-black/15 p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="min-w-0 flex-1 text-sm font-medium leading-snug text-white/74 line-clamp-2">
-                          {task.goal || "Untitled supervisor task"}
-                        </p>
-                        <span className="shrink-0 rounded bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/42">
-                          {statusLabel(task.status)}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/34">
-                        <span>{formatTaskTime(taskTimestamp(task))}</span>
-                        <span className="font-mono">{task.id.slice(-8)}</span>
-                      </div>
-                      {task.lastIssue && (
-                        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-red-200/70">
-                          {task.lastIssue}
-                        </p>
-                      )}
-                      <div className="mt-3 space-y-2 border-t border-white/[0.06] pt-3">
-                          <div className="flex flex-wrap gap-1.5">
-                            <StagePill label="GPT Planner" status={fields.planner?.status} />
-                            <StagePill label="Codex" status={fields.codex?.status} />
-                            <StagePill label="Build/Test" status={fields.validation?.status} />
-                            <StagePill label="GPT Reviewer" status={fields.reviewer?.status} />
-                          </div>
-
-                          {(fields.planner?.reason || fields.planner?.output?.summary) && (
-                            <p className="text-xs leading-relaxed text-white/42">
-                              {fields.planner.reason ?? fields.planner.output?.summary}
-                            </p>
-                          )}
-
-                          {fields.breakdown.length > 0 && (
-                            <div className="space-y-1">
-                              {fields.breakdown.slice(0, 3).map((item, index) => (
-                                <div key={`${task.id}-plan-${index}`} className="rounded-md border border-white/[0.05] bg-black/10 px-2 py-1.5">
-                                  <div className="flex items-center gap-2">
-                                    <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-white/38">
-                                      {item.type ?? "task"}
-                                    </span>
-                                    <span className="min-w-0 truncate text-xs font-medium text-white/58">
-                                      {item.title ?? "Planned task"}
-                                    </span>
-                                  </div>
-                                  {item.instructions && (
-                                    <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-white/34">
-                                      {item.instructions}
-                                    </p>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {fields.codex?.summaries && fields.codex.summaries.length > 0 && (
-                            <p className="line-clamp-2 text-xs leading-relaxed text-sky-100/55">
-                              {fields.codex.summaries.at(-1)}
-                            </p>
-                          )}
-
-                          {fields.validation?.failures && fields.validation.failures.length > 0 && (
-                            <p className="line-clamp-2 text-xs leading-relaxed text-red-200/70">
-                              {fields.validation.failures.join("; ")}
-                            </p>
-                          )}
-
-                          {(fields.reviewer?.reason || fields.reviewer?.output?.reviewSummary) && (
-                            <p className="line-clamp-2 text-xs leading-relaxed text-white/42">
-                              {fields.reviewer.reason ?? fields.reviewer.output?.reviewSummary}
-                            </p>
-                          )}
-
-                          {fields.recommendedNextTask && (
-                            <div className="rounded-md border border-emerald-300/15 bg-emerald-300/[0.045] px-2 py-1.5 text-[11px] leading-relaxed text-emerald-100/70">
-                              Next: {fields.recommendedNextTask}
-                            </div>
-                          )}
-                        </div>
-                    </div>
-                  );
-                  })
-                ) : (
-                  <div className="rounded-lg border border-white/[0.06] bg-black/10 px-3 py-4 text-xs text-white/32">
-                    No {group.title.toLowerCase()} yet.
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
       </div>
     </section>
   );
 }
 
+function NetWorthSparkline({ value }: { value: number }) {
+  const series = netWorthSeries.map((point, index) => index === netWorthSeries.length - 1 ? { ...point, value } : point);
+  const values = series.map((point) => point.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const points = series.map((point, index) => {
+    const x = 4 + index * (84 / Math.max(series.length - 1, 1));
+    const y = 30 - ((point.value - min) / Math.max(max - min, 1)) * 24;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+
+  return (
+    <svg viewBox="0 0 92 36" role="img" aria-label={`Net worth sparkline ending at ${formatMoney(value)}`} className="h-9 w-24 shrink-0">
+      <polyline points={points} fill="none" stroke="#2563eb" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+    </svg>
+  );
+}
+
+function CurrentPositionMetric({
+  label,
+  value,
+  change,
+  href,
+  confidence,
+  explanation,
+  icon: Icon,
+  children,
+}: {
+  label: string;
+  value: string;
+  change: string;
+  href: string;
+  confidence?: string;
+  explanation: string;
+  icon: ElementType;
+  children?: ReactNode;
+}) {
+  return (
+    <article data-testid="dashboard-position-metric" className="group min-h-[88px] rounded-lg border border-slate-200 bg-white px-4 py-3 transition duration-150 hover:border-blue-200 hover:shadow-[0_12px_24px_rgba(15,23,42,0.06)] motion-reduce:transition-none">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link href={href} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+            <div className="text-xs font-medium text-slate-500">{label}</div>
+            <div className="mt-1 truncate text-lg font-semibold tracking-normal text-slate-950 tabular-nums">{value}</div>
+          </Link>
+        </div>
+        {children ?? <Icon className="h-5 w-5 shrink-0 text-blue-600" aria-hidden="true" />}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-semibold text-slate-700">{change}</span>
+        {confidence && <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">{confidence}</span>}
+      </div>
+      <details className="mt-3 text-xs leading-5 text-slate-500">
+        <summary className="cursor-pointer font-semibold text-slate-700">How this is calculated</summary>
+        <p className="mt-1">{explanation}</p>
+      </details>
+    </article>
+  );
+}
+
+function priorityImpactText(action: DashboardAction, vaultSummary?: OverviewV3Props["vaultSummary"]): string {
+  if (action.source === "workflow" && /vault|document|information/i.test(action.title) && vaultSummary) {
+    return `Current Vault confidence is ${vaultSummary.profileConfidence}%; this resolves the remaining high-impact fact gap.`;
+  }
+  return action.impact;
+}
+
+function PriorityActionPanel({ action, vaultSummary }: { action: DashboardAction | null; vaultSummary?: OverviewV3Props["vaultSummary"] }) {
+  if (!action) {
+    return (
+      <section className="rounded-lg border border-emerald-100 bg-white p-5">
+        <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden="true" />
+        <h2 className="mt-3 text-lg font-semibold text-slate-950">No high-priority action is active.</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Your next scheduled review will check for new material changes.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section data-testid="dashboard-primary-workflow" className={`rounded-lg border border-l-4 border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.045)] ${toneForAction(action)}`}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">{action.source === "workflow" ? "Active workflow" : "Top priority"}</span>
+            <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${confidenceClass(action.confidence)}`}>{action.confidence} confidence</span>
+            {action.professionalReviewRequired && <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Professional review</span>}
+          </div>
+          <h2 className="mt-3 text-xl font-semibold leading-7 text-slate-950">{action.title}</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{action.whyItMatters}</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div>
+              <div className="text-sm text-slate-500">Expected effect</div>
+              <div className="mt-1 text-sm font-semibold text-slate-950">{priorityImpactText(action, vaultSummary)}</div>
+            </div>
+            <div>
+              <div className="text-sm text-slate-500">Next step</div>
+              <div className="mt-1 text-sm font-semibold text-slate-950">{action.nextStep}</div>
+            </div>
+            <div>
+              <div className="text-sm text-slate-500">Status</div>
+              <div className="mt-1 text-sm font-semibold text-slate-950">{action.status}</div>
+            </div>
+          </div>
+        </div>
+        <Link href={action.href} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#10243b] px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+          {actionButtonLabel(action)}
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function SecondaryActionCard({ action }: { action: DashboardAction; emphasised?: boolean }) {
+  return (
+    <article data-testid="dashboard-secondary-action" className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="flex min-h-[78px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold text-slate-500">{action.source === "workflow" ? "Workflow" : action.priority}</div>
+          <h3 className="mt-1 truncate text-base font-semibold leading-6 text-slate-950">{action.title}</h3>
+          <p className="mt-1 line-clamp-1 text-sm leading-5 text-slate-600">{action.impact}</p>
+        </div>
+        <Link href={action.href} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+          {action.actionLabel}
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function FinancialProgress({ wins }: { wins: Array<{ id: string; title: string; impact: string; href: string }> }) {
+  if (wins.length === 0) return null;
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white px-5 py-4">
+      <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-950">
+        <TrendingUp className="h-5 w-5 text-emerald-600" aria-hidden="true" />
+        Financial progress
+      </h2>
+      <ul className="mt-4 grid gap-3 text-sm leading-6 md:grid-cols-3">
+        {wins.map((win) => (
+          <li key={win.id} className="flex items-start gap-2">
+            <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+            <Link href={win.href} className="font-semibold text-slate-950 hover:text-blue-700">{win.title} <span className="font-medium text-slate-500">{win.impact}</span></Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ActiveWorkflowSummary({ workflows, summary, primaryWorkflowRendered }: { workflows: ActionWorkflow[]; summary?: ActionWorkflowSummary; primaryWorkflowRendered: boolean }) {
+  if (!primaryWorkflowRendered) return null;
+  const active = summary?.active ?? workflows.filter((item) => !["Completed", "Cancelled", "Dismissed"].includes(item.status)).length;
+  const waiting = summary ? summary.waitingOnUser + summary.waitingOnDocument : workflows.filter((item) => item.status.includes("Waiting") || item.status === "Awaiting Verification").length;
+  if (active <= 1 && waiting === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-3">
+        <ListChecks className="h-5 w-5 text-blue-600" aria-hidden="true" />
+        <p className="text-sm font-semibold text-slate-800">{active} active workflow{active === 1 ? "" : "s"}{waiting > 0 ? ` · ${waiting} waiting on evidence` : ""}</p>
+      </div>
+      <Link href="/action-workflows" className="text-sm font-semibold text-blue-700">View all workflows</Link>
+    </section>
+  );
+}
+
+function AiCfoEntry({ topAction, housingSummary }: { topAction: DashboardAction | null; housingSummary?: OverviewV3Props["housingSummary"] }) {
+  const prompts = [
+    topAction ? `Why is ${topAction.title.toLowerCase()} the priority?` : "What should I prioritise this month?",
+    housingSummary ? "Why did my borrowing readiness change?" : "What changed most this month?",
+  ].slice(0, 2);
+  return (
+    <section className="rounded-lg border border-blue-100 bg-blue-50 px-5 py-4">
+      <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-950">
+        <MessageCircle className="h-5 w-5 text-blue-700" aria-hidden="true" />
+        Ask Vireon about your position
+      </h2>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {prompts.map((prompt) => (
+          <Link key={prompt} data-testid="dashboard-ai-cfo-prompt" href={`/ai-cfo?prompt=${encodeURIComponent(prompt)}`} className="rounded-full border border-blue-100 bg-white px-3 py-2 text-sm font-semibold text-blue-800">
+            {prompt}
+          </Link>
+        ))}
+        <Link href="/ai-cfo" className="px-2 py-2 text-sm font-semibold text-blue-800">View more prompts</Link>
+      </div>
+    </section>
+  );
+}
+
+function PriorityGoal() {
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-950">
+            <Goal className="h-5 w-5 text-emerald-600" aria-hidden="true" />
+            Goal planning
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Create or review a goal to see deterministic milestones, required contributions and cash-flow trade-offs. Vireon will not show a progress percentage until a saved goal is available.
+          </p>
+        </div>
+        <Link href="/goals" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-800">View all goals</Link>
+      </div>
+      <div className="mt-4 h-2 rounded-full bg-slate-100" aria-hidden="true">
+        <div className="h-2 rounded-full bg-slate-300" style={{ width: "0%" }} />
+      </div>
+      <div className="mt-2 text-sm font-semibold text-slate-700">Projected completion: not calculated yet</div>
+    </section>
+  );
+}
+
+function ContextualWorkspaceLink({ title, detail, href, icon: Icon }: { title: string; detail: string; href: string; icon: ElementType }) {
+  return (
+    <Link href={href} data-testid="dashboard-workspace-link" className="rounded-lg border border-slate-200 bg-white p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+      <Icon className="h-5 w-5 text-blue-600" aria-hidden="true" />
+      <div className="mt-3 text-base font-semibold text-slate-950">{title}</div>
+      <p className="mt-1 text-sm leading-6 text-slate-600">{detail}</p>
+    </Link>
+  );
+}
+
+function selectWorkspaceLinks(vaultSummary: OverviewV3Props["vaultSummary"], housingSummary: OverviewV3Props["housingSummary"], topAction: DashboardAction | null) {
+  const links = [
+    {
+      title: "Financial Vault",
+      detail: vaultSummary ? `${vaultSummary.lenderPackReadiness} of 5 required documents verified; confidence ${vaultSummary.profileConfidence}%.` : "Verify high-impact facts before relying on recommendations.",
+      href: "/financial-vault",
+      icon: FileCheck2,
+      score: topAction?.title.toLowerCase().includes("vault") || topAction?.title.toLowerCase().includes("document") ? 100 : vaultSummary ? 70 : 60,
+    },
+    {
+      title: "Housing",
+      detail: housingSummary ? `Borrowing readiness is ${housingSummary.readinessScore}/100. ${housingSummary.largestObstacle}.` : "Add borrowing inputs to model readiness.",
+      href: "/housing-scenarios",
+      icon: Home,
+      score: topAction?.title.toLowerCase().includes("borrow") || topAction?.title.toLowerCase().includes("mortgage") ? 95 : housingSummary ? 80 : 50,
+    },
+    {
+      title: "Cash Flow",
+      detail: "Review recurring spending before adjusting borrowing or goals.",
+      href: "/cash-flow",
+      icon: WalletCards,
+      score: topAction?.title.toLowerCase().includes("spending") || topAction?.title.toLowerCase().includes("cash") ? 90 : 45,
+    },
+  ];
+  return links.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, 2);
+}
+
 export default function OverviewV3({
   netWorth,
+  netWorthValue,
   netWorthTrend,
   cashFlow,
   savingsRate,
   runway,
-  aiConfidence,
-  healthScore,
-  healthLabel,
-  insights,
-  portfolioAllocation,
-  healthScores,
-  dateStr,
-  agents = [],
-  telemetryEvents = [],
-  dbConfigured = false,
-  currentTask = null,
-  lastTask = null,
-  nextTask = null,
-  totalRuns = 0,
+  vaultSummary,
+  housingSummary,
+  decisions,
+  workflows = [],
+  workflowSummary,
+  dailyReview,
 }: OverviewV3Props) {
-  const [runtimeOpen, setRuntimeOpen] = useState(false);
-
-  const healthColor =
-    healthScore >= 90
-      ? "text-emerald-400"
-      : healthScore >= 75
-      ? "text-sky-400"
-      : healthScore >= 60
-      ? "text-amber-400"
-      : "text-red-400";
-
-  const secondaryMetrics: {
-    label: string;
-    value: string;
-    accent: string;
-    priority: "core" | "signal" | "status";
-    detail?: string;
-    explanation: string;
-    progress?: number;
-  }[] = [
-    {
-      label: "Cash Flow",
-      value: cashFlow,
-      accent: "emerald",
-      priority: "core",
-      explanation: "Net money expected to move in or out this period.",
-    },
-    {
-      label: "Savings Rate",
-      value: savingsRate,
-      accent: "sky",
-      priority: "core",
-      explanation: "Share of income being kept after regular spending.",
-    },
-    {
-      label: "Runway",
-      value: runway,
-      accent: "white",
-      priority: "signal",
-      explanation: "How long current cash could cover expenses without new income.",
-    },
-    {
-      label: "AI Score",
-      value: aiConfidence,
-      accent: "violet",
-      priority: "signal",
-      explanation: "Model confidence in the dashboard signals and recommendations.",
-    },
-    {
-      label: "Financial Health",
-      value: String(healthScore),
-      accent: "health",
-      priority: "status",
-      detail: `${healthLabel} overall`,
-      explanation: "Composite 0-100 score from cash flow, savings, debt, and portfolio signals.",
-      progress: healthScore,
-    },
-  ];
-
-  const accentClass: Record<string, string> = {
-    emerald: "text-emerald-400",
-    sky: "text-sky-400",
-    white: "text-white/70",
-    violet: "text-violet-400",
-    health: healthColor,
+  const topAction = dailyReview ? selectDashboardTopPriority({ findings: dailyReview.review.findings, decisions, workflows }) : null;
+  const briefing = dailyReview ? buildDashboardBriefing(dailyReview, topAction) : {
+    label: "Financial command centre",
+    headline: "Complete your financial picture to unlock personalised decisions.",
+    summary: "Upload the most valuable missing input so Vireon can rank actions by verified financial impact.",
+    primaryAction: topAction,
   };
-
-  const accentBarClass: Record<string, string> = {
-    emerald: "bg-emerald-400",
-    sky: "bg-sky-400",
-    white: "bg-white/45",
-    violet: "bg-violet-400",
-    health:
-      healthScore >= 90
-        ? "bg-emerald-400"
-        : healthScore >= 75
-        ? "bg-sky-400"
-        : healthScore >= 60
-        ? "bg-amber-400"
-        : "bg-red-400",
-  };
-
-  const priorityLabel: Record<"core" | "signal" | "status", string> = {
-    core: "Core metric",
-    signal: "Planning signal",
-    status: "Composite status",
-  };
-
-  const levelColor: Record<string, string> = {
-    info: "text-sky-400",
-    warn: "text-amber-400",
-    error: "text-red-400",
-  };
-
-  const levelBg: Record<string, string> = {
-    info: "bg-sky-400/10",
-    warn: "bg-amber-400/10",
-    error: "bg-red-400/10",
-  };
-
-  const recommendations = [
-    { title: "Offset mortgage", impact: "Save $2,400/yr", confidence: 94 },
-    { title: "Review streaming bundle", impact: "Save $138/mo", confidence: 89 },
-    { title: "Switch to annual plans", impact: "Save $340/yr", confidence: 82 },
-  ];
-
-  const opportunities = [
-    { label: "Annual plan upgrade", saving: "$340/yr" },
-    { label: "Cancel unused trial", saving: "$96/yr" },
-    { label: "High-yield savings", saving: "+1.4% APY" },
-  ];
-
-  const predictions = [
-    { label: "Q3 savings projection", value: "+$4,200", trend: "up" as const },
-    { label: "Subscription renewal", value: "3 in 14 days", trend: "neutral" as const },
-    { label: "Cash flow Aug", value: "+$6,800", trend: "up" as const },
-  ];
-
-  const recentTransactions = [
-    {
-      merchant: "Salary deposit",
-      category: "Income",
-      amount: "+$8,950",
-      timing: "Today",
-      tone: "text-emerald-300",
-    },
-    {
-      merchant: "Offset mortgage",
-      category: "Home loan",
-      amount: "-$4,120",
-      timing: "Yesterday",
-      tone: "text-sky-300",
-    },
-    {
-      merchant: "Coles",
-      category: "Groceries",
-      amount: "-$186",
-      timing: "2d ago",
-      tone: "text-white/78",
-    },
-  ];
-
-  const subscriptionSnapshot = [
-    {
-      merchant: "Adobe Creative Cloud",
-      amount: "$79/mo",
-      renewal: "Renews in 4 days",
-      risk: "Review",
-      tone: "border-amber-300/25 bg-amber-300/[0.07] text-amber-200",
-    },
-    {
-      merchant: "Netflix",
-      amount: "$22/mo",
-      renewal: "Renews in 9 days",
-      risk: "Keep",
-      tone: "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-200",
-    },
-    {
-      merchant: "Dropbox",
-      amount: "$184/yr",
-      renewal: "Annual plan due",
-      risk: "Switch?",
-      tone: "border-sky-300/20 bg-sky-300/[0.06] text-sky-200",
-    },
-  ];
-
-  const workflowShortcuts = [
-    {
-      label: "Open transactions",
-      href: "#transactions",
-      detail: "Import CSVs, inspect spend, and confirm recurring activity.",
-      metric: "12 recent",
-    },
-    {
-      label: "Open subscriptions",
-      href: "#subscriptions",
-      detail: "Review renewals, risk levels, and annual savings opportunities.",
-      metric: "3 due soon",
-    },
-  ];
-
-  const healthScoreTone =
-    healthScore >= 90
-      ? "border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-300"
-      : healthScore >= 75
-      ? "border-sky-400/30 bg-sky-400/[0.08] text-sky-300"
-      : healthScore >= 60
-      ? "border-amber-400/30 bg-amber-400/[0.08] text-amber-300"
-      : "border-red-400/30 bg-red-400/[0.08] text-red-300";
-
-  const uniqueHealthScores = healthScores.filter((item, index) => {
-    const label = item.label.trim().toLowerCase();
-    return (
-      healthScores.findIndex(
-        (candidate) => candidate.label.trim().toLowerCase() === label
-      ) === index
-    );
-  });
-
-  const healthFocus = uniqueHealthScores.reduce<
-    { label: string; score: number; note: string } | null
-  >(
-    (lowest, item) => (!lowest || item.score < lowest.score ? item : lowest),
-    null
-  );
-  const portfolioTotal = portfolioAllocation.reduce((sum, item) => sum + item.pct, 0);
-  const largestAllocation = portfolioAllocation.reduce<
-    { label: string; pct: number; color: string } | null
-  >((largest, item) => (!largest || item.pct > largest.pct ? item : largest), null);
-  const allocationBalance =
-    largestAllocation && largestAllocation.pct >= 50
-      ? "Concentrated"
-      : largestAllocation && largestAllocation.pct >= 35
-      ? "Balanced tilt"
-      : "Diversified";
-  const averageHealthScore =
-    uniqueHealthScores.length > 0
-      ? Math.round(
-          uniqueHealthScores.reduce((sum, item) => sum + item.score, 0) /
-            uniqueHealthScores.length
-        )
-      : healthScore;
-  const healthBand = healthScore >= 90 ? "Strong" : healthScore >= 75 ? "Stable" : healthScore >= 60 ? "Watch" : "At risk";
+  const secondaryActions = dailyReview ? selectDashboardSecondaryActions({ findings: dailyReview.review.findings, decisions, workflows, topAction, limit: 3 }) : decisions.slice(0, 3).map((decision) => ({
+    id: decision.id,
+    source: "decision" as const,
+    sourceEntityId: decision.id,
+    title: decision.title,
+    whyItMatters: decision.whyThisMatters,
+    impact: decision.expectedImpact,
+    nextStep: decision.nextStep,
+    status: decision.timeToComplete,
+    confidence: decision.confidence,
+    priority: decision.priority,
+    href: decision.actionHref,
+    actionLabel: decision.actionLabel,
+    professionalReviewRequired: false,
+  }));
+  const wins = dailyReview ? selectVerifiedFinancialWins(dailyReview.review.findings, workflows, 3) : [];
+  const activeDecisionCount = decisions.filter((decision) => decision.priority !== "Low").length;
+  const topWin = wins[0] ?? null;
+  const primaryWorkflowRendered = topAction?.source === "workflow";
+  const workspaceLinks = selectWorkspaceLinks(vaultSummary, housingSummary, topAction);
 
   return (
-    <div id="overview" className="space-y-12 sm:space-y-14">
+    <main id="overview" className="mx-auto max-w-[1180px] space-y-4 pb-24">
+      <DashboardBriefingHero label={briefing.label} headline={briefing.headline} summary={briefing.summary} topAction={topAction} />
 
-      {/* ══════════════════════════════════════════════════════════════
-          LAYER 1 — Financial Identity
-      ══════════════════════════════════════════════════════════════ */}
-      <div>
-        <div className={`${LAYER_LABEL} mb-4`}>
-          Dashboard Snapshot
-        </div>
-
-        <section className="relative backdrop-blur-xl">
-          {/* Background atmosphere */}
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-[#040f1e] via-[#060d18] to-[#030a12]" />
-          <div className="absolute -top-24 -right-24 hidden h-[600px] w-[600px] rounded-full bg-emerald-500/[0.08] blur-[140px] pointer-events-none" />
-          <div className="absolute bottom-0 left-1/4 hidden h-[400px] w-[400px] rounded-full bg-sky-500/[0.05] blur-[120px] pointer-events-none" />
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent rounded-t-3xl" />
-          <div
-            className="absolute inset-0 rounded-3xl pointer-events-none"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px)",
-              backgroundSize: "64px 64px",
-            }}
-          />
-
-          <div className="relative px-5 py-6 sm:px-8 sm:py-7 lg:px-10">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-emerald-300/75 sm:text-xs sm:tracking-[0.18em]">
-              Neven Financial OS &mdash; {dateStr}
-            </p>
-
-            {/* Net Worth — dominant anchor */}
-            <div className="mt-5">
-              <div className="mb-2 text-sm font-semibold text-white/55">
-                Net Worth
-              </div>
-              <h1
-                className="font-bold leading-none tracking-tight text-white"
-                style={{ fontSize: "clamp(3.1rem, 16vw, 7.5rem)" }}
-              >
-                {netWorth}
-              </h1>
-              <div className="mt-3 flex items-center gap-4 flex-wrap">
-                <span className="flex items-center gap-1.5 text-emerald-400 font-bold text-base">
-                  <span>↑</span>
-                  {netWorthTrend}
-                </span>
-                <span className="text-white/[0.12]">·</span>
-                <span className="text-white/70 text-sm">Good morning, Alex</span>
-              </div>
-            </div>
-
-            <div className="mt-6 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-
-            {/* KPI row */}
-            <div className="mt-6">
-              <div className="mb-3 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                <div className={RESPONSIVE_EYEBROW}>
-                  Key metrics
-                </div>
-                <div className="text-[0.76rem] font-medium leading-relaxed text-white/35 sm:block sm:text-[11px] sm:text-white/30">
-                  Cash flow, resilience, and health at a glance
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                {secondaryMetrics.map((m) => (
-                  <div
-                    key={m.label}
-                    className={`relative flex h-full min-h-[168px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_16px_36px_rgba(0,0,0,0.16)] sm:min-h-[152px] ${
-                      m.priority === "status"
-                        ? "border-emerald-400/25 bg-emerald-400/[0.07] sm:col-span-2 lg:col-span-1"
-                        : "border-white/[0.1] bg-white/[0.045]"
-                    }`}
-                  >
-                    <div className={`absolute inset-x-0 top-0 h-0.5 ${accentBarClass[m.accent]}`} />
-                    <div className="mb-3 flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className={RESPONSIVE_EYEBROW}>
-                          {priorityLabel[m.priority]}
-                        </div>
-                        <div className={`mt-1 ${RESPONSIVE_LABEL}`}>
-                          {m.label}
-                        </div>
-                      </div>
-                      <span
-                        aria-label={`${m.label}: ${m.explanation}`}
-                        className="group relative inline-flex h-5 w-5 shrink-0 cursor-help items-center justify-center rounded-full border border-white/[0.14] bg-black/10 text-[10px] font-bold text-white/38 outline-none transition hover:border-white/25 hover:text-white/70 focus-visible:border-emerald-300/60 focus-visible:text-white"
-                        role="img"
-                        tabIndex={0}
-                        title={m.explanation}
-                      >
-                        ?
-                        <span className="pointer-events-none absolute left-1/2 top-5 z-10 hidden w-52 -translate-x-1/2 rounded-lg border border-white/[0.1] bg-[#07111f] px-3 py-2 text-left text-[11px] font-medium leading-snug text-white/72 shadow-2xl group-hover:block group-focus-visible:block">
-                          {m.explanation}
-                        </span>
-                      </span>
-                    </div>
-                    <div
-                      className={`${RESPONSIVE_VALUE} ${accentClass[m.accent]}`}
-                      style={{ fontSize: "clamp(2.2rem, 12vw, 2.65rem)" }}
-                    >
-                      {m.value}
-                    </div>
-                    {m.detail && (
-                      <div className={`mt-2 text-[0.82rem] font-semibold sm:text-xs ${accentClass[m.accent]} opacity-75`}>
-                        {m.detail}
-                      </div>
-                    )}
-                    <p className={`mt-3 flex-1 ${RESPONSIVE_COPY}`}>
-                      {m.explanation}
-                    </p>
-                    {m.progress !== undefined && (
-                      <div className="mt-3 h-1.5 w-full rounded-full bg-white/[0.08]">
-                        <div
-                          className={`h-full rounded-full ${accentBarClass[m.accent]}`}
-                          style={{ width: `${m.progress}%` }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-            </div>
-          </div>
-        </section>
-
-        <AutonomousActivityFeed />
-
-        {/* Portfolio + Health sub-scores below hero */}
-        <div className="mt-7 grid gap-6 xl:grid-cols-3">
-          <div className="rounded-2xl border border-sky-300/15 bg-sky-300/[0.035] p-5 shadow-[0_0_42px_rgba(56,189,248,0.05)] xl:col-span-2">
-            <div className="border-b border-white/[0.08] pb-4">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <div className={RESPONSIVE_EYEBROW}>Asset distribution</div>
-                  <h2 className="mt-1 text-base font-semibold leading-snug text-white sm:text-sm">
-                    Portfolio Allocation
-                  </h2>
-                  <p className={`mt-1 max-w-2xl ${RESPONSIVE_COPY}`}>
-                    Allocation mix by asset group, with concentration called out before the detail rows.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  <div className="rounded-xl border border-white/[0.08] bg-black/10 px-3 py-2">
-                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-white/35 sm:text-[10px]">
-                      Coverage
-                    </div>
-                    <div className="mt-1 text-lg font-bold tabular-nums leading-none text-white sm:text-base">
-                      {portfolioTotal}%
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-white/[0.08] bg-black/10 px-3 py-2">
-                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-white/35 sm:text-[10px]">
-                      Largest
-                    </div>
-                    <div className="mt-1 truncate text-lg font-bold leading-none text-sky-200 sm:text-base">
-                      {largestAllocation?.label ?? "N/A"}
-                    </div>
-                  </div>
-                  <div className="col-span-2 rounded-xl border border-sky-300/20 bg-sky-300/[0.07] px-3 py-2 sm:col-span-1">
-                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-sky-100/55 sm:text-[10px]">
-                      Mix
-                    </div>
-                    <div className="mt-1 text-lg font-bold leading-none text-sky-100 sm:text-base">
-                      {allocationBalance}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                aria-label="Portfolio allocation stacked bar"
-                className="mt-4 flex h-3 overflow-hidden rounded-full bg-white/[0.06]"
-              >
-                {portfolioAllocation.map((item) => (
-                  <div
-                    key={item.label}
-                    className={`${item.color} opacity-85`}
-                    style={{ width: `${item.pct}%` }}
-                    title={`${item.label}: ${item.pct}%`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {portfolioAllocation.map((item) => (
-                <div key={item.label} className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
-                  <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <span className={`h-2 w-2 rounded-full shrink-0 ${item.color}`} />
-                      <span className="text-[0.95rem] font-medium leading-snug text-white/70 sm:text-sm">{item.label}</span>
-                    </div>
-                    <span className="text-base font-bold tabular-nums leading-none text-white/80 sm:text-sm">{item.pct}%</span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-white/[0.06]">
-                    <div
-                      className={`h-full rounded-full ${item.color} opacity-80`}
-                      style={{ width: `${item.pct}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-emerald-400/15 bg-white/[0.03] p-5 shadow-[0_0_42px_rgba(16,185,129,0.06)]">
-            <div className="flex flex-col gap-4 border-b border-white/[0.08] pb-4 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between">
-              <div>
-                <h2 className="text-base font-semibold leading-snug text-white sm:text-sm">
-                  Health Indicators
-                </h2>
-                <p className={RESPONSIVE_COPY}>
-                  Drivers behind the Financial Health score
-                </p>
-              </div>
-              <div className={`self-start rounded-xl border px-3 py-2 text-left min-[420px]:text-right ${healthScoreTone}`}>
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] opacity-70 sm:text-[10px] sm:tracking-[0.16em]">
-                  {healthBand}
-                </div>
-                <div className="mt-1 text-[2rem] font-bold tabular-nums leading-none sm:text-2xl">
-                  {healthScore}
-                </div>
-                <div className="mt-1 text-[0.72rem] font-semibold opacity-70 sm:text-[10px]">
-                  {healthLabel}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
-                <div className={RESPONSIVE_EYEBROW}>Indicator avg</div>
-                <div className="mt-2 text-2xl font-bold tabular-nums leading-none text-white sm:text-xl">
-                  {averageHealthScore}
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
-                <div className={RESPONSIVE_EYEBROW}>Weakest driver</div>
-                <div className="mt-2 truncate text-sm font-bold leading-snug text-amber-200">
-                  {healthFocus?.label ?? "None"}
-                </div>
-              </div>
-            </div>
-
-            {healthFocus && (
-              <div className="mt-4 rounded-xl border border-white/[0.08] bg-black/10 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                  <span className={RESPONSIVE_EYEBROW}>
-                    Focus area
-                  </span>
-                  <span className="text-[0.8rem] font-semibold leading-snug text-white/55 sm:text-xs">
-                    {healthLabel} overall
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <span className={RESPONSIVE_LABEL}>
-                    {healthFocus.label}
-                  </span>
-                  <span className="text-lg font-bold tabular-nums leading-none text-amber-300 sm:text-sm">
-                    {healthFocus.score}
-                  </span>
-                </div>
-                <p className={`mt-1 ${RESPONSIVE_COPY}`}>{healthFocus.note}</p>
-              </div>
-            )}
-
-            <div className="mt-4 space-y-3">
-              {uniqueHealthScores.map((item) => {
-                const borderCol =
-                  item.score >= 90 ? "border-emerald-400/35" :
-                  item.score >= 75 ? "border-sky-400/35" :
-                  item.score >= 60 ? "border-amber-400/35" : "border-red-400/35";
-                const numCol =
-                  item.score >= 90 ? "text-emerald-400" :
-                  item.score >= 75 ? "text-sky-400" :
-                  item.score >= 60 ? "text-amber-400" : "text-red-400";
-                const barCol =
-                  item.score >= 90 ? "bg-emerald-400" :
-                  item.score >= 75 ? "bg-sky-400" :
-                  item.score >= 60 ? "bg-amber-400" : "bg-red-400";
-                return (
-                  <div key={item.label} className={`rounded-xl border bg-white/[0.035] p-3 ${borderCol}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-[0.9rem] font-semibold leading-snug text-white/74 sm:text-xs">
-                          {item.label}
-                        </div>
-                        <div className={`mt-1 ${RESPONSIVE_COPY}`}>{item.note}</div>
-                      </div>
-                      <div className={`text-[2rem] font-bold tabular-nums leading-none sm:text-2xl ${numCol}`}>
-                        {item.score}
-                      </div>
-                    </div>
-                    <div className="mt-3 h-1.5 w-full rounded-full bg-white/[0.06]">
-                      <div
-                        className={`h-full rounded-full ${barCol}`}
-                        style={{ width: `${item.score}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════════
-          LAYER 2 — Intelligence Workspace
-      ══════════════════════════════════════════════════════════════ */}
-      <section className="grid gap-6 xl:grid-cols-[1fr_1fr_0.78fr]">
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-          <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-white">
-                Recent Transactions
-              </h2>
-              <p className="mt-1 text-xs text-white/42">
-                Latest cash-flow items that need quick review
-              </p>
-            </div>
-            <a
-              className="shrink-0 rounded-lg border border-emerald-300/25 bg-emerald-300/[0.08] px-3 py-1.5 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-300/[0.14]"
-              href="#transactions"
-            >
-              View all
-            </a>
-          </div>
-
-          <div className="mt-4 space-y-2">
-            {recentTransactions.map((tx) => (
-              <div
-                key={tx.merchant}
-                className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-3"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-white/78">
-                    {tx.merchant}
-                  </div>
-                  <div className="mt-1 text-xs text-white/38">
-                    {tx.category} / {tx.timing}
-                  </div>
-                </div>
-                <div className={`shrink-0 text-sm font-bold tabular-nums ${tx.tone}`}>
-                  {tx.amount}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-          <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-white">
-                Subscriptions
-              </h2>
-              <p className="mt-1 text-xs text-white/42">
-                Renewal pressure and savings checks surfaced early
-              </p>
-            </div>
-            <a
-              className="shrink-0 rounded-lg border border-sky-300/25 bg-sky-300/[0.08] px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:bg-sky-300/[0.14]"
-              href="#subscriptions"
-            >
-              Review
-            </a>
-          </div>
-
-          <div className="mt-4 space-y-2">
-            {subscriptionSnapshot.map((sub) => (
-              <div
-                key={sub.merchant}
-                className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-3"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-white/78">
-                    {sub.merchant}
-                  </div>
-                  <div className="mt-1 text-xs text-white/38">
-                    {sub.amount} / {sub.renewal}
-                  </div>
-                </div>
-                <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold ${sub.tone}`}>
-                  {sub.risk}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.045] p-5">
-          <h2 className="border-b border-white/[0.08] pb-4 text-sm font-semibold text-white">
-            Workflow Shortcuts
-          </h2>
-          <div className="mt-4 space-y-3">
-            {workflowShortcuts.map((shortcut) => (
-              <a
-                key={shortcut.href}
-                className="block rounded-xl border border-white/[0.08] bg-black/10 p-4 transition hover:border-emerald-300/30 hover:bg-emerald-300/[0.06]"
-                href={shortcut.href}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-white/78">
-                    {shortcut.label}
-                  </span>
-                  <span className="shrink-0 text-xs font-bold text-emerald-300">
-                    {shortcut.metric}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs leading-relaxed text-white/42">
-                  {shortcut.detail}
-                </p>
-              </a>
-            ))}
-          </div>
-        </div>
+      <section aria-label="Current position" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <CurrentPositionMetric label="Net worth" value={netWorth} change={netWorthTrend} href="/balance-sheet" confidence={dailyReview?.review.findings.some((finding) => finding.category === "net-worth") ? "Verified" : undefined} explanation="Assets minus liabilities from confirmed Financial Vault inputs and persisted financial read-model data." icon={CircleDollarSign}>
+          <NetWorthSparkline value={netWorthValue} />
+        </CurrentPositionMetric>
+        <CurrentPositionMetric label="Monthly surplus" value={cashFlow} change={`${savingsRate} savings rate`} href="/cash-flow" explanation="Confirmed monthly income minus recurring spending and required debt repayments. Missing inputs are not treated as zero." icon={WalletCards} />
+        <CurrentPositionMetric label="Emergency runway" value={runway} change="Available cash buffer" href="/financial-vault" explanation="Liquid cash divided by confirmed monthly spending. The result changes when cash balances or spending facts are refreshed." icon={PiggyBank} />
+        <CurrentPositionMetric label="Borrowing readiness" value={housingSummary ? `${housingSummary.readinessScore}/100` : "Needs data"} change={housingSummary ? housingSummary.readinessBand : "Upload lending inputs"} href="/housing-scenarios" confidence={housingSummary ? "Modelled" : undefined} explanation="A deterministic readiness score from income, spending, liabilities, property and document completeness. It is not loan approval." icon={Home} />
       </section>
 
-      <div>
-        <div className={`${LAYER_LABEL} mb-5`}>
-          Intelligence Workspace
+      <PriorityActionPanel action={topAction} vaultSummary={vaultSummary} />
+
+      {secondaryActions.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-slate-950">Secondary actions</h2>
+            {activeDecisionCount > secondaryActions.length && <Link href="/insights" className="text-sm font-semibold text-blue-700">View all decisions</Link>}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {secondaryActions.map((action, index) => <SecondaryActionCard key={`${action.source}-${action.id}`} action={action} emphasised={index === 0} />)}
+          </div>
+        </section>
+      )}
+
+      <AiCfoEntry topAction={topAction} housingSummary={housingSummary} />
+
+      {topWin && <FinancialProgress wins={wins} />}
+
+      <PriorityGoal />
+
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-slate-950">Deeper analysis</h2>
+        <div className="grid gap-3 md:grid-cols-2">
+          {workspaceLinks.map((workspace) => (
+            <ContextualWorkspaceLink key={workspace.href} title={workspace.title} detail={workspace.detail} href={workspace.href} icon={workspace.icon} />
+          ))}
         </div>
+        <Link href="/insights" className="mt-3 inline-flex text-sm font-semibold text-blue-700">View all financial workspaces</Link>
+      </section>
 
-        <div className="space-y-12">
+      {dailyReview && <DailyReviewCard record={dailyReview} compact />}
 
-          {/* Signals + Recommendations row */}
-          <div className="grid gap-12 xl:grid-cols-[1.4fr_1fr]">
+      <ActiveWorkflowSummary workflows={workflows} summary={workflowSummary} primaryWorkflowRendered={primaryWorkflowRendered} />
 
-            {/* Intelligence Signals */}
-            <div>
-              <div className="flex items-baseline gap-3 pb-5 border-b border-white/[0.06]">
-                <h2 className="text-sm font-semibold text-white">
-                  Signals
-                </h2>
-                <span className="text-xs text-white/45">{insights.length} active</span>
-              </div>
-              <div>
-                {insights.map((item, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-5 py-6 border-b border-white/[0.04] last:border-0"
-                  >
-                    <span className="shrink-0 text-emerald-400 font-bold text-sm leading-none mt-0.5">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <p className="text-sm text-white/68 leading-relaxed">{item}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {briefing.headline.includes("Complete your financial picture") && (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-5">
+          <ShieldAlert className="h-5 w-5 text-amber-700" aria-hidden="true" />
+          <h2 className="mt-3 text-lg font-semibold text-slate-950">Most valuable missing input</h2>
+          <p className="mt-2 text-sm leading-6 text-amber-900">Upload the latest payslip or loan statement to improve borrowing and cash-flow confidence.</p>
+          <Link href="/financial-vault" className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#10243b] px-4 text-sm font-semibold text-white">Complete Financial Vault</Link>
+        </section>
+      )}
 
-            {/* Recommendations */}
-            <div>
-              <h2 className="pb-5 text-sm font-semibold text-white border-b border-white/[0.08]">
-                Recommendations
-              </h2>
-              <div className="mt-5 space-y-5">
-                {recommendations.map((r, i) => (
-                  <div key={i} className="flex items-start gap-4">
-                    <div className="shrink-0 mt-0.5 h-5 w-5 rounded-full border border-emerald-400/25 flex items-center justify-center">
-                      <span className="text-[8px] font-bold text-emerald-400/60">{i + 1}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white/72">{r.title}</div>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-[10px] text-emerald-400 font-semibold">{r.impact}</span>
-                        <span className="text-[9px] text-white/20">{r.confidence}% confidence</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Opportunities + Predictions row */}
-          <div className="grid gap-12 xl:grid-cols-2">
-
-            {/* Opportunities */}
-            <div>
-              <h2 className="pb-5 text-sm font-semibold text-white border-b border-white/[0.08]">
-                Opportunities
-              </h2>
-              <div className="mt-5 space-y-3">
-                {opportunities.map((o, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="h-1 w-4 rounded-full bg-emerald-400/30" />
-                      <span className="text-sm text-white/65">{o.label}</span>
-                    </div>
-                    <span className="text-xs font-bold text-emerald-400 tabular-nums">{o.saving}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Predictions */}
-            <div>
-              <h2 className="pb-5 text-sm font-semibold text-white border-b border-white/[0.08]">
-                Predictions
-              </h2>
-              <div className="mt-5 space-y-3">
-                {predictions.map((p, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <span className="text-sm text-white/62">{p.label}</span>
-                    <div className="flex items-center gap-2">
-                      {p.trend === "up" && <span className="text-[10px] text-emerald-400">↑</span>}
-                      <span className="text-xs font-semibold text-white/60 tabular-nums">{p.value}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Copilot CTA */}
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center border-t border-b border-white/[0.05] py-10">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-[9px] uppercase tracking-[0.28em] text-white/20 font-semibold mb-2">
-                Copilot
-              </h2>
-              <p className="text-sm text-white/38 leading-relaxed max-w-md">
-                Semantic memory-augmented intelligence — ask about your portfolio, cash flow, subscriptions, or goals.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2.5 shrink-0">
-              <button className="rounded-xl border border-white/[0.06] px-4 py-2 text-xs text-white/35 hover:border-emerald-400/20 hover:text-white/60 hover:bg-emerald-400/[0.04] transition">
-                Can I afford a larger PPOR?
-              </button>
-              <button className="rounded-xl border border-white/[0.06] px-4 py-2 text-xs text-white/35 hover:border-emerald-400/20 hover:text-white/60 hover:bg-emerald-400/[0.04] transition">
-                Review subscription spend
-              </button>
-              <button className="rounded-xl border border-white/[0.06] px-4 py-2 text-xs text-white/35 hover:border-emerald-400/20 hover:text-white/60 hover:bg-emerald-400/[0.04] transition">
-                Optimise savings rate
-              </button>
-              <button className="rounded-2xl bg-emerald-400 px-6 py-2.5 text-sm font-semibold text-[#040f1e] hover:bg-emerald-300 transition">
-                Start Session
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="sr-only" aria-live="polite">
+        Dashboard summary: {briefing.headline} Top action: {topAction?.title ?? "none"}. Strongest win: {topWin?.title ?? "none"}.
       </div>
-
-      {/* ══════════════════════════════════════════════════════════════
-          LAYER 3 — Runtime Layer (collapsed by default)
-      ══════════════════════════════════════════════════════════════ */}
-      <div>
-        <button
-          onClick={() => setRuntimeOpen((o) => !o)}
-          className="flex w-full items-center justify-between group"
-          aria-expanded={runtimeOpen}
-        >
-          <div className="flex items-center gap-3">
-            <span className={`${LAYER_LABEL}`}>
-              03 &nbsp;/&nbsp; Runtime Layer
-            </span>
-            <span className="text-[8px] uppercase tracking-widest text-white/10 font-semibold">
-              Telemetry · Agents · Deployment · Orchestration · Infrastructure
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] text-white/15 group-hover:text-white/30 transition tabular-nums">
-              {runtimeOpen ? "collapse" : "expand"}
-            </span>
-            <span
-              className={`text-white/15 group-hover:text-white/30 transition text-xs transform ${runtimeOpen ? "rotate-180" : ""}`}
-              style={{ transition: "transform 0.2s" }}
-            >
-              ▾
-            </span>
-          </div>
-        </button>
-
-        {runtimeOpen && (
-          <div className="mt-8 space-y-8">
-
-            {/* Daemon Status — current / last / next task */}
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-              <div className="text-[8px] uppercase tracking-[0.2em] text-white/20 font-semibold pb-3 border-b border-white/[0.05] mb-4">
-                Autonomous Build Status &mdash; {totalRuns} total runs
-              </div>
-              <div className="grid gap-4 xl:grid-cols-3">
-                {/* Current Task */}
-                <div className="rounded-xl border border-sky-400/20 bg-sky-400/5 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    {currentTask ? (
-                      <span className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse shrink-0" />
-                    ) : (
-                      <span className="h-1.5 w-1.5 rounded-full bg-white/20 shrink-0" />
-                    )}
-                    <span className="text-[9px] font-semibold uppercase tracking-widest text-sky-400/70">
-                      Current Task
-                    </span>
-                  </div>
-                  {currentTask ? (
-                    <>
-                      <div className="text-xs text-white/70 leading-relaxed line-clamp-3">
-                        {currentTask.goal.split("\n")[0]}
-                      </div>
-                      <div className="mt-2 font-mono text-[9px] text-white/25 truncate">{currentTask.runId}</div>
-                      <div className="mt-1 text-[9px] text-white/20" suppressHydrationWarning>
-                        {(() => { const d = new Date(currentTask.startedAt); return `Started ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}:${String(d.getSeconds()).padStart(2,"0")}`; })()}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-xs text-white/30 italic">No active run</div>
-                  )}
-                </div>
-
-                {/* Last Task */}
-                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${lastTask?.status === "green" ? "bg-emerald-400" : lastTask ? "bg-red-400" : "bg-white/15"}`} />
-                    <span className="text-[9px] font-semibold uppercase tracking-widest text-white/30">
-                      Last Task
-                    </span>
-                  </div>
-                  {lastTask ? (
-                    <>
-                      <div className="text-xs text-white/55 leading-relaxed line-clamp-3">
-                        {lastTask.goalPreview}
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${lastTask.status === "green" ? "bg-emerald-400/10 text-emerald-400" : "bg-red-400/10 text-red-400"}`}>
-                          {lastTask.status}
-                        </span>
-                        <span className="font-mono text-[9px] text-white/20 truncate">{lastTask.runId.slice(-8)}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-xs text-white/25 italic">No prior run</div>
-                  )}
-                </div>
-
-                {/* Next Task */}
-                <div className="rounded-xl border border-amber-400/15 bg-amber-400/[0.03] p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${nextTask ? "bg-amber-400" : "bg-white/15"}`} />
-                    <span className="text-[9px] font-semibold uppercase tracking-widest text-amber-400/60">
-                      Next Task
-                    </span>
-                  </div>
-                  {nextTask ? (
-                    <>
-                      <div className="text-xs text-white/60 leading-relaxed line-clamp-3">
-                        {nextTask.title}
-                      </div>
-                      <div className="mt-2 font-mono text-[9px] text-white/20 truncate">{nextTask.id}</div>
-                    </>
-                  ) : (
-                    <div className="text-xs text-white/25 italic">Queue empty</div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-8 xl:grid-cols-[1fr_1fr_1fr] opacity-70">
-
-              {/* Agent Runtime */}
-              {agents.length > 0 && (
-                <div>
-                  <div className="text-[8px] uppercase tracking-[0.2em] text-white/15 font-semibold pb-3 border-b border-white/[0.04] mb-4">
-                    Agents
-                  </div>
-                  <div className="space-y-2">
-                    {agents.map((a) => (
-                      <div key={a.role} className="flex items-center gap-2 py-1">
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                            a.value === "Online" ? "bg-emerald-400" :
-                            a.value === "Ready" ? "bg-sky-400" : "bg-white/20"
-                          }`}
-                        />
-                        <span className="text-[10px] text-white/28 truncate flex-1">{a.label}</span>
-                        <span className="text-[9px] text-white/15 shrink-0">{a.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Telemetry Event Stream */}
-              {telemetryEvents.length > 0 && (
-                <div>
-                  <div className="text-[8px] uppercase tracking-[0.2em] text-white/15 font-semibold pb-3 border-b border-white/[0.04] mb-4">
-                    Telemetry
-                  </div>
-                  <div className="space-y-3">
-                    {telemetryEvents.map((e) => (
-                      <div key={e.event + e.agent} className="flex items-start gap-3">
-                        <span
-                          className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[8px] font-semibold uppercase ${levelBg[e.level] || "bg-white/5"} ${levelColor[e.level] || "text-white/30"}`}
-                        >
-                          {e.level}
-                        </span>
-                        <div className="min-w-0">
-                          <div className="text-[10px] font-mono text-white/22 truncate">{e.event}</div>
-                          <div className="text-[9px] text-white/16 truncate">{e.detail}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Deployment + Orchestration */}
-              <div>
-                <div className="text-[8px] uppercase tracking-[0.2em] text-white/15 font-semibold pb-3 border-b border-white/[0.04] mb-4">
-                  Deployment &amp; Orchestration
-                </div>
-                <div className="space-y-2">
-                  {[
-                    { label: "Build Pipeline", status: "green" as const, note: "28 routes compiled" },
-                    { label: "API Layer", status: "green" as const, note: "Nominal" },
-                    { label: "Agent Runtime", status: "green" as const, note: "10/10 online" },
-                    { label: "Database", status: (dbConfigured || process.env.NEXT_PUBLIC_SUPABASE_URL ? "green" : "yellow") as "green" | "yellow", note: dbConfigured || process.env.NEXT_PUBLIC_SUPABASE_URL ? "Connected" : "Scaffold mode" },
-                    { label: "Auth", status: "yellow" as const, note: "Credentials needed" },
-                  ].map((c) => (
-                    <div key={c.label} className="flex items-center gap-2 py-1">
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                          c.status === "green" ? "bg-emerald-400" :
-                          c.status === "yellow" ? "bg-amber-400" : "bg-red-400"
-                        }`}
-                      />
-                      <span className="text-[10px] text-white/28 flex-1 truncate">{c.label}</span>
-                      <span className="text-[9px] text-white/15 shrink-0">{c.note}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-          </div>
-        )}
-      </div>
-
-    </div>
+    </main>
   );
 }

@@ -117,6 +117,7 @@ export default function SupervisorInbox() {
     <div className="space-y-4">
       <form className="space-y-3" onSubmit={handleSubmit}>
         <textarea
+          suppressHydrationWarning
           rows={4}
           className="w-full resize-none rounded-xl border border-white/[0.1] bg-black/25 px-3 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-emerald-300/60"
           placeholder="Enter a supervisor goal"

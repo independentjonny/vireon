@@ -4,6 +4,7 @@ import {
   hasLocalData,
   getStorageMode,
 } from "@/lib/localStore";
+import { authErrorResponse, requirePermission } from "@/lib/auth/middleware";
 import { writeFileSync } from "fs";
 import { join } from "path";
 
@@ -19,7 +20,17 @@ function clearImports(): void {
   }
 }
 
-export async function POST() {
+function productionBlocked(): Response | null {
+  if (process.env.NODE_ENV !== "production") return null;
+  return Response.json({ ok: false, error: "Local data reset is disabled in production." }, { status: 403 });
+}
+
+export async function POST(request: Request) {
+  const auth = await requirePermission(request, "manage:workspace");
+  if (!auth.ok) return authErrorResponse(auth);
+  const blocked = productionBlocked();
+  if (blocked) return blocked;
+
   const before = hasLocalData();
 
   saveLocalTransactions([]);
@@ -38,7 +49,12 @@ export async function POST() {
   });
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requirePermission(request, "manage:workspace");
+  if (!auth.ok) return authErrorResponse(auth);
+  const blocked = productionBlocked();
+  if (blocked) return blocked;
+
   return Response.json({
     ok: true,
     message: "Send POST to /api/reset-local-data to clear all local persistent data",

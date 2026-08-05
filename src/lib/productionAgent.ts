@@ -23,7 +23,7 @@ export function productionStatus() {
   const runId = getDaemonRunId();
   return {
     ok: true,
-    system: "Liberva",
+    system: "Vireon",
     phase: "Production Autonomous Engineer",
     runId,
     memory: runtimeMemory(),

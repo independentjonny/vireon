@@ -1,15 +1,50 @@
+import { authErrorResponse, requirePermission } from "@/lib/auth/middleware";
 import { ingestCSV, type RawCSVRow } from "@/lib/ingestion/csvPipeline";
 import { getIngestionHealthReport } from "@/lib/ingestion/healthScorer";
-import { getDevSession } from "@/lib/auth/middleware";
-import {
-  appendLocalTransactions,
-  appendLocalImport,
-  getStorageMode,
-  upsertLocalSubscription,
-} from "@/lib/localStore";
-import type { TransactionRecord, SubscriptionRecord } from "@/lib/persistence/schema";
+import { createTransactionsSubscriptionsServiceFromEnv, toSafeTransactionsError } from "@/server/services/transactionsSubscriptionsPostgresService";
+
+const MAX_BODY_BYTES = 1_000_000;
+const MAX_ROWS = 5_000;
+const MAX_FIELD_LENGTH = 512;
+const SUPPORTED_CURRENCIES = new Set(["AUD", "USD", "NZD", "GBP", "EUR"]);
+
+function validateRows(rows: RawCSVRow[]): string | null {
+  if (rows.length === 0) return "No rows provided - send { rows: RawCSVRow[] }";
+  if (rows.length > MAX_ROWS) return `Too many rows. Maximum is ${MAX_ROWS}.`;
+
+  for (const [index, row] of rows.entries()) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) return `Row ${index} is invalid.`;
+    const keys = Object.keys(row);
+    if (keys.length > 32) return `Row ${index} has too many fields.`;
+    for (const [key, value] of Object.entries(row)) {
+      if (key.length > 64) return `Row ${index} has an invalid field name.`;
+      if (typeof value !== "string" && typeof value !== "number" && value !== undefined) {
+        return `Row ${index} has an unsupported value type.`;
+      }
+      if (typeof value === "string" && value.length > MAX_FIELD_LENGTH) {
+        return `Row ${index} has a field that is too long.`;
+      }
+    }
+    const amount = row.amount ?? row.debit ?? row.credit;
+    if (amount !== undefined && !Number.isFinite(Number(amount))) return `Row ${index} has an invalid amount.`;
+    if (Math.abs(Number(amount ?? 0)) > 100_000_000) return `Row ${index} amount is outside supported limits.`;
+    if (row.date && Number.isNaN(new Date(String(row.date)).getTime())) return `Row ${index} has an invalid date.`;
+    const currency = "currency" in row ? String(row.currency ?? "AUD") : "AUD";
+    if (!SUPPORTED_CURRENCIES.has(currency.toUpperCase())) return `Row ${index} has an unsupported currency.`;
+  }
+  return null;
+}
 
 export async function POST(req: Request) {
+  const auth = await requirePermission(req, "write:transactions");
+  if (!auth.ok) return authErrorResponse(auth);
+  const session = auth.session;
+
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_BODY_BYTES) {
+    return Response.json({ ok: false, error: "Ingestion request is too large." }, { status: 413 });
+  }
+
   let body: Record<string, unknown> = {};
   try {
     body = await req.json();
@@ -19,115 +54,66 @@ export async function POST(req: Request) {
 
   const rows: RawCSVRow[] = Array.isArray(body.rows) ? (body.rows as RawCSVRow[]) : [];
   const mode: "dryRun" | "persist" = body.mode === "persist" ? "persist" : "dryRun";
-  const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : undefined;
-  const userId = typeof body.userId === "string" ? body.userId : undefined;
+  const forgedOwnership =
+    (typeof body.workspaceId === "string" && body.workspaceId !== session.workspaceId) ||
+    (typeof body.userId === "string" && body.userId !== session.userId);
 
-  const session = getDevSession();
-  const resolvedWorkspaceId = workspaceId ?? session.workspaceId;
-  const resolvedUserId = userId ?? session.userId;
-
-  if (rows.length === 0) {
+  if (forgedOwnership) {
     return Response.json(
-      { ok: false, error: "No rows provided — send { rows: RawCSVRow[] }" },
-      { status: 400 }
+      { ok: false, error: "Client-supplied ownership does not match the authenticated session." },
+      { status: 403 }
     );
   }
+
+  const rowError = validateRows(rows);
+  if (rowError) return Response.json({ ok: false, error: rowError }, { status: 400 });
 
   const result = ingestCSV(rows);
   const healthReport = getIngestionHealthReport(result.transactions, result.errors);
 
   let persisted = false;
   let persistedCount = 0;
-  let persistWarning: string | null = null;
-  let persistMessage = "dryRun mode — pass mode=persist to write to database";
-  const storageMode = getStorageMode();
+  const persistWarning: string | null = null;
+  let persistMessage = "dryRun mode - pass mode=persist to write to PostgreSQL";
+  const storageMode = "postgres";
+  let replayed = false;
+  let importId: string | null = null;
 
   if (mode === "persist") {
-    if (process.env.DATABASE_URL) {
-      persistMessage =
-        "DATABASE_URL present — install @prisma/client and call transactionRepository.bulkCreate() to persist";
-    }
-
-    {
-      const transactionRecords: TransactionRecord[] = result.transactions.map((t) => ({
-        id: t.id,
-        workspaceId: resolvedWorkspaceId,
-        userId: resolvedUserId,
-        merchant: t.merchant,
-        merchantCanonical: t.merchantCanonical,
-        amount: t.amount,
-        currency: t.currency,
-        category: t.category,
-        subCategory: t.subCategory,
-        date: t.date,
-        recurring: t.recurring,
-        recurringCadence: (t.recurringCadence as TransactionRecord["recurringCadence"]) ?? null,
-        duplicate: t.duplicate,
-        confidence: t.confidence,
-        rawDescription: t.rawDescription,
-        source: "csv",
-        createdAt: new Date().toISOString(),
-      }));
-
-      persistedCount = appendLocalTransactions(transactionRecords);
-
-      // Create subscription records for recurring transactions
-      const cadenceMap: Record<string, SubscriptionRecord["cadence"]> = {
-        monthly: "monthly",
-        quarterly: "quarterly",
-        annual: "annual",
-        daily: "monthly",
-        weekly: "monthly",
-        fortnightly: "monthly",
-      };
-      const cadenceDays: Record<SubscriptionRecord["cadence"], number> = {
-        monthly: 30,
-        quarterly: 91,
-        annual: 365,
-      };
-      const recurringTxs = transactionRecords.filter((t) => t.recurring);
-      for (const t of recurringTxs) {
-        const rawCadence = t.recurringCadence ?? "monthly";
-        const cadence = cadenceMap[rawCadence] ?? "monthly";
-        const txDate = new Date(t.date);
-        const nextRenewal = new Date(txDate.getTime() + cadenceDays[cadence] * 24 * 60 * 60 * 1000);
-        const sub: SubscriptionRecord = {
-          id: `sub-${t.merchantCanonical}-${resolvedWorkspaceId}`,
-          workspaceId: resolvedWorkspaceId,
-          transactionId: t.id,
-          merchant: t.merchantCanonical,
-          merchantCanonical: t.merchantCanonical,
-          amount: Math.abs(t.amount),
-          cadence,
-          nextRenewalDate: nextRenewal.toISOString(),
-          cancellationScore: 0,
-          pricingAnomalyScore: 0,
-          savingsOpportunity: 0,
-          active: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        upsertLocalSubscription(sub);
-      }
-
-      appendLocalImport({
-        id: `import-${Date.now()}`,
-        workspaceId: resolvedWorkspaceId,
-        userId: resolvedUserId,
-        rowCount: result.processedRows,
-        mode: "persist",
-        healthScore: result.healthScore,
-        importedAt: new Date().toISOString(),
-        transactionIds: transactionRecords.map((t) => t.id),
+    try {
+      const service = createTransactionsSubscriptionsServiceFromEnv();
+      const persistedResult = await service.persistTransactionsFromIngestion(session, {
+        transactions: result.transactions,
+        ingestion: {
+          totalRows: result.totalRows,
+          processedRows: result.processedRows,
+          duplicateCount: result.duplicateCount,
+          recurringCount: result.recurringCount,
+          healthScore: result.healthScore,
+          errors: result.errors,
+          processedAt: result.processedAt,
+        },
+        idempotencyKey: req.headers.get("idempotency-key"),
+        sourceChecksum: null,
       });
-
-      persisted = true;
-      persistMessage = `local-persistent mode — ${persistedCount} new transactions written to .ai/local-data/transactions.json`;
-      if (process.env.DATABASE_URL) {
-        persistWarning =
-          "DATABASE_URL is present, but DB persistence is not implemented. Saved import to local JSON fallback.";
-        persistMessage = `local JSON fallback - ${persistedCount} new transactions written to .ai/local-data/transactions.json`;
-      }
+      persisted = persistedResult.persisted;
+      persistedCount = persistedResult.persistedCount;
+      replayed = persistedResult.replayed;
+      importId = persistedResult.importId;
+      persistMessage = replayed
+        ? "PostgreSQL import replayed from idempotency key; no duplicate transactions created."
+        : `${persistedCount} transaction(s) persisted to PostgreSQL.`;
+    } catch (error) {
+      const safe = toSafeTransactionsError(error);
+      return Response.json(
+        {
+          ok: false,
+          error: safe.message,
+          code: safe.code === "DATABASE_UNAVAILABLE" ? "POSTGRES_UNAVAILABLE" : safe.code,
+          retryable: safe.retryable,
+        },
+        { status: safe.status }
+      );
     }
   }
 
@@ -138,9 +124,11 @@ export async function POST(req: Request) {
     ok: result.ok,
     mode,
     storageMode,
-    context: { workspaceId: resolvedWorkspaceId, userId: resolvedUserId },
+    context: { workspaceId: session.workspaceId, userId: session.userId },
     persisted,
     persistedCount,
+    replayed,
+    importId,
     persistMessage,
     persistWarning,
     ingestion: {

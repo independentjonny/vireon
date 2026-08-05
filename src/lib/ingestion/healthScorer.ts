@@ -1,4 +1,4 @@
-import type { NormalizedTransaction } from "./csvPipeline";
+import type { NormalizedTransaction } from "./csvPipeline.ts";
 
 export type IngestionHealthReport = {
   score: number;

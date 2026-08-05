@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 
-function getAiDir() { return path.join(process.cwd(), ".ai"); }
+function getAiDir() { return path.join(/* turbopackIgnore: true */ process.cwd(), ".ai"); }
 
 function readDaemonState(): Record<string, unknown> | null {
   try {
@@ -34,6 +34,125 @@ type RunRecord = {
   greenCommit?: { commit: string } | null;
 };
 
+const SECRET_TEXT_PATTERNS = [
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/gi,
+  /Bearer\s+[A-Za-z0-9._~+/=-]+/gi,
+  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g,
+  /\bsk-[A-Za-z0-9_-]{10,}\b/g,
+  /canary-[A-Za-z0-9_-]+/gi,
+  /((?:api[_-]?key|access[_-]?token|client[_-]?secret|token|secret|password)\s*[:=]\s*)["']?[^"'\s,;}]+["']?/gi,
+  /(OPENAI_API_KEY|PGPASSWORD|PASSWORD|DATABASE_URL)\s*=\s*["']?[^"'\s]+["']?/gi,
+  /\bPASSWORD\s+'[^']*'/gi,
+  /\bPASSWORD\s+"[^"]*"/gi,
+  /https?:\/\/[^:\s/'"]+:[^@\s'"]+@/gi,
+  /postgres(?:ql)?:\/\/[^:\s/'"]+:[^@\s'"]+@/gi,
+];
+
+function safeText(value: unknown, maxLength: number): string | null {
+  if (typeof value !== "string") return null;
+
+  let output = value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+  for (const pattern of SECRET_TEXT_PATTERNS) {
+    output = output.replace(pattern, (match) => {
+      if (/PRIVATE KEY/i.test(match)) return "<redacted-private-key>";
+      if (/^Bearer/i.test(match)) return "Bearer <redacted>";
+      if (/^eyJ/.test(match)) return "<redacted-token>";
+      if (/^sk-/.test(match)) return "<redacted-key>";
+      if (/^canary-/i.test(match)) return "<redacted-canary>";
+      if (/^PASSWORD\s+['"]/i.test(match)) return "PASSWORD '<redacted>'";
+      if (/^https?:/i.test(match)) return match.replace(/\/\/[^:\s/'"]+:[^@\s'"]+@/, "//<redacted>:<redacted>@");
+      if (/^postgres/i.test(match)) return match.replace(/\/\/[^:\s/'"]+:[^@\s'"]+@/, "//<redacted>:<redacted>@");
+      const keyed = match.match(/^((?:api[_-]?key|access[_-]?token|client[_-]?secret|token|secret|password)\s*[:=]\s*)/i);
+      if (keyed) return `${keyed[1]}<redacted>`;
+      const key = match.split("=")[0]?.trim() || "SECRET";
+      return `${key}=<redacted>`;
+    });
+  }
+
+  if (!output) return "";
+  return output.length > maxLength ? `${output.slice(0, Math.max(0, maxLength - 3))}...` : output;
+}
+
+const BRIDGE_FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+const BRIDGE_SANITIZER_LIMITS = {
+  maxDepth: 4,
+  maxStringLength: 400,
+  maxArrayLength: 20,
+  maxObjectKeys: 24,
+};
+
+type BridgeSanitizationDiagnostics = {
+  discardedUnexpectedFieldCount: number;
+  truncatedFieldCount: number;
+  secretRedactedCount: number;
+  malformedFieldCount: number;
+};
+
+function createSanitizationDiagnostics(): BridgeSanitizationDiagnostics {
+  return {
+    discardedUnexpectedFieldCount: 0,
+    truncatedFieldCount: 0,
+    secretRedactedCount: 0,
+    malformedFieldCount: 0,
+  };
+}
+
+function isPlainBridgeObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object") return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+function sanitizeBridgeString(value: unknown, maxLength = BRIDGE_SANITIZER_LIMITS.maxStringLength, diag = createSanitizationDiagnostics()): string {
+  const raw = typeof value === "string" ? value : value == null ? "" : String(value);
+  const redacted = safeText(raw, maxLength) ?? "";
+  if (redacted.includes("<redacted")) diag.secretRedactedCount += 1;
+  if (raw.length > maxLength) diag.truncatedFieldCount += 1;
+  return redacted;
+}
+
+function sanitizeBridgeValue(
+  value: unknown,
+  diag: BridgeSanitizationDiagnostics,
+  depth = 0,
+): unknown {
+  if (depth > BRIDGE_SANITIZER_LIMITS.maxDepth) {
+    diag.truncatedFieldCount += 1;
+    return "<truncated>";
+  }
+  if (value == null || typeof value === "boolean" || typeof value === "number") return value;
+  if (typeof value === "string") return sanitizeBridgeString(value, BRIDGE_SANITIZER_LIMITS.maxStringLength, diag);
+  if (typeof value === "function" || typeof value === "symbol" || typeof value === "bigint") {
+    diag.malformedFieldCount += 1;
+    return null;
+  }
+  if (typeof Buffer !== "undefined" && Buffer.isBuffer(value)) {
+    diag.malformedFieldCount += 1;
+    return "<binary-redacted>";
+  }
+  if (Array.isArray(value)) {
+    if (value.length > BRIDGE_SANITIZER_LIMITS.maxArrayLength) diag.truncatedFieldCount += 1;
+    return value.slice(0, BRIDGE_SANITIZER_LIMITS.maxArrayLength).map((item) => sanitizeBridgeValue(item, diag, depth + 1));
+  }
+  if (!isPlainBridgeObject(value)) {
+    diag.malformedFieldCount += 1;
+    return null;
+  }
+  const out: Record<string, unknown> = {};
+  const entries = Object.entries(value).filter(([key]) => {
+    if (BRIDGE_FORBIDDEN_KEYS.has(key)) {
+      diag.discardedUnexpectedFieldCount += 1;
+      return false;
+    }
+    return true;
+  });
+  if (entries.length > BRIDGE_SANITIZER_LIMITS.maxObjectKeys) diag.truncatedFieldCount += 1;
+  for (const [key, item] of entries.slice(0, BRIDGE_SANITIZER_LIMITS.maxObjectKeys)) {
+    out[sanitizeBridgeString(key, 80, diag)] = sanitizeBridgeValue(item, diag, depth + 1);
+  }
+  return out;
+}
+
 function resolveRuns(state: Record<string, unknown> | null): RunRecord[] {
   const raw = (state?.runs as RunRecord[]) ?? [];
   if (raw.length > 0) return raw;
@@ -58,7 +177,7 @@ export function getRuntimeStatus() {
       lastGreen: green?.status === "green",
       greenCommit: (green?.greenCommit as { commit?: string } | null)?.commit ?? null,
       completedAt: (green?.completedAt as string) ?? null,
-      latestGreenGoal: (green?.goal as string)?.slice(0, 120) ?? null,
+      latestGreenGoal: safeText(green?.goal, 120),
     },
     browser: {
       validateScreenshot: ".ai/validate-and-repair.png",
@@ -75,13 +194,13 @@ export function getRuntimeLogs() {
   const runs = resolveRuns(state);
 
   return {
-    activeRunGoal: active?.goal?.slice(0, 120) ?? null,
-    latestGreenGoal: (green?.goal as string)?.slice(0, 120) ?? null,
+    activeRunGoal: safeText(active?.goal, 120),
+    latestGreenGoal: safeText(green?.goal, 120),
     recentRunSummaries: runs.slice(-3).map((r) => ({
       runId: r.runId,
       status: r.status ?? "unknown",
       completedAt: r.completedAt ?? null,
-      goalPreview: r.goal?.slice(0, 80) ?? "",
+      goalPreview: safeText(r.goal, 80) ?? "",
     })),
     files: {
       daemonState: ".ai/daemon-state.json",
@@ -100,7 +219,7 @@ export function getRuntimeRuns() {
   return {
     runs: runs.map((r) => ({
       runId: r.runId,
-      goalPreview: r.goal?.slice(0, 100) ?? "",
+      goalPreview: safeText(r.goal, 100) ?? "",
       status: r.status ?? "unknown",
       startedAt: r.startedAt,
       completedAt: r.completedAt ?? null,
@@ -109,7 +228,7 @@ export function getRuntimeRuns() {
     activeRun: active
       ? {
           runId: active.runId,
-          goalPreview: active.goal?.slice(0, 100) ?? "",
+          goalPreview: safeText(active.goal, 100) ?? "",
           startedAt: active.startedAt,
           status: "running",
         }
@@ -127,7 +246,7 @@ export function getRuntimeQueue() {
   type QueueItem = { runId: string; goalPreview: string; status: string; startedAt: string; completedAt: string | null };
   const queue: QueueItem[] = runs.map((r) => ({
     runId: r.runId,
-    goalPreview: r.goal?.slice(0, 80) ?? "",
+    goalPreview: safeText(r.goal, 80) ?? "",
     status: r.status === "green" ? "completed" : r.status === "paused" ? "paused" : "failed",
     startedAt: r.startedAt,
     completedAt: r.completedAt ?? null,
@@ -136,7 +255,7 @@ export function getRuntimeQueue() {
   if (active) {
     queue.push({
       runId: active.runId,
-      goalPreview: active.goal?.slice(0, 80) ?? "",
+      goalPreview: safeText(active.goal, 80) ?? "",
       status: "running",
       startedAt: active.startedAt,
       completedAt: null,
@@ -158,7 +277,7 @@ export function assignRun(goal: string) {
   const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
   return {
     runId,
-    goal: (goal ?? "(no goal)").slice(0, 200),
+    goal: safeText(goal ?? "(no goal)", 200) ?? "(no goal)",
     assignedAt: new Date().toISOString(),
     status: "assigned",
     note: "Write goal to .ai/tasks/current-task.md and trigger daemon to pick up",
@@ -186,7 +305,7 @@ export function getScreenshotMeta() {
   ];
 
   const screenshots = files.map(({ key, relPath }) => {
-    const abs = path.join(process.cwd(), relPath);
+    const abs = path.join(/* turbopackIgnore: true */ process.cwd(), relPath);
     let exists = false;
     let sizeBytes: number | null = null;
     let lastModified: string | null = null;
@@ -223,8 +342,125 @@ function readOpsFile<T>(name: string): T | null {
 type HeartbeatFile = { lastBeat: string; pid?: number; uptime?: number; paused?: boolean };
 type SchedulerFile = { cadenceMinutes: number; lastRunAt: string | null; nextRunAt: string | null; enabled: boolean };
 type OvernightFile = { enabled: boolean; maxTasks: number; tasksRun: number; startedAt: string | null; stoppedAt: string | null; stopReason: string | null };
-type DefectFile = { detectedAt: string | null; source: string | null; description: string | null; repairTaskId: string | null; resolved: boolean };
 type QueueFile = { items: { id: string; title: string; source: string; addedAt: string; status: string }[] };
+
+const DEFECT_ALLOWED_FIELDS = [
+  "id",
+  "code",
+  "severity",
+  "category",
+  "title",
+  "summary",
+  "evidence",
+  "affectedFiles",
+  "acceptanceCriterion",
+  "remediation",
+  "status",
+  "detectedAt",
+  "source",
+  "description",
+  "repairTaskId",
+  "resolved",
+] as const;
+const DEFECT_EVIDENCE_ALLOWED_FIELDS = new Set(["id", "source", "summary", "detail", "note", "file", "line", "excerpt", "status", "at"]);
+
+type SafeDefect = {
+  id: string;
+  code: string;
+  severity: string;
+  category: string;
+  title: string;
+  summary: string;
+  evidence: unknown[];
+  affectedFiles: string[];
+  acceptanceCriterion: string;
+  remediation: string;
+  status: string;
+  detectedAt: string | null;
+  source: string;
+  description: string;
+  repairTaskId: string | null;
+  resolved: boolean;
+  discardedUnexpectedFieldCount: number;
+  sanitizationStatus: string[];
+};
+
+function normalizeDefect(raw: unknown): SafeDefect | null {
+  const diag = createSanitizationDiagnostics();
+  if (!isPlainBridgeObject(raw)) return null;
+  const rawKeys = Object.keys(raw);
+  const allowed = new Set<string>(DEFECT_ALLOWED_FIELDS);
+  const unexpected = rawKeys.filter((key) => !allowed.has(key) || BRIDGE_FORBIDDEN_KEYS.has(key));
+  diag.discardedUnexpectedFieldCount += unexpected.length;
+
+  const field = (name: string, maxLength = 240) => sanitizeBridgeString(raw[name], maxLength, diag);
+  const sanitizeEvidence = (item: unknown) => {
+    if (!isPlainBridgeObject(item)) return sanitizeBridgeValue(item, diag, 0);
+    const evidenceOut: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(item).slice(0, BRIDGE_SANITIZER_LIMITS.maxObjectKeys)) {
+      if (!DEFECT_EVIDENCE_ALLOWED_FIELDS.has(key) || BRIDGE_FORBIDDEN_KEYS.has(key)) {
+        diag.discardedUnexpectedFieldCount += 1;
+        continue;
+      }
+      evidenceOut[key] = sanitizeBridgeValue(value, diag, 1);
+    }
+    return evidenceOut;
+  };
+  const evidence = Array.isArray(raw.evidence)
+    ? raw.evidence.slice(0, 8).map(sanitizeEvidence).filter((item) => item !== null)
+    : raw.evidence == null
+      ? []
+      : [sanitizeEvidence(raw.evidence)].filter((item) => item !== null);
+  const affectedFiles = Array.isArray(raw.affectedFiles)
+    ? raw.affectedFiles.map((item) => sanitizeBridgeString(item, 180, diag)).filter(Boolean).slice(0, 20)
+    : [];
+  const resolved = raw.resolved === true || raw.status === "resolved";
+  const status = field("status", 40) || (resolved ? "resolved" : "open");
+  const defect = {
+    id: field("id", 80),
+    code: field("code", 80),
+    severity: field("severity", 40),
+    category: field("category", 80),
+    title: field("title", 160),
+    summary: field("summary", 240),
+    evidence,
+    affectedFiles,
+    acceptanceCriterion: field("acceptanceCriterion", 160),
+    remediation: field("remediation", 240),
+    status,
+    detectedAt: typeof raw.detectedAt === "string" ? sanitizeBridgeString(raw.detectedAt, 40, diag) : null,
+    source: field("source", 80),
+    description: field("description", 240),
+    repairTaskId: typeof raw.repairTaskId === "string" ? sanitizeBridgeString(raw.repairTaskId, 80, diag) : null,
+    resolved,
+  };
+  const sanitizationStatus = [
+    diag.discardedUnexpectedFieldCount > 0 ? "MALFORMED_DEFECT_DISCARDED" : null,
+    diag.truncatedFieldCount > 0 ? "DEFECT_FIELD_TRUNCATED" : null,
+    diag.secretRedactedCount > 0 ? "DEFECT_SECRET_REDACTED" : null,
+  ].filter((item): item is string => Boolean(item));
+
+  return {
+    id: defect.id,
+    code: defect.code,
+    severity: defect.severity,
+    category: defect.category,
+    title: defect.title,
+    summary: defect.summary,
+    evidence: defect.evidence,
+    affectedFiles: defect.affectedFiles,
+    acceptanceCriterion: defect.acceptanceCriterion,
+    remediation: defect.remediation,
+    status: defect.status,
+    detectedAt: defect.detectedAt,
+    source: defect.source,
+    description: defect.description,
+    repairTaskId: defect.repairTaskId,
+    resolved: defect.resolved,
+    discardedUnexpectedFieldCount: diag.discardedUnexpectedFieldCount,
+    sanitizationStatus,
+  };
+}
 
 export function getHeartbeat() {
   const hb = readOpsFile<HeartbeatFile>("daemon.json");
@@ -279,7 +515,7 @@ export function getNextTask() {
   const next = pending[0] ?? null;
   return {
     nextTask: next
-      ? { id: next.id, title: next.title, source: next.source, addedAt: next.addedAt }
+      ? { id: next.id, title: safeText(next.title, 160) ?? "", source: safeText(next.source, 80) ?? "", addedAt: next.addedAt }
       : null,
     queueDepth: pending.length,
     totalItems: queue?.items?.length ?? 0,
@@ -289,11 +525,17 @@ export function getNextTask() {
 }
 
 export function getDefects() {
-  const defects = readOpsFile<DefectFile[]>("defects.json") ?? [];
+  const raw = readOpsFile<unknown>("defects.json");
+  const rawDefects = Array.isArray(raw) ? raw : [];
+  const normalized = rawDefects.map(normalizeDefect);
+  const defects = normalized.filter((defect): defect is SafeDefect => defect !== null).slice(-20);
+  const malformedDiscarded = normalized.length - defects.length;
   const unresolved = defects.filter((d) => !d.resolved);
   return {
-    total: defects.length,
+    total: rawDefects.length,
     unresolved: unresolved.length,
+    malformedDiscarded,
+    discardedUnexpectedFieldCount: defects.reduce((sum, defect) => sum + defect.discardedUnexpectedFieldCount, malformedDiscarded),
     latest: defects[defects.length - 1] ?? null,
     defects: defects.slice(-5),
     detectionSources: ["build", "browser", "telemetry"],
@@ -334,10 +576,10 @@ export function getContinuousStatus() {
       passed: green?.status === "green",
     },
     lastRepair: defects.latest
-      ? { at: defects.latest.detectedAt, source: defects.latest.source, resolved: defects.latest.resolved }
+      ? { at: defects.latest.detectedAt, source: safeText(defects.latest.source, 80), resolved: defects.latest.resolved }
       : null,
     nextPlannedTask: nextTask.nextTask
-      ? { id: nextTask.nextTask.id, title: nextTask.nextTask.title }
+      ? { id: nextTask.nextTask.id, title: safeText(nextTask.nextTask.title, 160) ?? "" }
       : null,
     operationalSummary: {
       totalRuns: runs.length,
@@ -354,7 +596,7 @@ export function getFinalGreenReport() {
   const validation = report.validation as { ok?: boolean; buildBrowser?: { ok?: boolean } } | null;
   return {
     status: (report.status as string) ?? null,
-    goal: ((report.goal as string) ?? "").slice(0, 200),
+    goal: safeText(report.goal, 200) ?? "",
     completedAt: (report.completedAt as string) ?? null,
     greenCommit: (report.greenCommit as { commit?: string } | null)?.commit ?? null,
     validationPassed: !!validation?.ok,
@@ -363,7 +605,7 @@ export function getFinalGreenReport() {
 }
 
 export function getGitState() {
-  const cwd = process.cwd();
+  const cwd = /* turbopackIgnore: true */ process.cwd();
 
   function safeExec(cmd: string): string {
     try {

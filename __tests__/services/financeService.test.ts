@@ -7,8 +7,8 @@ import {
   computeMonthSummaries,
   computeCashflowForecast,
   generateInsights,
-} from "../../src/lib/services/financeService.js";
-import type { TransactionRecord, SubscriptionRecord } from "../../src/lib/persistence/schema.js";
+} from "../../src/lib/services/financeService.ts";
+import type { TransactionRecord, SubscriptionRecord } from "../../src/lib/persistence/schema.ts";
 
 function tx(overrides: Partial<TransactionRecord> = {}): TransactionRecord {
   return {

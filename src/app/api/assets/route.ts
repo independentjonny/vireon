@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { NextResponse } from "next/server";
+import { authErrorResponse, requirePermission } from "@/lib/auth/middleware";
 
 type AssetData = {
   propertyValue: number;
@@ -18,7 +19,9 @@ function cleanNumber(value: unknown): number {
   return Number.isFinite(number) ? number : 0;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requirePermission(request, "read:transactions");
+  if (!auth.ok) return authErrorResponse(auth);
   try {
     const raw = await readFile(filePath, "utf-8");
     return NextResponse.json({ ok: true, assetData: JSON.parse(raw) });
@@ -28,6 +31,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await requirePermission(request, "write:transactions");
+  if (!auth.ok) return authErrorResponse(auth);
   const body = (await request.json()) as Partial<AssetData>;
 
   const assetData: AssetData = {

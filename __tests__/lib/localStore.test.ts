@@ -15,7 +15,7 @@ import {
   getLocalSubscriptions,
   hasLocalData,
   getStorageMode,
-} from "../../src/lib/localStore.js";
+} from "../../src/lib/localStore.ts";
 
 describe("localStore scaffold", () => {
   after(() => {

@@ -71,6 +71,25 @@ type CommandAction =
   | "reviewCode"
   | "rollback";
 
+type CommandError = Error & {
+  stdout?: unknown;
+  stderr?: unknown;
+};
+
+type OpenAIResponsePayload = {
+  output_text?: unknown;
+  output?: { content?: { text?: unknown }[] }[];
+};
+
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function commandOutput(err: unknown, stream: "stdout" | "stderr") {
+  const commandError = err as CommandError;
+  return commandError[stream]?.toString() ?? "";
+}
+
 type TaskRecord = {
   id: string;
   goal: string;
@@ -451,8 +470,8 @@ function runSync(command: string, timeoutMs = 60_000) {
       timeout: timeoutMs,
       maxBuffer: 1024 * 1024 * 50,
     });
-  } catch (err: any) {
-    return [err.stdout?.toString() ?? "", err.stderr?.toString() ?? "", err.message ?? ""].join("\n");
+  } catch (err: unknown) {
+    return [commandOutput(err, "stdout"), commandOutput(err, "stderr"), errorMessage(err)].join("\n");
   }
 }
 
@@ -588,11 +607,7 @@ async function executeAction(action: CommandAction, input: Record<string, unknow
       case "gitDiff":
         return { action, ok: true, summary: "Git diff captured.", output: runSync("git diff --stat; git diff", 30_000) };
       case "gitCommit": {
-        const message = String(input.message ?? "Neven supervisor improvement").replaceAll('"', "'");
-        const status = runSync("git status --short", 30_000).trim();
-        if (!status) return { action, ok: true, summary: "No changes to commit." };
-        const output = runSync(`git add -A; git commit -m "${message}"`, 120_000);
-        return { action, ok: !/nothing to commit|failed/i.test(output), summary: "Git commit attempted.", output };
+        return { action, ok: false, summary: "Safety blocked automatic git commits. Review changes manually before committing." };
       }
       case "screenshotDesktop":
         return screenshot("desktop", 1440, 1200);
@@ -613,8 +628,8 @@ async function executeAction(action: CommandAction, input: Record<string, unknow
       default:
         return { action, ok: false, summary: `Unsupported action: ${action}` };
     }
-  } catch (err: any) {
-    return { action, ok: false, summary: err.message ?? String(err) };
+  } catch (err: unknown) {
+    return { action, ok: false, summary: errorMessage(err) };
   }
 }
 
@@ -635,7 +650,7 @@ async function screenshot(kind: "desktop" | "mobile", width: number, height: num
   };
 }
 
-function responseTextFromOpenAI(payload: any) {
+function responseTextFromOpenAI(payload: OpenAIResponsePayload) {
   if (typeof payload.output_text === "string") return payload.output_text;
   const parts: string[] = [];
   for (const item of payload.output ?? []) {
@@ -653,7 +668,7 @@ function fallbackPlanner(): PlannerOutput {
       {
         title: "Execute requested improvement",
         type: "edit",
-        instructions: "Use the existing Neven autonomous flow to inspect, edit, validate, and summarize the requested task.",
+        instructions: "Use the existing Vireon autonomous flow to inspect, edit, validate, and summarize the requested task.",
       },
     ],
     riskLevel: "medium",
@@ -758,7 +773,7 @@ async function runGptPlanner(task: TaskRecord): Promise<PlannerResult> {
     required: ["summary", "tasks", "riskLevel", "requiresApproval"],
   };
   const prompt = [
-    "You are the GPT Planner for Neven's local autonomous coding supervisor.",
+    "You are the GPT Planner for Vireon's local autonomous coding supervisor.",
     "Return strict JSON matching the schema.",
     "Plan only safe local repository work. Do not request package installs, secret edits, git push, force operations, or destructive deletes.",
     "",
@@ -811,7 +826,7 @@ async function runGptReviewer(input: {
     required: ["accepted", "reviewSummary", "issues", "recommendedNextTask"],
   };
   const prompt = [
-    "You are the GPT Reviewer for Neven's autonomous coding workflow.",
+    "You are the GPT Reviewer for Vireon's autonomous coding workflow.",
     "Return strict JSON matching the schema.",
     "Accept only if the code change appears aligned with the goal and validation is acceptable.",
     "",
@@ -877,7 +892,7 @@ async function reviewWithGpt(mode: typeof UI_REVIEW_MODE, context: Record<string
   if (!apiKey) return fallback;
 
   const prompt = [
-    `You are the Neven visual reviewer using ${mode}.`,
+    `You are the Vireon visual reviewer using ${mode}.`,
     "Inspect only the screenshots.",
     "Identify the highest-impact visible dashboard improvement.",
     "Do not inspect or mention git diff, package.json, tools, tests, TypeScript, Playwright, CI, build output, supervisor files, agent files, npm scripts, or infrastructure.",
@@ -970,7 +985,7 @@ async function runBuildHealth(): Promise<BuildHealthResult> {
 async function runCodex(task: string) {
   const promptPath = path.join(SUPERVISOR_DIR, `${createId("codex")}.txt`);
   const prompt = [
-    `You are working in the Neven repo at ${REPO}.`,
+    `You are working in the Vireon repo at ${REPO}.`,
     "",
     "Task:",
     task,
@@ -1161,15 +1176,13 @@ async function processTask(task: TaskRecord) {
       });
 
       if (improved) {
-        const commit = await executeAction("gitCommit", { message: `Improve Neven: ${task.goal.slice(0, 60)}` }, true);
-        iterations.push({ commit });
         finalStatus = "complete";
         break;
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     finalStatus = "failed";
-    taskError = err.message ?? String(err);
+    taskError = errorMessage(err);
     addHistory({ taskId: task.id, action: "task.error", ok: false, summary: taskError ?? "Unknown task error" });
   }
 
@@ -1407,6 +1420,6 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, "127.0.0.1", () => {
   appendLog("supervisor.started", { port: PORT, repo: REPO });
-  console.log(`Neven Supervisor running on http://localhost:${PORT}`);
-  console.log(`POST /task {"goal":"Improve Neven onboarding"}`);
+  console.log(`Vireon Supervisor running on http://localhost:${PORT}`);
+  console.log(`POST /task {"goal":"Improve Vireon onboarding"}`);
 });

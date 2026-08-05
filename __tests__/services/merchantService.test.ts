@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import {
   computeMerchantVariants,
   computeMerchantConfidence,
-} from "../../src/lib/services/merchantService.js";
-import type { TransactionRecord } from "../../src/lib/persistence/schema.js";
+} from "../../src/lib/services/merchantService.ts";
+import type { TransactionRecord } from "../../src/lib/persistence/schema.ts";
 
 function tx(overrides: Partial<TransactionRecord> = {}): TransactionRecord {
   return {

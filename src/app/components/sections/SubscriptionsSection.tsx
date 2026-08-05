@@ -24,9 +24,9 @@ type SubscriptionsData = {
 };
 
 const RISK_STYLES: Record<string, string> = {
-  high: "bg-red-400/10 text-red-400 border-red-400/20",
-  medium: "bg-amber-400/10 text-amber-400 border-amber-400/20",
-  low: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20",
+  high: "bg-red-50 text-red-700 border-red-200",
+  medium: "bg-amber-50 text-amber-700 border-amber-200",
+  low: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
 
 const CADENCE_LABEL: Record<string, string> = {
@@ -58,7 +58,9 @@ export default function SubscriptionsSection() {
       .catch(() => null);
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+  }, []);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -114,64 +116,55 @@ export default function SubscriptionsSection() {
 
   return (
     <div className="space-y-5">
-      {/* Summary */}
       {data && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[
-            { label: "Monthly Spend", value: `$${data.monthlySpend.toFixed(2)}`, color: "text-red-400", bg: "border-red-400/20 bg-red-400/[0.06]" },
-            { label: "Annual Spend", value: `$${data.annualisedSpend.toFixed(2)}`, color: "text-amber-400", bg: "border-amber-400/20 bg-amber-400/[0.06]" },
-            { label: "Subscriptions", value: String(subs.length), color: "text-white/80", bg: "border-white/[0.07] bg-white/[0.03]" },
+            { label: "Monthly Spend", value: `$${data.monthlySpend.toFixed(2)}`, color: "text-red-600", bg: "border-red-100 bg-red-50" },
+            { label: "Annual Spend", value: `$${data.annualisedSpend.toFixed(2)}`, color: "text-amber-700", bg: "border-amber-100 bg-amber-50" },
+            { label: "Subscriptions", value: String(subs.length), color: "text-slate-950", bg: "border-slate-200 bg-white" },
           ].map((s) => (
-            <div key={s.label} className={`rounded-xl border px-4 py-4 ${s.bg}`}>
-              <div className="text-xs font-medium text-white/55">{s.label}</div>
-              <div className={`mt-2 text-2xl font-bold tabular-nums ${s.color}`}>{s.value}</div>
+            <div key={s.label} className={`rounded-lg border px-4 py-4 ${s.bg}`}>
+              <div className="text-xs font-medium text-slate-500">{s.label}</div>
+              <div className={`mt-2 text-2xl font-semibold tabular-nums ${s.color}`}>{s.value}</div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="rounded-2xl border border-white/[0.1] bg-white/[0.045] p-4 shadow-xl shadow-black/20 sm:p-5">
+      <div className="rounded-lg border border-slate-200 bg-white p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h3 className="text-base font-semibold text-white">Renewal calendar</h3>
-            <p className="mt-1 text-sm text-white/55">Upcoming subscription renewals sorted by due date.</p>
+            <h3 className="text-base font-semibold text-slate-950">Renewal calendar</h3>
+            <p className="mt-1 text-sm text-slate-500">Upcoming subscription renewals sorted by due date.</p>
           </div>
-          <span className="text-xs text-white/45">{upcomingRenewals.length} upcoming</span>
+          <span className="text-xs text-slate-500">{upcomingRenewals.length} upcoming</span>
         </div>
 
         {upcomingRenewals.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/[0.14] bg-black/10 px-4 py-6 text-center">
-            <div className="text-sm font-semibold text-white">No upcoming renewals</div>
-            <p className="mt-1 text-sm text-white/50">Add or import subscriptions to see renewal timing.</p>
+          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
+            <div className="text-sm font-semibold text-slate-950">No upcoming renewals</div>
+            <p className="mt-1 text-sm text-slate-500">Add or import subscriptions to see renewal timing.</p>
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {upcomingRenewals.map((sub, i) => {
               const dueSoon = sub.daysAway <= 14;
               return (
-                <div
-                  key={sub.id ?? `${sub.merchant}-renewal-${i}`}
-                  className={[
-                    "rounded-xl border p-4",
-                    dueSoon
-                      ? "border-amber-300/30 bg-amber-300/[0.08]"
-                      : "border-white/[0.07] bg-white/[0.025]",
-                  ].join(" ")}
-                >
+                <div key={sub.id ?? `${sub.merchant}-renewal-${i}`} className={`rounded-lg border p-4 ${dueSoon ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">{sub.merchant}</div>
-                      <div className="mt-1 text-xs text-white/52">
+                      <div className="text-sm font-semibold text-slate-950">{sub.merchant}</div>
+                      <div className="mt-1 text-xs text-slate-500">
                         {new Date(sub.nextRenewalDate as string).toLocaleDateString()}
                       </div>
                     </div>
-                    <div className={`text-right text-sm font-bold ${dueSoon ? "text-amber-200" : "text-white/78"}`}>
+                    <div className={`text-right text-sm font-semibold ${dueSoon ? "text-amber-700" : "text-slate-700"}`}>
                       {sub.daysAway <= 0 ? "Due now" : `${sub.daysAway}d`}
                     </div>
                   </div>
-                  <div className="mt-3 text-lg font-bold tabular-nums text-red-300">
+                  <div className="mt-3 text-lg font-semibold tabular-nums text-red-600">
                     ${sub.amount.toFixed(2)}
-                    <span className="ml-1 text-xs font-medium text-white/45">/{CADENCE_LABEL[sub.cadence] ?? "mo"}</span>
+                    <span className="ml-1 text-xs font-medium text-slate-500">/{CADENCE_LABEL[sub.cadence] ?? "mo"}</span>
                   </div>
                 </div>
               );
@@ -180,18 +173,15 @@ export default function SubscriptionsSection() {
         )}
       </div>
 
-      {/* Subscription list */}
-      <div className="rounded-2xl border border-white/[0.1] bg-white/[0.045] p-4 shadow-xl shadow-black/20 sm:p-5">
+      <div className="rounded-lg border border-slate-200 bg-white p-4 sm:p-5">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="text-base font-semibold text-white">
-              Detected subscriptions
-            </div>
-            <p className="mt-1 text-sm text-white/55">
+            <div className="text-base font-semibold text-slate-950">Detected subscriptions</div>
+            <p className="mt-1 text-sm text-slate-500">
               Recurring merchants, cadence, next renewal, and estimated savings.
             </p>
             {data?.dataSource && (
-              <span className="mt-2 inline-flex rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/45">
+              <span className="mt-2 inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-500">
                 {data.dataSource}
               </span>
             )}
@@ -199,7 +189,7 @@ export default function SubscriptionsSection() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
               onClick={handleRemoveAll}
               disabled={subs.length === 0 || removingAll}
             >
@@ -207,7 +197,7 @@ export default function SubscriptionsSection() {
             </button>
             <button
               type="button"
-              className="rounded-xl border border-sky-400/30 bg-sky-400/10 px-3 py-1.5 text-xs font-medium text-sky-300 hover:bg-sky-400/20 transition"
+              className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
               onClick={() => setAddForm((v) => !v)}
             >
               {addForm ? "Cancel" : "+ Add Subscription"}
@@ -216,43 +206,37 @@ export default function SubscriptionsSection() {
         </div>
 
         {subs.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/[0.14] bg-black/10 px-4 py-8 text-center">
-            <div className="text-base font-semibold text-white">No subscriptions detected</div>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/55">
+          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+            <div className="text-base font-semibold text-slate-950">No subscriptions detected</div>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
               Imported recurring transactions and manually added subscriptions will appear here.
             </p>
           </div>
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
             {subs.map((sub, i) => (
-              <div
-                key={sub.id ?? `${sub.merchant}-${i}`}
-                className="flex items-start justify-between rounded-xl border border-white/[0.08] bg-white/[0.025] p-4"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-base font-semibold text-white/88">{sub.merchant}</span>
-                      {sub.risk && (
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold border ${RISK_STYLES[sub.risk] ?? RISK_STYLES.low}`}>
-                          {sub.risk}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-2 text-sm text-white/55 capitalize">
-                      {sub.cadence}
-                      {sub.nextRenewalDate && (
-                        <> · renews {new Date(sub.nextRenewalDate).toLocaleDateString()}</>
-                      )}
-                    </div>
+              <div key={sub.id ?? `${sub.merchant}-${i}`} className="flex items-start justify-between rounded-lg border border-slate-200 bg-white p-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-base font-semibold text-slate-950">{sub.merchant}</span>
+                    {sub.risk && (
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold border ${RISK_STYLES[sub.risk] ?? RISK_STYLES.low}`}>
+                        {sub.risk}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 text-sm text-slate-500 capitalize">
+                    {sub.cadence}
+                    {sub.nextRenewalDate && <> - renews {new Date(sub.nextRenewalDate).toLocaleDateString()}</>}
                   </div>
                 </div>
-                <div className="shrink-0 ml-4 text-right">
-                  <div className="text-xl font-bold text-red-300 tabular-nums">
-                    ${sub.amount.toFixed(2)}<span className="ml-1 text-xs font-medium text-white/45">/{CADENCE_LABEL[sub.cadence] ?? "mo"}</span>
+                <div className="ml-4 shrink-0 text-right">
+                  <div className="text-xl font-semibold tabular-nums text-red-600">
+                    ${sub.amount.toFixed(2)}
+                    <span className="ml-1 text-xs font-medium text-slate-500">/{CADENCE_LABEL[sub.cadence] ?? "mo"}</span>
                   </div>
                   {sub.savingsOpportunity != null && sub.savingsOpportunity > 0 && (
-                    <div className="mt-1 text-xs text-emerald-300/80">
+                    <div className="mt-1 text-xs text-emerald-700">
                       save ${sub.savingsOpportunity.toFixed(0)}/yr
                     </div>
                   )}
@@ -263,13 +247,12 @@ export default function SubscriptionsSection() {
         )}
       </div>
 
-      {/* Add form */}
       {addForm && (
-        <form onSubmit={handleAdd} className="rounded-2xl border border-sky-400/20 bg-sky-400/[0.04] p-5 space-y-3">
-          <div className="text-xs font-semibold text-sky-300 uppercase tracking-wide mb-1">Add Subscription</div>
+        <form onSubmit={handleAdd} className="space-y-3 rounded-lg border border-blue-100 bg-blue-50 p-5">
+          <div className="mb-1 text-xs font-semibold uppercase tracking-normal text-blue-700">Add Subscription</div>
           <div className="flex flex-wrap gap-3">
             <input
-              className="flex-1 min-w-[140px] rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-sky-400/40"
+              className="min-w-[140px] flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 placeholder:text-slate-400 focus:border-blue-300 focus:outline-none"
               placeholder="Merchant (e.g. Netflix)"
               value={form.merchant}
               onChange={(e) => setForm((f) => ({ ...f, merchant: e.target.value }))}
@@ -279,14 +262,14 @@ export default function SubscriptionsSection() {
               type="number"
               step="0.01"
               min="0"
-              className="w-28 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-sky-400/40"
+              className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 placeholder:text-slate-400 focus:border-blue-300 focus:outline-none"
               placeholder="Amount"
               value={form.amount}
               onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
               required
             />
             <select
-              className="rounded-xl border border-white/10 bg-[#07111f] px-3 py-2 text-sm text-white/80 focus:outline-none focus:border-sky-400/40"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 focus:border-blue-300 focus:outline-none"
               value={form.cadence}
               onChange={(e) => setForm((f) => ({ ...f, cadence: e.target.value as "monthly" | "quarterly" | "annual" }))}
             >
@@ -298,11 +281,11 @@ export default function SubscriptionsSection() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-2xl bg-sky-400 px-5 py-2 text-sm font-semibold text-[#07111f] hover:bg-sky-300 transition disabled:opacity-50"
+            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Add"}
+            {saving ? "Saving..." : "Add"}
           </button>
-          {saveMsg && <div className="text-xs text-emerald-300">{saveMsg}</div>}
+          {saveMsg && <div className="text-xs text-emerald-700">{saveMsg}</div>}
         </form>
       )}
     </div>

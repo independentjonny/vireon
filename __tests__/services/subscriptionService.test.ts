@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import {
   computeUpcomingRenewals,
   computeRenewalCalendar,
-} from "../../src/lib/services/subscriptionService.js";
-import type { SubscriptionRecord } from "../../src/lib/persistence/schema.js";
+} from "../../src/lib/services/subscriptionService.ts";
+import type { SubscriptionRecord } from "../../src/lib/persistence/schema.ts";
 
 function sub(overrides: Partial<SubscriptionRecord> = {}): SubscriptionRecord {
   const nextWeek = new Date(Date.now() + 7 * 86_400_000).toISOString().split("T")[0];

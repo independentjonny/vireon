@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLocalTransactions, getLocalSubscriptions, hasLocalData } from "@/lib/localStore";
+import { authErrorResponse, requirePermission } from "@/lib/auth/middleware";
 import {
   computeFinanceSummary,
   computeCategoryMap,
@@ -15,14 +15,23 @@ import {
   totalSavingsOpportunity,
   findDuplicateRisk,
 } from "@/lib/services/subscriptionService";
+import { createTransactionsSubscriptionsServiceFromEnv, toSafeTransactionsError } from "@/server/services/transactionsSubscriptionsPostgresService";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requirePermission(request, "read:transactions");
+  if (!auth.ok) return authErrorResponse(auth);
+
   try {
-    const txs = getLocalTransactions();
-    const subs = getLocalSubscriptions();
-    const counts = hasLocalData();
+    const service = createTransactionsSubscriptionsServiceFromEnv();
+    const [transactionsResult, subscriptionsResult] = await Promise.all([
+      service.listTransactions(auth.session),
+      service.listSubscriptions(auth.session),
+    ]);
+    const txs = transactionsResult.transactions;
+    const subs = subscriptionsResult.subscriptions;
+    const counts = { transactions: txs.length, subscriptions: subs.length, imports: 0 };
     const summary = computeFinanceSummary(txs, subs);
     const categories = computeCategoryMap(txs);
     const merchants = computeMerchantMap(txs);
@@ -53,9 +62,10 @@ export async function GET() {
       retrievedAt: new Date().toISOString(),
     });
   } catch (err) {
+    const safe = toSafeTransactionsError(err);
     return NextResponse.json(
-      { ok: false, error: String(err) },
-      { status: 500 }
+      { ok: false, error: safe.message, code: safe.code },
+      { status: safe.status }
     );
   }
 }

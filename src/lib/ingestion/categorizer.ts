@@ -1,4 +1,4 @@
-import { getMerchantCategory } from "./merchantCanonicalizer";
+import { getMerchantCategory } from "./merchantCanonicalizer.ts";
 
 export type CategoryResult = {
   category: string;

@@ -188,7 +188,7 @@ export function generateInsights(
     insights.push({
       id: "savings-opp",
       title: "Subscription savings opportunity",
-      description: `NEVEN estimates ~$${finSavingsOpp.toFixed(0)}/year savings across current subscriptions.`,
+      description: `VIREON estimates ~$${finSavingsOpp.toFixed(0)}/year savings across current subscriptions.`,
       severity: "medium",
       confidence: 80,
       impact: `$${finSavingsOpp.toFixed(0)}/year`,

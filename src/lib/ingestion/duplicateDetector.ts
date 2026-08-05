@@ -1,4 +1,4 @@
-import type { NormalizedTransaction } from "./csvPipeline";
+import type { NormalizedTransaction } from "./csvPipeline.ts";
 
 function txSignature(tx: NormalizedTransaction): string {
   const dateStr = tx.date.slice(0, 10);

@@ -33,7 +33,7 @@ export function executiveBriefing() {
     ok: true,
     title: "Executive Financial Briefing",
     summary:
-      "Liberva has analysed cash flow, subscriptions, health score, anomalies and forecast runway.",
+      "Vireon has analysed cash flow, subscriptions, health score, anomalies and forecast runway.",
     analytics: executiveAnalytics(),
     forecast: cashflowForecast(),
     anomalies: detectAnomalies(),

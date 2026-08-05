@@ -1,19 +1,19 @@
-import { generateReleaseCandidate, getLatestReleaseCandidate } from "@/lib/releaseCandidate";
-
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const latest = getLatestReleaseCandidate();
   return Response.json({
     ok: true,
-    hasRecord: !!latest,
-    rc: latest,
-    message: latest ? null : "No release candidate yet — POST to generate one",
+    hasRecord: false,
+    rc: null,
+    message: "Filesystem-backed release candidate review is intentionally excluded from this public route bundle.",
     checkedAt: new Date().toISOString(),
   });
 }
 
 export async function POST() {
-  const rc = generateReleaseCandidate();
-  return Response.json({ ok: true, rc });
+  return Response.json({
+    ok: false,
+    code: "RELEASE_CANDIDATE_GENERATION_REQUIRES_OPERATIONAL_TOOLING",
+    message: "Release candidate generation must run through bounded operational tooling, not this route.",
+  }, { status: 403 });
 }

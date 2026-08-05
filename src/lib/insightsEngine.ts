@@ -22,7 +22,7 @@ export function generateInsights(): Insight[] {
     {
       id: "subscription-optimisation",
       title: "Subscription optimisation",
-      body: "Liberva detected recurring cost optimisation opportunities across subscriptions. Two entertainment services overlap.",
+      body: "Vireon detected recurring cost optimisation opportunities across subscriptions. Two entertainment services overlap.",
       severity: "medium",
       category: "subscription",
       estimatedImpact: "$138/month saving potential",
@@ -57,7 +57,7 @@ export function generateInsights(): Insight[] {
     {
       id: "savings-habit",
       title: "Savings habit",
-      body: "Your 31% savings rate is in the top 10% of Liberva users. Consistent monthly offset transfers detected.",
+      body: "Your 31% savings rate is in the top 10% of Vireon users. Consistent monthly offset transfers detected.",
       severity: "low",
       category: "savings",
       actionable: false,
@@ -65,7 +65,7 @@ export function generateInsights(): Insight[] {
     {
       id: "runway-healthy",
       title: "Emergency runway",
-      body: "8.4 months of cash runway detected. Liberva recommends maintaining at least 6 months — you are above target.",
+      body: "8.4 months of cash runway detected. Vireon recommends maintaining at least 6 months — you are above target.",
       severity: "low",
       category: "forecast",
       actionable: false,

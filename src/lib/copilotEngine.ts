@@ -9,12 +9,12 @@ export type CopilotContext = {
 
 export function getCopilotContext(): CopilotContext {
   return {
-    netWorth: "$1.84M",
-    cashFlow: "+$6,420/month",
-    savingsRate: "31%",
-    runway: "8.4 months",
-    healthScore: 93,
-    topInsight: "Offset mortgage by $800/month to save $2,400/year in interest.",
+    netWorth: "Not calculated yet",
+    cashFlow: "Not calculated yet",
+    savingsRate: "Not calculated yet",
+    runway: "Not calculated yet",
+    healthScore: 0,
+    topInsight: "Add confirmed Financial Vault data to unlock a grounded top insight.",
   };
 }
 
@@ -22,16 +22,16 @@ export function askCopilot(prompt: string) {
   const context = getCopilotContext();
   const lc = prompt.toLowerCase();
 
-  let answer = "Liberva Copilot can analyse your transactions, subscriptions, cash flow, financial health, and mortgage strategy.";
+  let answer = "My AI CFO can analyse persisted transactions, subscriptions, cash flow, financial health, and mortgage strategy once the required Financial Vault data is confirmed.";
 
   if (lc.includes("afford") || lc.includes("ppor") || lc.includes("property")) {
-    answer = `Based on your net worth of ${context.netWorth} and ${context.runway} runway, you have the capacity for increased property exposure — but Liberva recommends maintaining your current offset strategy first to reduce interest costs.`;
+    answer = "Property affordability needs confirmed income, spending, debt and housing assumptions. Open Housing Scenarios after the Vault is complete to view deterministic results.";
   } else if (lc.includes("savings") || lc.includes("save")) {
-    answer = `Your current savings rate is ${context.savingsRate}, which is above your target. Redirecting $800/month to your offset account would save ~$2,400/year in mortgage interest.`;
+    answer = "Savings guidance needs confirmed income and recurring spending. Vireon will not invent a savings rate or offset recommendation without persisted facts.";
   } else if (lc.includes("subscription") || lc.includes("subscription spend")) {
-    answer = `Liberva detected $38.98/month in potentially optimisable subscriptions. Two entertainment subscriptions overlap. Cancelling one would save $14-24/month.`;
+    answer = "Subscription analysis uses persisted imported transactions and subscriptions. Import or confirm records to calculate specific savings opportunities.";
   } else if (lc.includes("health") || lc.includes("score")) {
-    answer = `Your financial health score is ${context.healthScore}/100. Key drivers: strong liquidity (92), healthy debt coverage (88), excellent savings habit (95). Diversification (74) is the area to improve.`;
+    answer = "Financial health is calculated only after confirmed Vault records are available. Complete income, spending, cash and debt inputs to unlock the score.";
   }
 
   return {
@@ -40,14 +40,13 @@ export function askCopilot(prompt: string) {
     answer,
     context,
     nextActions: [
-      "Connect real database",
-      "Enable Supabase auth",
-      "Add real transaction import",
-      "Enable vector memory",
+      "Complete Financial Vault",
+      "Import transactions",
+      "Review subscriptions",
+      "Open Daily Review",
     ],
   };
 }
-
 export function getCopilotPromptSuggestions(): string[] {
   return [
     "Can I comfortably afford a larger PPOR?",

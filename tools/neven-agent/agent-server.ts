@@ -63,6 +63,29 @@ type AgentRequest = {
   iterations?: number;
 };
 
+type CommandError = Error & {
+  stdout?: unknown;
+  stderr?: unknown;
+};
+
+type OpenAIResponsePayload = {
+  output_text?: unknown;
+  output?: { content?: { text?: unknown }[] }[];
+};
+
+type OpenAIInputContent =
+  | { type: "input_text"; text: string }
+  | { type: "input_image"; image_url: string };
+
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function commandOutput(err: unknown, stream: "stdout" | "stderr") {
+  const commandError = err as CommandError;
+  return commandError[stream]?.toString() ?? "";
+}
+
 function run(command: string, timeoutMs = 60_000) {
   try {
     return execSync(command, {
@@ -72,12 +95,12 @@ function run(command: string, timeoutMs = 60_000) {
       shell: "powershell.exe",
       timeout: timeoutMs,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return [
       `COMMAND FAILED OR TIMED OUT: ${command}`,
-      err.stdout?.toString() ?? "",
-      err.stderr?.toString() ?? "",
-      err.message ?? "",
+      commandOutput(err, "stdout"),
+      commandOutput(err, "stderr"),
+      errorMessage(err),
     ].join("\n");
   }
 }
@@ -236,7 +259,7 @@ function isUIReviewCategory(value: unknown): value is UIReviewCategory {
   return typeof value === "string" && UI_REVIEW_CATEGORIES.includes(value as UIReviewCategory);
 }
 
-function screenshotInputImage(fileName: string) {
+function screenshotInputImage(fileName: string): OpenAIInputContent | null {
   const fullPath = path.join(REPO, ".ai-agent-runs", fileName);
   if (!fs.existsSync(fullPath)) return null;
   const base64 = fs.readFileSync(fullPath).toString("base64");
@@ -246,7 +269,7 @@ function screenshotInputImage(fileName: string) {
   };
 }
 
-function responseTextFromOpenAI(payload: any) {
+function responseTextFromOpenAI(payload: OpenAIResponsePayload) {
   if (typeof payload.output_text === "string") return payload.output_text;
 
   const parts: string[] = [];
@@ -305,7 +328,7 @@ function uiReviewJsonFormat() {
   };
 }
 
-async function requestUIReview(apiKey: string, content: any[]) {
+async function requestUIReview(apiKey: string, content: OpenAIInputContent[]) {
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -371,7 +394,7 @@ async function aiReviewUI(captureScreenshots = true) {
 
   if (captureScreenshots) takeScreenshots();
   const prompt = [
-    "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
+    "You are a senior product designer reviewing the visible Vireon dashboard screenshots.",
     "Use only the screenshot images, screenshot paths, and valid likelyFile values below.",
     "Identify the single highest-impact visible UI issue.",
     "Assign category using exactly one of: information_hierarchy, navigation, workflow, feature_gap, dashboard_insight, accessibility, responsiveness, layout.",
@@ -394,11 +417,11 @@ async function aiReviewUI(captureScreenshots = true) {
 
   const desktopImage = screenshotInputImage("latest-desktop.png");
   const mobileImage = screenshotInputImage("latest-mobile.png");
-  const imageContent = [
+  const imageContent: OpenAIInputContent[] = [
     { type: "input_text", text: prompt },
     desktopImage,
     mobileImage,
-  ].filter(Boolean) as any[];
+  ].filter((item): item is OpenAIInputContent => item !== null);
 
   if (desktopImage && mobileImage) {
     try {
@@ -409,14 +432,14 @@ async function aiReviewUI(captureScreenshots = true) {
   }
 
   const fallbackPrompt = prompt.replace(
-    "You are a senior product designer reviewing the visible Neven dashboard screenshots.",
-    "You are a senior product designer reviewing the Neven dashboard screenshot paths.\nDo not assume screenshot image contents are available yet."
+    "You are a senior product designer reviewing the visible Vireon dashboard screenshots.",
+    "You are a senior product designer reviewing the Vireon dashboard screenshot paths.\nDo not assume screenshot image contents are available yet."
   );
 
   try {
     return await requestUIReview(apiKey, [{ type: "input_text", text: fallbackPrompt }]);
-  } catch (err: any) {
-    return fallbackUIReviewJson(err.message ?? "OpenAI Responses API failed.");
+  } catch (err: unknown) {
+    return fallbackUIReviewJson(errorMessage(err) || "OpenAI Responses API failed.");
   }
 }
 
@@ -883,7 +906,7 @@ async function runStructuredAction(request: AgentRequest) {
       const beforeScreenshots = copyLatestScreenshots(`${loopId}-before`);
       const parsedReview = parseUIReviewFinding(reviewOutput) ?? generateUIReviewPlaceholder()[0];
       const selectedTask = [
-        "Improve the Neven UI based on this screenshot-only AI review.",
+        "Improve the Vireon UI based on this screenshot-only AI review.",
         `Likely file: ${parsedReview.likelyFile}`,
         `Target area: ${parsedReview.targetArea}`,
         `Category: ${parsedReview.category}`,
@@ -1023,7 +1046,7 @@ async function runStructuredAction(request: AgentRequest) {
         }
         const beforeScore = scoreFromReviewOutput(beforeReviewOutput) ?? beforeReview.currentScore ?? beforeReview.confidence ?? null;
         const selectedTask = [
-          "Improve the Neven UI based on this screenshot-only AI review.",
+          "Improve the Vireon UI based on this screenshot-only AI review.",
           `Likely file: ${beforeReview.likelyFile}`,
           `Target area: ${beforeReview.targetArea}`,
           `Category: ${beforeReview.category}`,
@@ -1046,8 +1069,8 @@ async function runStructuredAction(request: AgentRequest) {
           let restoredTrackedAppFiles: string[] = [];
           try {
             restoredTrackedAppFiles = rollbackAppFiles(appFileSnapshot);
-          } catch (err: any) {
-            rollbackError = err.message ?? String(err);
+          } catch (err: unknown) {
+            rollbackError = errorMessage(err);
           }
           const replacementReviewOutput = await aiReviewUI(false);
           const replacementReview = parseUIReviewFinding(replacementReviewOutput);
@@ -1098,8 +1121,8 @@ async function runStructuredAction(request: AgentRequest) {
         if (rollbackOccurred) {
           try {
             restoredTrackedAppFiles = rollbackAppFiles(appFileSnapshot);
-          } catch (err: any) {
-            rollbackError = err.message ?? String(err);
+          } catch (err: unknown) {
+            rollbackError = errorMessage(err);
           }
         }
         const gitStatus = summarizeOutput(run("git status --short", 15_000), 2_000) || "No changes";
@@ -1357,7 +1380,7 @@ async function runCodex(goal: string, runValidation: boolean) {
   const promptPath = path.join(LOG_DIR, `${timestamp}-codex-prompt.txt`);
 
   const codexPrompt = `
-You are working in the Neven repo at C:\\Users\\summe\\liberva.
+You are working in the Vireon repo at C:\\Users\\summe\\liberva.
 
 Goal:
 ${goal}
@@ -1459,9 +1482,9 @@ const server = http.createServer(async (req, res) => {
         const result = await runAgent(parsed);
         responded = true;
         json(res, 200, result);
-      } catch (err: any) {
+      } catch (err: unknown) {
         responded = true;
-        json(res, 500, { ok: false, summary: err.message });
+        json(res, 500, { ok: false, summary: errorMessage(err) });
       }
     });
 
@@ -1475,6 +1498,6 @@ server.headersTimeout = 130_000;
 server.requestTimeout = 130_000;
 
 server.listen(PORT, () => {
-  console.log(`Neven agent server running on http://localhost:${PORT}`);
+  console.log(`Vireon agent server running on http://localhost:${PORT}`);
   console.log(`POST tasks to http://localhost:${PORT}/run-agent`);
 });

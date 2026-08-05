@@ -10,8 +10,8 @@ const TASK_PATH = join(AI_DIR, "tasks", "current-task.md");
 const STATE_PATH = join(AI_DIR, "daemon-state.json");
 const QUOTA_PATH = join(AI_DIR, "operations", "quota-pause.json");
 const HEARTBEAT_PATH = join(AI_DIR, "operations", "daemon.json");
-const POLL_MS = Number(process.env.NEVEN_DAEMON_POLL_MS || 10000);
-const MAX_ATTEMPTS = Number(process.env.NEVEN_DAEMON_MAX_ATTEMPTS || 3);
+const POLL_MS = Number(process.env.VIREON_DAEMON_POLL_MS || 10000);
+const MAX_ATTEMPTS = Number(process.env.VIREON_DAEMON_MAX_ATTEMPTS || 3);
 const HEARTBEAT_INTERVAL_MS = 30000;
 
 mkdirSync(join(AI_DIR, "tasks"), { recursive: true });
@@ -98,7 +98,7 @@ async function processTask(task) {
 }
 
 writeHeartbeat({ paused: false, activeRunId: null });
-console.log(`Neven local daemon watching ${TASK_PATH}`);
+console.log(`Vireon local daemon watching ${TASK_PATH}`);
 setInterval(() => writeHeartbeat({}), HEARTBEAT_INTERVAL_MS);
 setInterval(() => { processTask(readTask()).catch((error) => { processing = false; writeState({ activeRun: null, lastError: String(error) }); writeHeartbeat({ paused: false, activeRunId: null }); }); }, POLL_MS);
 processTask(readTask()).catch((error) => { processing = false; writeState({ activeRun: null, lastError: String(error) }); writeHeartbeat({ paused: false, activeRunId: null }); });

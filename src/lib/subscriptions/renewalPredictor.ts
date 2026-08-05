@@ -1,4 +1,4 @@
-import { detectCadence } from "./cadenceDetector";
+import { detectCadence } from "./cadenceDetector.ts";
 
 export type RenewalPrediction = {
   merchant: string;

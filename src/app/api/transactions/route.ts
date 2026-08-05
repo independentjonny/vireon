@@ -1,33 +1,29 @@
-import { getTransactions, summariseTransactions } from "@/lib/transactionEngine";
-import { getLocalTransactions, hasLocalData, getStorageMode } from "@/lib/localStore";
+import { authErrorResponse, requirePermission } from "@/lib/auth/middleware";
+import { createTransactionsSubscriptionsServiceFromEnv, toSafeTransactionsError } from "@/server/services/transactionsSubscriptionsPostgresService";
 
-export async function GET() {
-  const storageMode = getStorageMode();
-  const localCounts = hasLocalData();
+export async function GET(request: Request) {
+  const auth = await requirePermission(request, "read:transactions");
+  if (!auth.ok) return authErrorResponse(auth);
 
-  if (localCounts.transactions > 0) {
-    const localTxs = getLocalTransactions();
-    const income = localTxs.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-    const spend = localTxs.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
-    return Response.json({
-      ok: true,
-      dataSource: "local-persistent",
-      storageMode,
-      transactions: localTxs,
-      summary: {
-        income,
-        spend,
-        net: income - spend,
-        transactionCount: localTxs.length,
-      },
-    });
+  try {
+    const service = createTransactionsSubscriptionsServiceFromEnv();
+    return Response.json({ ok: true, ...(await service.listTransactions(auth.session)) });
+  } catch (error) {
+    const safe = toSafeTransactionsError(error);
+    return Response.json({ ok: false, error: safe.message, code: safe.code, retryable: safe.retryable }, { status: safe.status });
   }
+}
 
-  return Response.json({
-    ok: true,
-    dataSource: "mock",
-    storageMode,
-    transactions: getTransactions(),
-    summary: summariseTransactions(),
-  });
+export async function DELETE(request: Request) {
+  const auth = await requirePermission(request, "write:transactions");
+  if (!auth.ok) return authErrorResponse(auth);
+
+  try {
+    const service = createTransactionsSubscriptionsServiceFromEnv();
+    const result = await service.archiveAllTransactions(auth.session);
+    return Response.json({ ok: true, archivedCount: result.archivedCount, message: `Archived ${result.archivedCount} transaction(s).` });
+  } catch (error) {
+    const safe = toSafeTransactionsError(error);
+    return Response.json({ ok: false, error: safe.message, code: safe.code, retryable: safe.retryable }, { status: safe.status });
+  }
 }

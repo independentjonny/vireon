@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import type {
   TransactionRecord,
@@ -29,6 +29,16 @@ function readData<T>(filename: string, defaultValue: T): T {
 function writeData<T>(filename: string, data: T): void {
   ensureDataDir();
   writeFileSync(join(DATA_DIR, filename), JSON.stringify(data, null, 2), "utf-8");
+}
+
+function dataPath(filename: string): string {
+  ensureDataDir();
+  return join(DATA_DIR, filename);
+}
+
+function removeIfExists(filename: string): void {
+  const filePath = dataPath(filename);
+  if (existsSync(filePath)) unlinkSync(filePath);
 }
 
 export type LocalImportRecord = {
@@ -163,9 +173,64 @@ export function getLocalImports(): LocalImportRecord[] {
   return readData<LocalImportRecord[]>("imports.json", []);
 }
 
+export function saveLocalImports(records: LocalImportRecord[]): void {
+  writeData("imports.json", records);
+}
+
+export function replaceLocalBackupCollections(
+  input: {
+    transactions: TransactionRecord[];
+    subscriptions: SubscriptionRecord[];
+    imports: LocalImportRecord[];
+  },
+  options: { injectFailureAfterReplacements?: number } = {},
+): void {
+  const files = [
+    { filename: "transactions.json", records: input.transactions },
+    { filename: "subscriptions.json", records: input.subscriptions },
+    { filename: "imports.json", records: input.imports },
+  ] as const;
+  const originals = files.map((file) => {
+    const filePath = dataPath(file.filename);
+    return {
+      filename: file.filename,
+      existed: existsSync(filePath),
+      content: existsSync(filePath) ? readFileSync(filePath, "utf-8") : null,
+      tempFilename: `${file.filename}.stage-${process.pid}-${Date.now()}`,
+    };
+  });
+
+  for (const file of files) {
+    const original = originals.find((item) => item.filename === file.filename);
+    if (!original) throw new Error("Backup import staging failed.");
+    writeFileSync(dataPath(original.tempFilename), JSON.stringify(file.records, null, 2), "utf-8");
+  }
+
+  const replaced: typeof originals = [];
+  try {
+    for (const original of originals) {
+      renameSync(dataPath(original.tempFilename), dataPath(original.filename));
+      replaced.push(original);
+      if (
+        options.injectFailureAfterReplacements !== undefined &&
+        replaced.length >= options.injectFailureAfterReplacements
+      ) {
+        throw new Error("Injected backup import replacement failure.");
+      }
+    }
+  } catch (error) {
+    for (const original of replaced.reverse()) {
+      if (original.existed && original.content !== null) writeFileSync(dataPath(original.filename), original.content, "utf-8");
+      else removeIfExists(original.filename);
+    }
+    for (const original of originals) removeIfExists(original.tempFilename);
+    throw error;
+  }
+}
+
 export function appendLocalImport(record: LocalImportRecord): void {
   const existing = getLocalImports();
-  writeData("imports.json", [...existing, record]);
+  saveLocalImports([...existing, record]);
 }
 
 // ── Copilot History ─────────────────────────────────────────────────────────

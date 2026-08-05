@@ -1,34 +1,16 @@
-import {
-  getLocalTransactions,
-  getLocalSubscriptions,
-  getLocalImports,
-  getLocalMemory,
-  getLocalTelemetry,
-} from "@/lib/localStore";
+import { authErrorResponse, requirePermission } from "@/lib/auth/middleware";
 
-export async function GET() {
-  const backup = {
-    version: "1.0.0",
-    exportedAt: new Date().toISOString(),
-    source: "liberva-local-backup",
-    data: {
-      transactions: getLocalTransactions(),
-      subscriptions: getLocalSubscriptions(),
-      imports: getLocalImports(),
-      memory: getLocalMemory(),
-      telemetry: getLocalTelemetry().slice(-100),
-    },
-    counts: {
-      transactions: getLocalTransactions().length,
-      subscriptions: getLocalSubscriptions().length,
-      imports: getLocalImports().length,
-    },
-  };
+export const dynamic = "force-dynamic";
 
-  return new Response(JSON.stringify(backup, null, 2), {
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Disposition": `attachment; filename="liberva-backup-${new Date().toISOString().slice(0, 10)}.json"`,
+export async function GET(request: Request) {
+  const auth = await requirePermission(request, "manage:workspace");
+  if (!auth.ok) return authErrorResponse(auth);
+  return Response.json(
+    {
+      ok: false,
+      code: "OPERATIONAL_BACKUP_EXPORT_DISABLED",
+      error: "Operational backup export is not available through the application API. Use the PostgreSQL operator backup and rollback procedure instead.",
     },
-  });
+    { status: 410 },
+  );
 }

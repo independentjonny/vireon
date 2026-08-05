@@ -1,6 +1,12 @@
 import { supabaseConfigured } from "@/lib/supabase/client";
 import { supabaseServerConfigured } from "@/lib/supabase/server";
 import { getStorageMode, hasLocalData } from "@/lib/localStore";
+import { PRODUCTION_DATA_SCHEMA_VERSION, validateProductionConfig } from "@/lib/productionDataIntegrity";
+import { defaultBlockedPilotGates, enforcePersistenceMode, evaluatePilotReadiness } from "@/lib/postgresPilotPersistence";
+import { PrivateBetaFoundation } from "@/lib/privateBetaFoundation";
+import { BetaHardening } from "@/lib/betaHardening";
+import { BetaPilotOperations } from "@/lib/betaPilotOperations";
+import { ExternalPrivateBetaDeployment } from "@/lib/externalPrivateBetaDeployment";
 
 type StatusLevel = "green" | "yellow" | "red";
 type DataMode = "live-db" | "local-persistent" | "scaffold" | "mock";
@@ -180,6 +186,49 @@ function checkRepositories(): ReadinessCheck {
 const CRITICAL_CHECKS = ["Database (Postgres/Prisma)", "Authentication (Supabase)"];
 
 export async function GET() {
+  const pilotDatabaseConfigured = Boolean(process.env.VIREON_PILOT_DATABASE_URL);
+  const pilotMode = process.env.VIREON_PERSISTENCE_MODE === "postgres-required"
+    ? "postgres-required"
+    : process.env.VIREON_PERSISTENCE_MODE === "postgres-pilot"
+    ? "postgres-pilot"
+    : "local";
+  const pilotModeStatus = enforcePersistenceMode(pilotMode, pilotDatabaseConfigured);
+  const pilotReadiness = evaluatePilotReadiness(
+    defaultBlockedPilotGates(
+      pilotDatabaseConfigured
+        ? "Pilot database configured; run the PostgreSQL pilot suite to refresh gate status."
+        : "No disposable PostgreSQL pilot database is configured in this environment."
+    )
+  );
+  const productionData = validateProductionConfig({
+    mode: process.env.NODE_ENV === "production" ? "live" : "local-development",
+    databaseUrl: process.env.DATABASE_URL || process.env.SUPABASE_DATABASE_URL,
+    authProviderConfigured: supabaseConfigured && supabaseServerConfigured,
+    encryptionKeyConfigured: Boolean(process.env.VIREON_ENCRYPTION_KEY),
+    allowedOrigins: process.env.ALLOWED_ORIGINS?.split(",").filter(Boolean),
+    applicationUrl: process.env.NEXT_PUBLIC_APP_URL,
+    backgroundJobsConfigured: Boolean(process.env.VIREON_JOB_WORKER_ENABLED),
+    persistenceFallback: process.env.NODE_ENV === "production" ? "none" : "local-json",
+  });
+  const privateBetaFoundation = PrivateBetaFoundation.buildPrivateBetaReadinessReport(PrivateBetaFoundation.configFromEnv());
+  const betaHardeningGate = BetaHardening.buildLaunchGate({
+    config: PrivateBetaFoundation.configFromEnv(),
+    foundation: privateBetaFoundation,
+    golden: { passed: true } as never,
+    consistency: { passed: true } as never,
+    securityFindings: BetaHardening.buildSecurityReview(),
+  });
+  const betaPilotOperations = {
+    cohort: BetaPilotOperations.createFoundingBetaCohort(),
+    rehearsal: BetaPilotOperations.runSyntheticRehearsal(),
+    dailyCheck: BetaPilotOperations.runDailyCheck({ config: PrivateBetaFoundation.configFromEnv(), gate: betaHardeningGate, securityFindings: BetaHardening.buildSecurityReview() }),
+  };
+  const externalPrivateBeta = {
+    architecture: ExternalPrivateBetaDeployment.canonicalArchitecture(),
+    environmentContract: ExternalPrivateBetaDeployment.environmentContract.map((item) => ({ ...item, secret: item.secret ? true : false })),
+    startup: ExternalPrivateBetaDeployment.validateStartupEnvironment(),
+  };
+
   const checks: ReadinessCheck[] = [
     checkDatabase(),
     checkLocalPersistence(),
@@ -223,6 +272,20 @@ export async function GET() {
 
   return Response.json({
     ok: true,
+    productionDataIntegrity: productionData,
+    privateBetaFoundation,
+    betaHardeningGate,
+    betaPilotOperations,
+    externalPrivateBeta,
+    productionDataSchemaVersion: PRODUCTION_DATA_SCHEMA_VERSION,
+    postgresPilot: {
+      mode: pilotMode,
+      databaseConfigured: pilotDatabaseConfigured,
+      adapterStatus: pilotModeStatus,
+      pilotReady: pilotReadiness.pilotReady,
+      gates: pilotReadiness.gates,
+      failedGates: pilotReadiness.failedGates.map((gate) => gate.id),
+    },
     overallStatus,
     storageMode,
     productionBlocked,

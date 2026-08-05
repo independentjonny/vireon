@@ -1,8 +1,8 @@
-import { canonicalizeMerchant } from "./merchantCanonicalizer";
-import { categorizeTransaction } from "./categorizer";
-import { detectRecurring } from "./recurringDetector";
-import { detectDuplicates } from "./duplicateDetector";
-import { scoreIngestionHealth } from "./healthScorer";
+import { canonicalizeMerchant } from "./merchantCanonicalizer.ts";
+import { categorizeTransaction } from "./categorizer.ts";
+import { detectRecurring } from "./recurringDetector.ts";
+import { detectDuplicates } from "./duplicateDetector.ts";
+import { scoreIngestionHealth } from "./healthScorer.ts";
 
 export type RawCSVRow = {
   date?: string;

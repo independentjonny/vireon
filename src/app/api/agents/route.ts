@@ -5,7 +5,7 @@ export async function POST(req: Request) {
 
   const goal =
     body.goal ||
-    "Run Liberva specialist agents";
+    "Run Vireon specialist agents";
 
   const result =
     await runAgents(goal);

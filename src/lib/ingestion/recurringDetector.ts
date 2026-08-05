@@ -1,4 +1,4 @@
-import type { NormalizedTransaction } from "./csvPipeline";
+import type { NormalizedTransaction } from "./csvPipeline.ts";
 
 const RECURRING_MERCHANTS = new Set([
   "Netflix", "Spotify", "Apple", "Google", "Microsoft", "Amazon",

@@ -1,6 +1,6 @@
 export function runtimeMemory() {
   return {
-    project: "Liberva",
+    project: "Vireon",
     currentPhase: "Production Autonomous Engineer",
     capabilities: [
       "semantic finance intelligence",

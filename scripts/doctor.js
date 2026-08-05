@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Liberva self-diagnosis script
+// Vireon self-diagnosis script
 // Run via: npm run doctor
 
 const fs = require("fs");
@@ -199,7 +199,7 @@ function checkGitRepository() {
 
 async function main() {
   console.log("\n╔═══════════════════════════════════╗");
-  console.log("║   Liberva Doctor — Self-Diagnosis    ║");
+  console.log("║   Vireon Doctor — Self-Diagnosis    ║");
   console.log("╚═══════════════════════════════════╝\n");
 
   checkAppRoot();

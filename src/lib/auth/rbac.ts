@@ -13,6 +13,7 @@ export type Permission =
   | "write:telemetry"
   | "manage:users"
   | "manage:workspace"
+  | "manage:private_beta_access"
   | "manage:billing"
   | "invoke:agents"
   | "read:memory"
@@ -49,6 +50,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "read:telemetry",
     "write:telemetry",
     "manage:users",
+    "manage:private_beta_access",
     "read:memory",
     "write:memory",
     "invoke:agents",
@@ -66,6 +68,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "write:telemetry",
     "manage:users",
     "manage:workspace",
+    "manage:private_beta_access",
     "manage:billing",
     "read:memory",
     "write:memory",

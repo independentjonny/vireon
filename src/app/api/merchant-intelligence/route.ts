@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
-import { getLocalTransactions } from "@/lib/localStore";
+import { authErrorResponse, requirePermission } from "@/lib/auth/middleware";
 import {
   computeMerchantVariants,
   computeMerchantConfidence,
   computeCleanupEntries,
 } from "@/lib/services/merchantService";
+import { createTransactionsSubscriptionsServiceFromEnv, toSafeTransactionsError } from "@/server/services/transactionsSubscriptionsPostgresService";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requirePermission(request, "read:transactions");
+  if (!auth.ok) return authErrorResponse(auth);
+
   try {
-    const txs = getLocalTransactions();
+    const txs = (await createTransactionsSubscriptionsServiceFromEnv().listTransactions(auth.session)).transactions;
     const variants = computeMerchantVariants(txs);
     const confidence = computeMerchantConfidence(txs);
     const cleanup = computeCleanupEntries(txs);
@@ -27,6 +31,7 @@ export async function GET() {
       retrievedAt: new Date().toISOString(),
     });
   } catch (err) {
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    const safe = toSafeTransactionsError(err);
+    return NextResponse.json({ ok: false, error: safe.message, code: safe.code }, { status: safe.status });
   }
 }

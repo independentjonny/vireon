@@ -1,21 +1,8 @@
-import { supabaseConfigured } from "@/lib/supabase/client";
-
 export async function POST() {
-  if (!supabaseConfigured) {
-    return Response.json({
-      ok: true,
-      mode: "dev",
-      message: "Dev session cleared",
-    });
-  }
-
-  return Response.json(
-    {
-      ok: false,
-      error:
-        "Install @supabase/ssr and call createBrowserClient().auth.signOut()",
-      mode: "production",
-    },
-    { status: 501 }
+  const response = Response.json({ ok: true });
+  response.headers.append(
+    "set-cookie",
+    `vireon_access_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${process.env.NODE_ENV === "production" ? "; Secure" : ""}`
   );
+  return response;
 }
