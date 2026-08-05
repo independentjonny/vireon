@@ -31,12 +31,21 @@ test("runtime client does not keep persistent scoped user state", () => {
   assert.match(source, /User scope must be set inside a PostgreSQL transaction session/);
 });
 
-test("runtime psql executable resolution supports explicit env and Windows install fallback", () => {
+test("legacy psql executable resolution remains available for operator scripts", () => {
   assert.equal(resolvePsqlExecutable({ explicit: "C:/custom/psql.exe" }), "C:/custom/psql.exe");
   assert.equal(resolvePsqlExecutable({ env: { NODE_ENV: "test", VIREON_PSQL_PATH: "C:/env/psql.exe" } as NodeJS.ProcessEnv }), "C:/env/psql.exe");
   const source = readFileSync("src/server/db/postgresRuntime.ts", "utf-8");
   assert.match(source, /C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\psql\.exe/);
-  assert.match(source, /resolvePsqlExecutable\(\{ explicit: input\.psqlExecutable \}\)/);
+});
+
+test("runtime request path uses serverless PostgreSQL driver instead of spawning psql", () => {
+  const runtimeClient = source.slice(source.indexOf("export class PsqlRuntimeClient"), source.indexOf("type TransactionClientInput"));
+  assert.match(source, /from "pg"/);
+  assert.match(source, /function createPgClient/);
+  assert.doesNotMatch(runtimeClient, /spawn\(/);
+  assert.doesNotMatch(runtimeClient, /this\.psqlExecutable/);
+  assert.doesNotMatch(runtimeClient, /resolvePsqlExecutable/);
+  assert.match(source, /operation: "postgres\.transaction"/);
 });
 
 test("operator preflight loads repository and Windows user environment without logging secrets", () => {
@@ -74,15 +83,19 @@ test("non-transaction user scope cannot be cached for a later query", async () =
 
 test("transaction session marks itself unusable on timeout and rejects later operations", () => {
   assert.match(source, /private unusable = false/);
-  assert.match(source, /this\.unusable = true;\s*child\.kill\(\)/);
-  assert.match(source, /if \(!child \|\| this\.closed \|\| this\.unusable\)/);
+  assert.match(source, /query_timeout/);
+  assert.match(source, /this\.unusable = true/);
+  assert.match(source, /if \(!client \|\| this\.closed \|\| this\.unusable\)/);
   assert.match(source, /if \(this\.closed \|\| this\.unusable\) return;/);
 });
 
-test("transaction session guards against double settle and stderr success races", () => {
-  assert.match(source, /let settled = false/);
-  assert.match(source, /if \(settled\) return/);
-  assert.match(source, /newStderr\.trim\(\)/);
+test("transaction session uses one connected client and does not parse stderr/stdout markers", () => {
+  const transactionClient = source.slice(source.indexOf("class PsqlTransactionClient"));
+  assert.match(transactionClient, /private client: pg\.Client \| null = null/);
+  assert.match(transactionClient, /await withDatabaseTimeout\(this\.client\.connect\(\)/);
+  assert.doesNotMatch(transactionClient, /__VIREON_TX_START_/);
+  assert.doesNotMatch(transactionClient, /stdout/);
+  assert.doesNotMatch(transactionClient, /stderr/);
 });
 
 test("database diagnostics redact configured secrets recursively", () => {
@@ -116,10 +129,17 @@ test("database error classifier handles timeout and permission classes", () => {
 
 const pilotConfig = createRuntimeDatabaseConfigFromEnv();
 const pilotValidation = validateRuntimeDatabaseConfig(pilotConfig);
+const runLivePgRuntimeTest = process.env.VIREON_ENABLE_LIVE_PG_RUNTIME_TESTS === "true";
 
 test(
   "configured PostgreSQL pilot runtime transaction uses restricted role and transaction-local user scope",
-  { skip: pilotValidation.ok ? false : `PostgreSQL pilot runtime credentials unavailable: ${pilotValidation.blocked.join("; ")}` },
+  {
+    skip: runLivePgRuntimeTest && pilotValidation.ok
+      ? false
+      : runLivePgRuntimeTest
+        ? `PostgreSQL pilot runtime credentials unavailable: ${pilotValidation.blocked.join("; ")}`
+        : "Live PostgreSQL driver integration is external-environment gated; hosted Preview smoke verifies deployment runtime.",
+  },
   async () => {
     const client = new PsqlRuntimeClient(pilotConfig);
     const rows = await client.transaction(async (tx) => {

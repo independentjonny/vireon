@@ -1,6 +1,7 @@
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import pg, { type QueryResult as PgQueryResult } from "pg";
 import { redactPostgresPilotText } from "@/lib/postgresPilotRedaction";
 import {
   buildApplicationDatabaseUrl,
@@ -77,6 +78,7 @@ const WINDOWS_PSQL_CANDIDATES = [
   "C:\\Program Files\\PostgreSQL\\16\\bin\\psql.exe",
   "C:\\Program Files\\PostgreSQL\\15\\bin\\psql.exe",
 ];
+const { Client: PgClient } = pg;
 
 export function resolvePsqlExecutable(input?: { explicit?: string; env?: NodeJS.ProcessEnv; exists?: (path: string) => boolean }): string {
   const env = input?.env ?? process.env;
@@ -192,7 +194,18 @@ export function classifyDatabaseError(error: unknown): DatabaseErrorClass {
   if (text.includes("timeout") || text.includes("statement timeout")) return "QUERY_TIMEOUT";
   if (text.includes("permission denied")) return "PERMISSION_DENIED";
   if (text.includes("row-level security") || text.includes("violates row-level security")) return "RLS_OR_FORBIDDEN";
-  if (text.includes("connection") || text.includes("authentication failed") || text.includes("could not translate host") || text.includes("enoent") || text.includes("spawn")) return "CONNECTION";
+  if (
+    text.includes("connection") ||
+    text.includes("authentication failed") ||
+    text.includes("could not translate host") ||
+    text.includes("enotfound") ||
+    text.includes("econnrefused") ||
+    text.includes("econnreset") ||
+    text.includes("etimedout") ||
+    text.includes("self-signed certificate") ||
+    text.includes("enoent") ||
+    text.includes("spawn")
+  ) return "CONNECTION";
   return "UNKNOWN";
 }
 
@@ -238,33 +251,16 @@ function wrapSqlForJsonRows(sql: string): string {
   return `with __vireon_q as (${sql.trim().replace(/;+\s*$/, "")}) select coalesce(json_agg(row_to_json(__vireon_q)), '[]'::json) from __vireon_q;`;
 }
 
-function minimalPsqlEnvironment(password: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { NODE_ENV: process.env.NODE_ENV || "production" };
-  for (const key of ["SystemRoot", "WINDIR", "PATH", "Path", "TEMP", "TMP"]) {
-    if (process.env[key] && !env[key]) env[key] = process.env[key];
-  }
-  env.PGPASSWORD = password;
-  env.PGSSLMODE = "require";
-  env.PGCONNECT_TIMEOUT = "10";
-  return env;
-}
-
 export class PsqlRuntimeClient implements PostgresPilotClient {
   private readonly config: RuntimeDatabaseConfig;
-  private readonly target: ParsedPostgresTarget;
-  private readonly username: string;
-  private readonly psqlExecutable: string;
   private readonly logger: (entry: DatabaseOperationLog) => void;
 
   constructor(input: RuntimeDatabaseConfig & { psqlExecutable?: string; logger?: (entry: DatabaseOperationLog) => void }) {
     const validation = validateRuntimeDatabaseConfig(input);
-    if (!validation.ok || !validation.target || !validation.username) {
+    if (!validation.ok) {
       throw new Error(`Invalid runtime PostgreSQL configuration: ${validation.blocked.join("; ")}`);
     }
     this.config = input;
-    this.target = validation.target;
-    this.username = validation.username;
-    this.psqlExecutable = resolvePsqlExecutable({ explicit: input.psqlExecutable });
     this.logger = input.logger || (() => undefined);
   }
 
@@ -279,9 +275,6 @@ export class PsqlRuntimeClient implements PostgresPilotClient {
   async transaction<T>(operation: (client: PostgresPilotClient) => Promise<T>): Promise<T> {
     const session = new PsqlTransactionClient({
       config: this.config,
-      target: this.target,
-      username: this.username,
-      psqlExecutable: this.psqlExecutable,
       logger: this.logger,
     });
     await session.open();
@@ -293,101 +286,43 @@ export class PsqlRuntimeClient implements PostgresPilotClient {
       await session.rollback();
       throw error;
     } finally {
-      session.close();
+      await session.close();
     }
   }
 
   private async queryJsonRows<T>(sql: string, params: unknown[]): Promise<T[]> {
     const correlationId = this.config.correlationId || randomUUID();
     const started = Date.now();
-    const boundSql = bindSqlParameters(sql, params);
-    const returnsRows = queryCanReturnRows(boundSql);
-    const statementSql = returnsRows ? wrapSqlForJsonRows(boundSql) : `${boundSql.trim().replace(/;+\s*$/, "")};`;
-    const script = [
-      "begin;",
-      `set local statement_timeout = ${quoteLiteral(this.config.statementTimeoutMs || DEFAULT_STATEMENT_TIMEOUT_MS)};`,
-      statementSql,
-      "commit;",
-    ].join("\n");
-    const args = [
-      "-X",
-      "-w",
-      "-h",
-      this.target.hostname || "",
-      "-p",
-      String(this.target.port || 5432),
-      "-U",
-      this.username,
-      "-d",
-      this.target.database || "postgres",
-      "-v",
-      "ON_ERROR_STOP=1",
-      "-At",
-      "-q",
-    ];
-
-    return new Promise<T[]>((resolve, reject) => {
-      const child: ChildProcessWithoutNullStreams = spawn(this.psqlExecutable, args, {
-        env: minimalPsqlEnvironment(this.config.applicationRolePassword),
-        shell: false,
-        windowsHide: true,
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      const timeout = setTimeout(() => {
-        child.kill();
-      }, this.config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS);
-      let stdout = "";
-      let stderr = "";
-      child.stdout.setEncoding("utf8");
-      child.stderr.setEncoding("utf8");
-      child.stdout.on("data", (chunk: string) => {
-        stdout += chunk;
-      });
-      child.stderr.on("data", (chunk: string) => {
-        stderr += chunk;
-      });
-      child.on("error", (error: Error) => {
-        clearTimeout(timeout);
-        const errorClass = classifyDatabaseError(error);
-        this.logger({ correlationId, operation: "psql.query", durationMs: Date.now() - started, ok: false, errorClass, safeMessage: redactPostgresPilotText(error.message, [this.config.applicationRolePassword]) });
-        reject(error);
-      });
-      child.on("close", (code: number | null) => {
-        clearTimeout(timeout);
-        if (code !== 0) {
-          const safe = redactPostgresPilotText(stderr || `psql exited with ${code}`, [this.config.applicationRolePassword]);
-          const error = new Error(safe);
-          const errorClass = classifyDatabaseError(safe);
-          this.logger({ correlationId, operation: "psql.query", durationMs: Date.now() - started, ok: false, errorClass, safeMessage: safe });
-          reject(error);
-          return;
-        }
-        this.logger({ correlationId, operation: "psql.query", durationMs: Date.now() - started, ok: true });
-        try {
-          const trimmed = stdout.trim();
-          resolve(returnsRows && trimmed ? (JSON.parse(trimmed) as T[]) : []);
-        } catch (error) {
-          reject(error);
-        }
-      });
-      child.stdin.end(`${script}\n`);
-    });
+    const client = createPgClient(this.config);
+    const returnsRows = queryCanReturnRows(sql);
+    try {
+      await withDatabaseTimeout(client.connect(), this.config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS, client);
+      await withDatabaseTimeout(client.query("begin"), this.config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS, client);
+      await withDatabaseTimeout(client.query("set local statement_timeout = $1", [this.config.statementTimeoutMs || DEFAULT_STATEMENT_TIMEOUT_MS]), this.config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS, client);
+      const result = await runPgQuery<T>(client, sql, params, returnsRows);
+      await client.query("commit");
+      this.logger({ correlationId, operation: "postgres.query", durationMs: Date.now() - started, ok: true });
+      return result.rows;
+    } catch (error) {
+      await safeRollback(client);
+      const safe = redactPostgresPilotText(error instanceof Error ? error.message : String(error), [this.config.applicationRolePassword]);
+      const errorClass = classifyDatabaseError(safe);
+      this.logger({ correlationId, operation: "postgres.query", durationMs: Date.now() - started, ok: false, errorClass, safeMessage: safe });
+      throw new Error(safe);
+    } finally {
+      await safeEnd(client);
+    }
   }
 }
 
 type TransactionClientInput = {
   config: RuntimeDatabaseConfig;
-  target: ParsedPostgresTarget;
-  username: string;
-  psqlExecutable: string;
   logger: (entry: DatabaseOperationLog) => void;
 };
 
 class PsqlTransactionClient implements PostgresPilotClient {
   private readonly input: TransactionClientInput;
-  private child: ChildProcessWithoutNullStreams | null = null;
-  private stdout = "";
-  private stderr = "";
+  private client: pg.Client | null = null;
   private closed = false;
   private unusable = false;
 
@@ -396,52 +331,20 @@ class PsqlTransactionClient implements PostgresPilotClient {
   }
 
   async open(): Promise<void> {
-    const args = [
-      "-X",
-      "-w",
-      "-h",
-      this.input.target.hostname || "",
-      "-p",
-      String(this.input.target.port || 5432),
-      "-U",
-      this.input.username,
-      "-d",
-      this.input.target.database || "postgres",
-      "-v",
-      "ON_ERROR_STOP=1",
-      "-At",
-      "-q",
-    ];
-    this.child = spawn(this.input.psqlExecutable, args, {
-      env: minimalPsqlEnvironment(this.input.config.applicationRolePassword),
-      shell: false,
-      windowsHide: true,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    this.child.stdout.setEncoding("utf8");
-    this.child.stderr.setEncoding("utf8");
-    this.child.stdout.on("data", (chunk: string) => {
-      this.stdout += chunk;
-    });
-    this.child.stderr.on("data", (chunk: string) => {
-      this.stderr += chunk;
-    });
-    await this.executeRaw([
-      "begin;",
-      `set local statement_timeout = ${quoteLiteral(this.input.config.statementTimeoutMs || DEFAULT_STATEMENT_TIMEOUT_MS)};`,
-    ].join("\n"));
+    this.client = createPgClient(this.input.config);
+    await withDatabaseTimeout(this.client.connect(), this.input.config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS, this.client);
+    await this.executeRaw("begin");
+    await this.executeRaw("set local statement_timeout = $1", [this.input.config.statementTimeoutMs || DEFAULT_STATEMENT_TIMEOUT_MS]);
   }
 
   async query<T = unknown>(sql: string, params: unknown[] = []): Promise<QueryResult<T>> {
-    const boundSql = bindSqlParameters(sql, params).trim().replace(/;+\s*$/, "");
     if (/^\s*select\s+set_config\(\s*'app\.current_user_id'/i.test(sql)) {
-      await this.executeRaw(`${boundSql};`);
+      await this.executeRaw(sql, params);
       return { rows: [] as T[], rowCount: 0 };
     }
-    const returnsRows = queryCanReturnRows(boundSql);
-    const output = await this.executeRaw(returnsRows ? wrapSqlForJsonRows(boundSql) : `${boundSql};`);
-    const trimmed = output.trim();
-    const rows = returnsRows && trimmed ? (JSON.parse(trimmed) as T[]) : [];
+    const returnsRows = queryCanReturnRows(sql);
+    const result = await this.executeQuery<T>(sql, params, returnsRows);
+    const rows = result.rows;
     return { rows, rowCount: rows.length };
   }
 
@@ -450,113 +353,113 @@ class PsqlTransactionClient implements PostgresPilotClient {
   }
 
   async commit(): Promise<void> {
-    await this.executeRaw("commit;");
+    await this.executeRaw("commit");
+    this.closed = true;
   }
 
   async rollback(): Promise<void> {
     if (this.closed || this.unusable) return;
     try {
-      await this.executeRaw("rollback;");
+      await this.executeRaw("rollback");
+      this.closed = true;
     } catch {
       // The original transaction error is more useful than a rollback failure.
     }
   }
 
-  close(): void {
+  async close(): Promise<void> {
     this.closed = true;
-    this.child?.stdin.end();
+    await safeEnd(this.client);
   }
 
-  private executeRaw(sql: string): Promise<string> {
-    const child = this.child;
-    if (!child || this.closed || this.unusable) return Promise.reject(new Error("PostgreSQL transaction session is closed."));
+  private async executeRaw(sql: string, params: unknown[] = []): Promise<void> {
+    await this.executeQuery(sql, params, false);
+  }
+
+  private async executeQuery<T = unknown>(sql: string, params: unknown[], returnsRows: boolean): Promise<QueryResult<T>> {
+    const client = this.client;
+    if (!client || this.closed || this.unusable) return Promise.reject(new Error("PostgreSQL transaction session is closed."));
     const correlationId = this.input.config.correlationId || randomUUID();
-    const marker = randomUUID().replace(/-/g, "");
-    const startMarker = `__VIREON_TX_START_${marker}__`;
-    const endMarker = `__VIREON_TX_END_${marker}__`;
     const started = Date.now();
-    const previousStdoutLength = this.stdout.length;
-    const previousStderrLength = this.stderr.length;
+    try {
+      const result = await runPgQuery<T>(client, sql, params, returnsRows);
+      this.input.logger({ correlationId, operation: "postgres.transaction", durationMs: Date.now() - started, ok: true });
+      return result;
+    } catch (error) {
+      this.unusable = true;
+      const safe = redactPostgresPilotText(error instanceof Error ? error.message : String(error), [this.input.config.applicationRolePassword]);
+      const errorClass = classifyDatabaseError(safe);
+      this.input.logger({
+        correlationId,
+        operation: "postgres.transaction",
+        durationMs: Date.now() - started,
+        ok: false,
+        errorClass,
+        safeMessage: safe,
+      });
+      throw new Error(safe);
+    }
+  }
+}
 
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      const timeout = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        this.unusable = true;
-        child.kill();
-        const safe = redactPostgresPilotText("PostgreSQL transaction query timed out.", [
-          this.input.config.applicationRolePassword,
-        ]);
-        this.input.logger({
-          correlationId,
-          operation: "psql.transaction",
-          durationMs: Date.now() - started,
-          ok: false,
-          errorClass: "QUERY_TIMEOUT",
-          safeMessage: safe,
-        });
-        cleanup();
-        reject(new Error(safe));
-      }, this.input.config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS);
+function createPgClient(config: RuntimeDatabaseConfig): pg.Client {
+  const target = new URL(config.applicationDatabaseUrl);
+  return new PgClient({
+    host: target.hostname,
+    port: Number(target.port || 5432),
+    database: target.pathname.replace(/^\/+/, "") || "postgres",
+    user: decodeURIComponent(target.username),
+    password: config.applicationRolePassword,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS,
+    statement_timeout: config.statementTimeoutMs || DEFAULT_STATEMENT_TIMEOUT_MS,
+    query_timeout: config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS,
+  });
+}
 
-      const finish = () => {
-        if (this.closed || this.unusable || settled) return;
-        const newStdout = this.stdout.slice(previousStdoutLength);
-        const endIndex = newStdout.indexOf(endMarker);
-        if (endIndex < 0) return;
-        const newStderr = this.stderr.slice(previousStderrLength);
-        if (newStderr.trim()) {
-          fail(new Error(newStderr));
-          return;
-        }
-        settled = true;
-        clearTimeout(timeout);
-        const startIndex = newStdout.indexOf(startMarker);
-        const contentStart = startIndex >= 0 ? startIndex + startMarker.length : 0;
-        const content = newStdout.slice(contentStart, endIndex).trim();
-        this.input.logger({ correlationId, operation: "psql.transaction", durationMs: Date.now() - started, ok: true });
-        cleanup();
-        resolve(content);
-      };
+async function runPgQuery<T>(client: pg.Client, sql: string, params: unknown[], returnsRows: boolean): Promise<QueryResult<T>> {
+  const normalizedSql = sql.trim().replace(/;+\s*$/, "");
+  const statement = returnsRows ? wrapSqlForJsonRows(normalizedSql) : normalizedSql;
+  const result: PgQueryResult = await withDatabaseTimeout(
+    client.query(statement, params),
+    DEFAULT_QUERY_TIMEOUT_MS,
+    client
+  );
+  if (!returnsRows) return { rows: [], rowCount: result.rowCount ?? 0 };
+  const jsonRows = result.rows[0]?.coalesce;
+  const rows = Array.isArray(jsonRows) ? (jsonRows as T[]) : [];
+  return { rows, rowCount: rows.length };
+}
 
-      const fail = (error: Error) => {
-        if (settled) return;
-        settled = true;
-        this.unusable = true;
-        clearTimeout(timeout);
-        const safe = redactPostgresPilotText(
-          this.stderr.slice(previousStderrLength) || error.message,
-          [this.input.config.applicationRolePassword]
-        );
-        const errorClass = classifyDatabaseError(safe);
-        this.input.logger({
-          correlationId,
-          operation: "psql.transaction",
-          durationMs: Date.now() - started,
-          ok: false,
-          errorClass,
-          safeMessage: safe,
-        });
-        cleanup();
-        reject(new Error(safe));
-      };
+async function withDatabaseTimeout<T>(operation: Promise<T>, timeoutMs: number, client: pg.Client): Promise<T> {
+  let timeout: NodeJS.Timeout | null = null;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          void safeEnd(client);
+          reject(new Error("PostgreSQL runtime operation timed out."));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
 
-      const cleanup = () => {
-        child.stdout.off("data", finish);
-        child.stderr.off("data", onStderr);
-        child.off("error", fail);
-        child.off("close", onClose);
-      };
-      const onStderr = () => undefined;
-      const onClose = (code: number | null) => fail(new Error(`psql exited with ${code}`));
+async function safeRollback(client: pg.Client): Promise<void> {
+  try {
+    await client.query("rollback");
+  } catch {
+    // Preserve the original operation failure.
+  }
+}
 
-      child.stdout.on("data", finish);
-      child.stderr.on("data", onStderr);
-      child.on("error", fail);
-      child.on("close", onClose);
-      child.stdin.write(`\\echo ${startMarker}\n${sql}\n\\echo ${endMarker}\n`);
-      finish();
-    });
+async function safeEnd(client: pg.Client | null): Promise<void> {
+  try {
+    await client?.end();
+  } catch {
+    // Connection cleanup failures are logged by the original operation path.
   }
 }
