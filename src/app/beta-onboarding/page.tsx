@@ -1,30 +1,16 @@
 import AppShell from "../components/AppShell";
 import PrivateBetaFoundationClient from "../components/PrivateBetaFoundationClient";
 import { requireServerPageSession } from "@/lib/auth/serverPageSession";
-import { PrivateBetaFoundation } from "@/lib/privateBetaFoundation";
 import { buildPrivateBetaContext, toBetaSession } from "@/lib/privateBetaRuntime";
+import { createPrivateBetaOnboardingServiceFromEnv } from "@/server/services/privateBetaOnboardingPostgresService";
 
 export const dynamic = "force-dynamic";
 
 export default async function BetaOnboardingPage() {
-  const session = toBetaSession(await requireServerPageSession("/beta-onboarding"));
+  const authenticatedSession = await requireServerPageSession("/beta-onboarding");
+  const session = toBetaSession(authenticatedSession);
   const context = await buildPrivateBetaContext(session);
-  const onboarding = PrivateBetaFoundation.mutateState((draft) => {
-    let current = draft.onboarding.find((item) => item.userId === session.userId && item.householdId === session.householdId);
-    if (!current && session.userId && session.householdId) {
-      current = PrivateBetaFoundation.defaultOnboardingState(session.userId, session.householdId);
-      draft.onboarding.push(current);
-    }
-    return current;
-  });
-
-  if (!onboarding) {
-    return (
-      <AppShell active="workspace">
-        <main className="rounded-lg border border-red-200 bg-red-50 p-5 text-red-800">Private beta session unavailable.</main>
-      </AppShell>
-    );
-  }
+  const onboarding = await createPrivateBetaOnboardingServiceFromEnv().readOrCreate(authenticatedSession);
 
   return (
     <AppShell active="workspace">
