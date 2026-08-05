@@ -298,8 +298,12 @@ export class PsqlRuntimeClient implements PostgresPilotClient {
     try {
       await withDatabaseTimeout(client.connect(), this.config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS, client);
       await withDatabaseTimeout(client.query("begin"), this.config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS, client);
-      await withDatabaseTimeout(client.query("set local statement_timeout = $1", [this.config.statementTimeoutMs || DEFAULT_STATEMENT_TIMEOUT_MS]), this.config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS, client);
-      const result = await runPgQuery<T>(client, sql, params, returnsRows);
+      await withDatabaseTimeout(
+        client.query("select set_config('statement_timeout', $1, true)", [statementTimeoutValue(this.config.statementTimeoutMs)]),
+        this.config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS,
+        client
+      );
+      const result = await runPgQuery<T>(client, sql, params, returnsRows, this.config.queryTimeoutMs);
       await client.query("commit");
       this.logger({ correlationId, operation: "postgres.query", durationMs: Date.now() - started, ok: true });
       return result.rows;
@@ -334,7 +338,7 @@ class PsqlTransactionClient implements PostgresPilotClient {
     this.client = createPgClient(this.input.config);
     await withDatabaseTimeout(this.client.connect(), this.input.config.queryTimeoutMs || DEFAULT_QUERY_TIMEOUT_MS, this.client);
     await this.executeRaw("begin");
-    await this.executeRaw("set local statement_timeout = $1", [this.input.config.statementTimeoutMs || DEFAULT_STATEMENT_TIMEOUT_MS]);
+    await this.executeRaw("select set_config('statement_timeout', $1, true)", [statementTimeoutValue(this.input.config.statementTimeoutMs)]);
   }
 
   async query<T = unknown>(sql: string, params: unknown[] = []): Promise<QueryResult<T>> {
@@ -382,7 +386,7 @@ class PsqlTransactionClient implements PostgresPilotClient {
     const correlationId = this.input.config.correlationId || randomUUID();
     const started = Date.now();
     try {
-      const result = await runPgQuery<T>(client, sql, params, returnsRows);
+      const result = await runPgQuery<T>(client, sql, params, returnsRows, this.input.config.queryTimeoutMs);
       this.input.logger({ correlationId, operation: "postgres.transaction", durationMs: Date.now() - started, ok: true });
       return result;
     } catch (error) {
@@ -417,12 +421,17 @@ function createPgClient(config: RuntimeDatabaseConfig): pg.Client {
   });
 }
 
-async function runPgQuery<T>(client: pg.Client, sql: string, params: unknown[], returnsRows: boolean): Promise<QueryResult<T>> {
+function statementTimeoutValue(timeoutMs?: number): string {
+  const value = Number.isFinite(timeoutMs) && Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_STATEMENT_TIMEOUT_MS;
+  return `${Math.trunc(value)}ms`;
+}
+
+async function runPgQuery<T>(client: pg.Client, sql: string, params: unknown[], returnsRows: boolean, timeoutMs?: number): Promise<QueryResult<T>> {
   const normalizedSql = sql.trim().replace(/;+\s*$/, "");
   const statement = returnsRows ? wrapSqlForJsonRows(normalizedSql) : normalizedSql;
   const result: PgQueryResult = await withDatabaseTimeout(
     client.query(statement, params),
-    DEFAULT_QUERY_TIMEOUT_MS,
+    timeoutMs || DEFAULT_QUERY_TIMEOUT_MS,
     client
   );
   if (!returnsRows) return { rows: [], rowCount: result.rowCount ?? 0 };

@@ -89,6 +89,12 @@ test("transaction session marks itself unusable on timeout and rejects later ope
   assert.match(source, /if \(this\.closed \|\| this\.unusable\) return;/);
 });
 
+test("runtime configures statement timeout through parameterized set_config for pg compatibility", () => {
+  assert.match(source, /function statementTimeoutValue/);
+  assert.match(source, /select set_config\('statement_timeout', \$1, true\)/);
+  assert.doesNotMatch(source, /set local statement_timeout = \$1/);
+});
+
 test("transaction session uses one connected client and does not parse stderr/stdout markers", () => {
   const transactionClient = source.slice(source.indexOf("class PsqlTransactionClient"));
   assert.match(transactionClient, /private client: pg\.Client \| null = null/);
