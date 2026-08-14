@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useSyncExternalStore } from "react";
 import MobileNav from "./MobileNav";
 import {
@@ -13,6 +14,7 @@ import {
   CalendarClock,
   ChartNoAxesCombined,
   CircleDollarSign,
+  ClipboardCheck,
   Code2,
   FileText,
   Gauge,
@@ -36,12 +38,16 @@ import {
   WalletCards,
 } from "lucide-react";
 
-type ActiveSection = "dashboard" | "financial-vault" | "housing-scenarios" | "digital-twin" | "ai-cfo" | "settings" | "workspace";
+type ActiveSection = "dashboard" | "financial-position" | "financial-vault" | "housing-scenarios" | "digital-twin" | "ai-cfo" | "settings" | "workspace";
 
 const navGroups = [
   {
     label: "Dashboard",
     items: [["Dashboard", "/", LayoutDashboard]],
+  },
+  {
+    label: "Financial Profile",
+    items: [["Financial Position", "/financial-profile", ClipboardCheck]],
   },
   {
     label: "Financial",
@@ -135,6 +141,7 @@ function RuntimeBanner() {
 function isSelected(active: ActiveSection, label: string) {
   return (
     (active === "dashboard" && label === "Dashboard") ||
+    (active === "financial-position" && label === "Financial Position") ||
     (active === "financial-vault" && label === "Document Vault") ||
     (active === "housing-scenarios" && label === "Housing") ||
     (active === "digital-twin" && label === "Digital Twin") ||
@@ -155,8 +162,8 @@ function Sidebar({
   return (
     <aside className="hidden w-[268px] shrink-0 bg-[#10243b] px-5 py-7 text-white lg:fixed lg:left-0 lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto">
       <Link href="/" className="flex items-center gap-3 px-1">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-400 text-[#10243b]">
-          <Sparkles className="h-5 w-5" fill="currentColor" strokeWidth={1.6} />
+        <div className="relative h-12 w-12 shrink-0" aria-hidden="true">
+          <Image src="/vireon2-white.png" alt="" fill sizes="48px" className="object-contain" priority />
         </div>
         <h1 className="text-2xl font-semibold tracking-normal">vireon</h1>
       </Link>

@@ -42,3 +42,13 @@ test("mobile navigation exposes the unconditional Financial Position route", () 
   const navigation = source("src/app/components/MobileNav.tsx");
   assert.match(navigation, /label: "Financial Profile",\s+items: \[\["Financial Position", "\/financial-profile"\]\]/);
 });
+
+test("desktop navigation preserves the Vireon mark and selects Financial Position", () => {
+  const shell = source("src/app/components/AppShell.tsx");
+  const page = source("src/app/financial-profile/page.tsx");
+  assert.match(shell, /src="\/vireon2-white\.png"/);
+  assert.doesNotMatch(shell, /bg-orange-400[^\n]*<Sparkles/);
+  assert.match(shell, /label: "Financial Profile",\s+items: \[\["Financial Position", "\/financial-profile", ClipboardCheck\]\]/);
+  assert.match(shell, /active === "financial-position" && label === "Financial Position"/);
+  assert.match(page, /<AppShell active="financial-position">/);
+});

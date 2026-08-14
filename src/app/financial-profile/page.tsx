@@ -10,7 +10,7 @@ export default async function FinancialPositionPage() {
   const position = await createFinancialPositionReadServiceFromEnv().read(session);
 
   return (
-    <AppShell active="workspace">
+    <AppShell active="financial-position">
       <FinancialProfileBuilderClient position={position} />
     </AppShell>
   );
