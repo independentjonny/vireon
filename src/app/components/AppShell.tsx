@@ -16,6 +16,7 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   Code2,
+  FileCheck2,
   FileText,
   Gauge,
   Goal,
@@ -38,7 +39,7 @@ import {
   WalletCards,
 } from "lucide-react";
 
-type ActiveSection = "dashboard" | "financial-position" | "financial-vault" | "housing-scenarios" | "digital-twin" | "ai-cfo" | "settings" | "workspace";
+type ActiveSection = "dashboard" | "financial-position" | "financial-data" | "financial-vault" | "housing-scenarios" | "digital-twin" | "ai-cfo" | "settings" | "workspace";
 
 const navGroups = [
   {
@@ -47,7 +48,10 @@ const navGroups = [
   },
   {
     label: "Financial Profile",
-    items: [["Financial Position", "/financial-profile", ClipboardCheck]],
+    items: [
+      ["Financial Position", "/financial-profile", ClipboardCheck],
+      ["Add financial data", "/financial-profile/add-data", FileCheck2],
+    ],
   },
   {
     label: "Financial",
@@ -142,6 +146,7 @@ function isSelected(active: ActiveSection, label: string) {
   return (
     (active === "dashboard" && label === "Dashboard") ||
     (active === "financial-position" && label === "Financial Position") ||
+    (active === "financial-data" && label === "Add financial data") ||
     (active === "financial-vault" && label === "Document Vault") ||
     (active === "housing-scenarios" && label === "Housing") ||
     (active === "digital-twin" && label === "Digital Twin") ||

@@ -25,7 +25,10 @@ const USER_SECTIONS = [
   {
     id: "profile",
     label: "Financial Profile",
-    items: [["Financial Position", "/financial-profile"]],
+    items: [
+      ["Financial Position", "/financial-profile"],
+      ["Add financial data", "/financial-profile/add-data"],
+    ],
   },
   {
     id: "planning",

@@ -101,10 +101,10 @@ export default function FinancialProfileBuilderClient({ position }: { position: 
       ? [{ title: `${position.staleDataSummary.staleFactCount} confirmed value${position.staleDataSummary.staleFactCount === 1 ? " is" : "s are"} out of date`, detail: "Refresh stale evidence to keep your financial position current.", status: "Stale" as const, action: "Refresh evidence", href: "/financial-vault", icon: RefreshCw }]
       : []),
     ...(position.propertyDetails.length === 0
-      ? [{ title: "Property details are not confirmed", detail: "Confirm ownership and current property values before relying on equity guidance.", status: "Missing" as const, action: "Review property", href: "/housing-scenarios", icon: Building2 }]
+      ? [{ title: "Property details are not confirmed", detail: "Confirm ownership and current property values before relying on equity guidance.", status: "Missing" as const, action: "Add property", href: "/financial-profile/add-data?category=property", icon: Building2 }]
       : []),
     ...(position.liabilities.length === 0
-      ? [{ title: "Loan balances are not confirmed", detail: "Confirm current liabilities before Vireon calculates net worth.", status: "Missing" as const, action: "Review liabilities", href: "/balance-sheet", icon: Landmark }]
+      ? [{ title: "Loan balances are not confirmed", detail: "Confirm current liabilities before Vireon calculates net worth.", status: "Missing" as const, action: "Add loan details", href: "/financial-profile/add-data?category=loans", icon: Landmark }]
       : []),
   ];
   const gaps = gapCandidates.slice(0, 3);
