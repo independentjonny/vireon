@@ -614,7 +614,7 @@ describe("sensitive route guards", () => {
       "/api/workflow-status",
     ]);
     const routes = routeFiles(join(process.cwd(), "src", "app", "api"));
-    assert.equal(routes.length, 120);
+    assert.equal(routes.length, 121);
     const uncovered = routes
       .map((file) => ({ file, routePath: apiPathForRouteFile(file) }))
       .filter(({ file, routePath }) => !publicRoutes.has(routePath) && !handlerHasGuard(file) && !matcherCovers(routePath))

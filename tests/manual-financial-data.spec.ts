@@ -18,14 +18,32 @@ test("first-value onboarding explains manual data path", async ({ page }) => {
 });
 
 test("guided financial data workflow reaches property review without changing Vault authority", async ({ page }) => {
+  await page.route("**/api/addresses/australian?*", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        suggestions: [{
+          id: "GAVIC421193859",
+          address: "12 SMITH ST, ALPHINGTON VIC 3078",
+          locality: "ALPHINGTON",
+          state: "VIC",
+          postcode: "3078",
+          provider: "geoscape-gnaf",
+        }],
+      }),
+    });
+  });
   await page.goto("/financial-profile/add-data");
   await expect(page.getByRole("heading", { name: "Add financial data" })).toBeVisible();
   await page.getByRole("button", { name: /Property & rent/ }).click();
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByRole("heading", { name: "Add property details" })).toBeVisible();
-  await page.getByLabel("Property address").fill("18 Example Street, Hillside VIC 3037");
+  await page.getByLabel("Property address").fill("12 Smith Street");
+  await page.getByRole("option", { name: "12 SMITH ST, ALPHINGTON VIC 3078" }).click();
+  await expect(page.getByText("Australian address selected")).toBeVisible();
   await page.getByLabel("Estimated value").fill("$970,000");
   await page.getByRole("button", { name: "Review details" }).click();
   await expect(page.getByRole("heading", { name: "Review property information" })).toBeVisible();
+  await expect(page.getByText("Geoscape Australia (G-NAF) address selection")).toBeVisible();
   await expect(page.getByRole("link", { name: /Continue to Import Review/ })).toHaveAttribute("href", "/financial-vault/imports");
 });

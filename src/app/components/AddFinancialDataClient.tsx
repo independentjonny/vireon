@@ -21,11 +21,17 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
+import AustralianAddressAutocomplete, { type AustralianAddressSelection } from "./AustralianAddressAutocomplete";
 
 type CategoryId = "bank" | "employment" | "property" | "loans" | "tax" | "super" | "other";
 type Step = 1 | 2 | 3;
 type PropertyDraft = {
   address: string;
+  addressId: string;
+  addressLocality: string;
+  addressState: string;
+  addressPostcode: string;
+  addressSource: "manual" | "geoscape-gnaf";
   propertyType: string;
   ownership: string;
   primaryUse: string;
@@ -54,6 +60,11 @@ const categories: Array<{
 
 const initialDraft: PropertyDraft = {
   address: "",
+  addressId: "",
+  addressLocality: "",
+  addressState: "",
+  addressPostcode: "",
+  addressSource: "manual",
   propertyType: "House",
   ownership: "Joint",
   primaryUse: "Owner occupied",
@@ -143,7 +154,7 @@ export default function AddFinancialDataClient() {
   const selected = categories.find((item) => item.id === category) ?? categories[2];
   const propertyFlow = category === "property";
   const reviewRows = useMemo(() => [
-    ["Property address", draft.address || "Not provided", draft.address ? "High" : "Not found"],
+    ["Property address", draft.address || "Not provided", draft.addressId ? "High" : draft.address ? "Check" : "Not found"],
     ["Property type", draft.propertyType, "High"],
     ["Ownership", draft.ownership, "Check"],
     ["Primary use", draft.primaryUse, "High"],
@@ -160,6 +171,18 @@ export default function AddFinancialDataClient() {
 
   function update<K extends keyof PropertyDraft>(key: K, value: PropertyDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateAddress(address: string, selection: AustralianAddressSelection | null) {
+    setDraft((current) => ({
+      ...current,
+      address,
+      addressId: selection?.id ?? "",
+      addressLocality: selection?.locality ?? "",
+      addressState: selection?.state ?? "",
+      addressPostcode: selection?.postcode ?? "",
+      addressSource: selection?.provider ?? "manual",
+    }));
   }
 
   return (
@@ -219,7 +242,7 @@ export default function AddFinancialDataClient() {
             {propertyFlow ? <div className="p-5 sm:p-6">
               <h3 className="font-semibold text-slate-950">1. Property details</h3>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <Field label="Property address" full><input value={draft.address} onChange={(event) => update("address", event.target.value)} placeholder="Enter the property address" className={controlClass} /></Field>
+                <div className="sm:col-span-2"><div className="mb-1.5 text-sm font-semibold text-slate-700">Property address</div><AustralianAddressAutocomplete value={draft.address} selectionId={draft.addressId} onChange={updateAddress} /></div>
                 <Field label="Property type"><select value={draft.propertyType} onChange={(event) => update("propertyType", event.target.value)} className={controlClass}><option>House</option><option>Apartment</option><option>Townhouse</option><option>Land</option></select></Field>
                 <Field label="Ownership"><select value={draft.ownership} onChange={(event) => update("ownership", event.target.value)} className={controlClass}><option>Sole</option><option>Joint</option><option>Trust</option><option>Company</option></select></Field>
                 <Field label="Primary use"><select value={draft.primaryUse} onChange={(event) => update("primaryUse", event.target.value)} className={controlClass}><option>Owner occupied</option><option>Investment</option><option>Secondary residence</option></select></Field>
@@ -235,13 +258,13 @@ export default function AddFinancialDataClient() {
       ) : (
         <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)] sm:p-6">
-            <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><div><h2 className="font-semibold text-slate-950">{draft.address || "Property details"}</h2><div className="mt-1 text-xs text-slate-500">Source: manual entry; evidence remains managed by Document Vault</div></div><span className="ml-auto rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Review required</span></div>
+            <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><div><h2 className="font-semibold text-slate-950">{draft.address || "Property details"}</h2><div className="mt-1 text-xs text-slate-500">Source: {draft.addressSource === "geoscape-gnaf" ? "Geoscape Australia (G-NAF) address selection" : "manual entry"}; evidence remains managed by Document Vault</div></div><span className="ml-auto rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Review required</span></div>
             <h3 className="mt-6 font-semibold text-slate-950">Confirm entered values</h3>
             <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="border-b border-slate-200 text-xs text-slate-500"><tr><th className="w-10 py-3"><span className="sr-only">Selected</span></th><th className="py-3 font-semibold">Information</th><th className="py-3 font-semibold">Entered value</th><th className="py-3 font-semibold">Confidence</th><th className="py-3 font-semibold">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{reviewRows.map(([label, value, confidence]) => <tr key={label}><td className="py-3"><input type="checkbox" defaultChecked={confidence !== "Not found"} className="h-4 w-4 accent-blue-700" aria-label={`Confirm ${label}`} /></td><td className="py-3 font-medium text-slate-700">{label}</td><td className="py-3 text-slate-950">{value}</td><td className="py-3"><span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (confidence === "High" ? "bg-emerald-50 text-emerald-700" : confidence === "Check" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600")}>{confidence}</span></td><td className="py-3"><button type="button" onClick={() => setStep(2)} className="font-semibold text-blue-700">{confidence === "Not found" ? "Add" : "Edit"}</button></td></tr>)}</tbody></table></div>
             <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="font-semibold text-amber-900">Review values marked Check</div><div className="mt-1 text-sm text-amber-800">These values need supporting evidence before they can become active financial facts.</div></div>
             <div className="mt-6"><h3 className="font-semibold text-slate-950">Related information</h3><div className="mt-3 flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center"><Landmark className="h-5 w-5 text-slate-500" /><div className="flex-1"><div className="font-semibold text-slate-800">Home loan</div><div className="mt-1 text-xs text-slate-500">Link the loan so Vireon can calculate equity and net worth.</div></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">Not linked</span><button type="button" onClick={() => { setCategory("loans"); setStep(2); }} className="min-h-10 rounded-xl border border-blue-300 px-4 text-sm font-semibold text-blue-700">Add loan details</button></div></div>
           </section>
-          <aside className="space-y-4"><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">Source & provenance</h2><dl className="mt-4 space-y-4 text-sm"><div><dt className="text-xs text-slate-500">Source</dt><dd className="mt-1 font-medium text-slate-800">Manual entry</dd></div><div><dt className="text-xs text-slate-500">Evidence</dt><dd className="mt-1 font-medium text-slate-800">Document Vault</dd></div></dl><Link href="/financial-vault" className="mt-4 inline-flex text-sm font-semibold text-blue-700">View sources</Link></section><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">What happens next?</h2><div className="mt-4 space-y-4 text-sm leading-6 text-slate-600"><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Import Review confirms evidence-backed values before they become active facts.</p><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Unconfirmed values remain in review and are never treated as zero.</p></div></section></aside>
+          <aside className="space-y-4"><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">Source & provenance</h2><dl className="mt-4 space-y-4 text-sm"><div><dt className="text-xs text-slate-500">Address source</dt><dd className="mt-1 font-medium text-slate-800">{draft.addressSource === "geoscape-gnaf" ? "Geoscape Australia (G-NAF)" : "Manual entry"}</dd></div><div><dt className="text-xs text-slate-500">Evidence</dt><dd className="mt-1 font-medium text-slate-800">Document Vault</dd></div></dl><Link href="/financial-vault" className="mt-4 inline-flex text-sm font-semibold text-blue-700">View sources</Link></section><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">What happens next?</h2><div className="mt-4 space-y-4 text-sm leading-6 text-slate-600"><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Import Review confirms evidence-backed values before they become active facts.</p><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Unconfirmed values remain in review and are never treated as zero.</p></div></section></aside>
         </div>
       )}
 

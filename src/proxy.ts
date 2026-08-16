@@ -119,6 +119,7 @@ function headersForDownstreamRequest(original: NextRequest, authenticated: Reque
 export const config = {
   matcher: [
     "/api/action-workflows/:path*",
+    "/api/addresses/:path*",
     "/api/architecture-map",
     "/api/agent-hierarchy",
     "/api/agents",

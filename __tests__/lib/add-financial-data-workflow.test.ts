@@ -38,6 +38,25 @@ test("workflow preserves Vault authority and explicit confirmation semantics", (
   assert.doesNotMatch(client, /fetch\([^)]*financial-vault[^)]*method:\s*["']POST/);
 });
 
+test("property workflow uses authenticated Australian G-NAF address selection", () => {
+  const client = source("src/app/components/AddFinancialDataClient.tsx");
+  const autocomplete = source("src/app/components/AustralianAddressAutocomplete.tsx");
+  const route = source("src/app/api/addresses/australian/route.ts");
+  const service = source("src/server/services/australianAddressService.ts");
+  const proxy = source("src/proxy.ts");
+
+  assert.match(client, /AustralianAddressAutocomplete/);
+  assert.match(client, /draft\.addressId \? "High" : draft\.address \? "Check"/);
+  assert.match(autocomplete, /role="combobox"/);
+  assert.match(autocomplete, /ArrowDown/);
+  assert.match(autocomplete, /Geoscape Australia \(G-NAF\)/);
+  assert.match(route, /requireSession\(request\)/);
+  assert.match(proxy, /\/api\/addresses\/\:path\*/);
+  assert.match(service, /GEOSCAPE_API_KEY/);
+  assert.match(service, /VERCEL_ENV === "production"/);
+  assert.doesNotMatch(autocomplete, /GEOSCAPE_API_KEY/);
+});
+
 test("Financial Position routes property and loan gaps into the guided workflow", () => {
   const position = source("src/app/components/FinancialProfileBuilderClient.tsx");
   assert.match(position, /\/financial-profile\/add-data\?category=property/);
