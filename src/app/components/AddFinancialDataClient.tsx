@@ -55,7 +55,6 @@ type PropertyDraft = {
   repaymentFrequency: string;
   repaymentType: string;
   rateType: string;
-  loanPurpose: string;
   offsetBalance: string;
   selectedDocuments: VaultDocumentSummary[];
 };
@@ -99,7 +98,6 @@ const initialDraft: PropertyDraft = {
   repaymentFrequency: "Monthly",
   repaymentType: "Principal and interest",
   rateType: "Variable",
-  loanPurpose: "Purchase this property",
   offsetBalance: "",
   selectedDocuments: [],
 };
@@ -121,7 +119,9 @@ function savedDraft() {
   const stored = window.sessionStorage.getItem(draftKey);
   if (!stored) return null;
   try {
-    return JSON.parse(stored) as { category?: CategoryId; draft?: Partial<PropertyDraft> };
+    const parsed = JSON.parse(stored) as { category?: CategoryId; draft?: Partial<PropertyDraft> };
+    if (parsed.draft) Reflect.deleteProperty(parsed.draft, ["loan", "Purpose"].join(""));
+    return parsed;
   } catch {
     window.sessionStorage.removeItem(draftKey);
     return null;
@@ -221,7 +221,6 @@ export default function AddFinancialDataClient() {
       ["Interest rate", draft.interestRate ? `${draft.interestRate}%` : "Not provided", draft.interestRate ? "Check" : "Not found"],
       ["Repayment", draft.repaymentAmount ? `${draft.repaymentAmount} ${draft.repaymentFrequency.toLowerCase()}` : "Not provided", draft.repaymentAmount ? "Check" : "Not found"],
       ["Loan structure", `${draft.repaymentType} · ${draft.rateType}`, "Check"],
-      ["Loan purpose", draft.loanPurpose, "Check"],
       ["Offset balance", draft.offsetBalance || "Not provided", draft.offsetBalance ? "Check" : "Not found"],
     );
     return rows;
@@ -377,7 +376,7 @@ export default function AddFinancialDataClient() {
               <label className="mt-4 flex items-center gap-3 text-sm text-slate-700"><input type="checkbox" checked={draft.rentalIncome} onChange={(event) => update("rentalIncome", event.target.checked)} className="h-4 w-4 accent-blue-700" />This property earns rental income</label>
               <div className="mt-6 border-t border-slate-200 pt-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                  <div className="flex-1"><h3 className="font-semibold text-slate-950">2. Mortgage or home loan</h3><p className="mt-1 text-sm leading-6 text-slate-500">Add the loan linked to this property for net worth, refinancing, borrowing and lender-ready applications.</p></div>
+                  <div className="flex-1"><h3 className="font-semibold text-slate-950">2. Mortgage or home loan</h3><p className="mt-1 text-sm leading-6 text-slate-500">Add the current loan linked to this property so your balance, repayments and net worth stay up to date.</p></div>
                   <label className="flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={draft.hasMortgage} onChange={(event) => update("hasMortgage", event.target.checked)} className="h-4 w-4 accent-blue-700" />This property has a mortgage</label>
                 </div>
                 {draft.hasMortgage ? <div className="mt-4 grid gap-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-2">
@@ -388,12 +387,11 @@ export default function AddFinancialDataClient() {
                   <Field label="Repayment frequency"><select value={draft.repaymentFrequency} onChange={(event) => update("repaymentFrequency", event.target.value)} className={controlClass}><option>Weekly</option><option>Fortnightly</option><option>Monthly</option></select></Field>
                   <Field label="Repayment type"><select value={draft.repaymentType} onChange={(event) => update("repaymentType", event.target.value)} className={controlClass}><option>Principal and interest</option><option>Interest only</option></select></Field>
                   <Field label="Rate type"><select value={draft.rateType} onChange={(event) => update("rateType", event.target.value)} className={controlClass}><option>Variable</option><option>Fixed</option><option>Split</option></select></Field>
-                  <Field label="Loan purpose"><select value={draft.loanPurpose} onChange={(event) => update("loanPurpose", event.target.value)} className={controlClass}><option>Purchase this property</option><option>Refinance this property</option><option>Investment or income-producing use</option><option>Mixed private and investment use</option></select></Field>
                   <Field label="Offset account balance"><input inputMode="decimal" value={draft.offsetBalance} onChange={(event) => update("offsetBalance", event.target.value)} placeholder="$0" className={controlClass} /></Field>
                 </div> : null}
               </div>
             </div> : <div className="p-5 sm:p-6"><div className="rounded-xl border border-blue-200 bg-blue-50/60 p-5"><h3 className="font-semibold text-slate-950">Continue in the owning Vireon workspace</h3><p className="mt-2 text-sm leading-6 text-slate-600">{selected.title} already has a canonical workspace. Continue there to add structured details, or use Document Vault for supporting evidence.</p><div className="mt-4 flex flex-col gap-2 sm:flex-row"><Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-700 px-4 text-sm font-semibold text-white">{owningWorkflows[category as Exclude<CategoryId, "property">].label}</Link><Link href="/financial-vault" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-300 bg-white px-4 text-sm font-semibold text-blue-700">Add supporting evidence</Link></div></div></div>}
-            <div className="border-t border-slate-200 p-5 sm:p-6"><h3 className="font-semibold text-slate-950">{propertyFlow ? "3. Add supporting evidence" : "Supporting evidence"}</h3><div className="mt-4 flex min-h-[175px] flex-col items-center justify-center rounded-xl border border-dashed border-blue-300 bg-blue-50/40 p-6 text-center"><UploadCloud className="h-7 w-7 text-blue-700" /><div className="mt-3 font-semibold text-slate-950">Add {propertyFlow ? "property and mortgage documents" : selected.title.toLowerCase()} from Document Vault</div><div className="mt-1 max-w-2xl text-sm text-slate-500">Select existing evidence here without leaving this workflow. A current mortgage statement is recommended for refinance and loan applications; tax returns and bank statements support serviceability and tax review.</div><div className="mt-4 flex flex-col gap-2 sm:flex-row"><button type="button" onClick={() => void openVaultPicker()} aria-expanded={vaultOpen} aria-controls="document-vault-picker" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-blue-300 bg-white px-4 text-sm font-semibold text-blue-700">Choose from Document Vault<ChevronDown className={"h-4 w-4 transition " + (vaultOpen ? "rotate-180" : "")} /></button><button type="button" onClick={() => setUploadOpen((current) => !current)} aria-expanded={uploadOpen} aria-controls="document-vault-upload" className="inline-flex min-h-10 items-center justify-center px-4 text-sm font-semibold text-blue-700">Upload new documents</button></div></div>
+            <div className="border-t border-slate-200 p-5 sm:p-6"><h3 className="font-semibold text-slate-950">{propertyFlow ? "3. Add supporting evidence" : "Supporting evidence"}</h3><div className="mt-4 flex min-h-[175px] flex-col items-center justify-center rounded-xl border border-dashed border-blue-300 bg-blue-50/40 p-6 text-center"><UploadCloud className="h-7 w-7 text-blue-700" /><div className="mt-3 font-semibold text-slate-950">Add {propertyFlow ? "property and mortgage documents" : selected.title.toLowerCase()} from Document Vault</div><div className="mt-1 max-w-2xl text-sm text-slate-500">Select existing evidence here without leaving this workflow. A current mortgage statement helps verify the loan balance, interest rate, repayments and offset account.</div><div className="mt-4 flex flex-col gap-2 sm:flex-row"><button type="button" onClick={() => void openVaultPicker()} aria-expanded={vaultOpen} aria-controls="document-vault-picker" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-blue-300 bg-white px-4 text-sm font-semibold text-blue-700">Choose from Document Vault<ChevronDown className={"h-4 w-4 transition " + (vaultOpen ? "rotate-180" : "")} /></button><button type="button" onClick={() => setUploadOpen((current) => !current)} aria-expanded={uploadOpen} aria-controls="document-vault-upload" className="inline-flex min-h-10 items-center justify-center px-4 text-sm font-semibold text-blue-700">Upload new documents</button></div></div>
               {vaultOpen ? <div id="document-vault-picker" className="mt-3 rounded-xl border border-slate-200 bg-white p-4" aria-live="polite"><div className="flex items-center justify-between gap-3"><div><div className="font-semibold text-slate-950">Current Document Vault</div><div className="mt-1 text-xs text-slate-500">Select every document that supports this property or mortgage.</div></div><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{draft.selectedDocuments.length} selected</span></div>
                 {vaultLoading ? <div role="status" className="mt-4 text-sm text-slate-500">Loading your documents…</div> : vaultError ? <div role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{vaultError}<button type="button" onClick={() => void loadVaultDocuments()} className="ml-2 font-semibold underline">Try again</button></div> : vaultDocuments.length === 0 ? <div className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">No documents are currently available. Upload a mortgage statement, bank statement or tax document to Document Vault, then return to this draft.</div> : <div className="mt-4 max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200">{vaultDocuments.map((document) => { const checked = draft.selectedDocuments.some((item) => item.id === document.id); return <label key={document.id} className="flex cursor-pointer items-start gap-3 p-3 hover:bg-slate-50"><input type="checkbox" checked={checked} onChange={() => toggleDocument(document)} className="mt-1 h-4 w-4 accent-blue-700" /><FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-800">{document.fileName}</span><span className="mt-1 block text-xs text-slate-500">{documentTypeLabels[document.documentType]} · {new Date(document.uploadedAt).toLocaleDateString("en-AU")} · {documentStatusLabel(document.status)}</span></span>{document.documentType === "mortgage_statement" ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">Recommended</span> : null}</label>; })}</div>}
               </div> : null}

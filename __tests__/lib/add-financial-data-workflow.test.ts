@@ -51,8 +51,9 @@ test("property workflow captures mortgage details and selects existing Vault evi
     "Current Document Vault",
     "Upload & select",
     "Select every document that supports this property or mortgage.",
-    "A current mortgage statement is recommended for refinance and loan applications",
+    "A current mortgage statement helps verify the loan balance, interest rate, repayments and offset account.",
   ]) assert.match(client, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.doesNotMatch(client, /Loan purpose|loanPurpose|loan applications|lender-ready applications/);
   assert.match(client, /fetch\("\/api\/financial-vault"/);
   assert.match(client, /type="button" onClick=\{\(\) => void openVaultPicker\(\)\}/);
   assert.doesNotMatch(client, /href="\/financial-vault"[^>]*>Choose from Document Vault/);
