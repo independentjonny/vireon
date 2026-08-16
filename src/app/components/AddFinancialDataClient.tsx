@@ -9,7 +9,9 @@ import {
   BriefcaseBusiness,
   Check,
   CheckCircle2,
+  ChevronDown,
   CircleDollarSign,
+  FileCheck2,
   FileText,
   House,
   Landmark,
@@ -25,6 +27,13 @@ import AustralianAddressAutocomplete, { type AustralianAddressSelection } from "
 
 type CategoryId = "bank" | "employment" | "property" | "loans" | "tax" | "super" | "other";
 type Step = 1 | 2 | 3;
+type VaultDocumentSummary = {
+  id: string;
+  fileName: string;
+  documentType: "bank_statement" | "payslip" | "tax_return" | "mortgage_statement" | "super_statement";
+  uploadedAt: string;
+  status: "uploaded" | "processing" | "extracted" | "needs_review" | "failed";
+};
 type PropertyDraft = {
   address: string;
   addressId: string;
@@ -38,6 +47,17 @@ type PropertyDraft = {
   estimatedValue: string;
   purchaseDate: string;
   rentalIncome: boolean;
+  hasMortgage: boolean;
+  lender: string;
+  loanBalance: string;
+  interestRate: string;
+  repaymentAmount: string;
+  repaymentFrequency: string;
+  repaymentType: string;
+  rateType: string;
+  loanPurpose: string;
+  offsetBalance: string;
+  selectedDocuments: VaultDocumentSummary[];
 };
 
 const draftKey = "vireon-add-financial-data-draft-v1";
@@ -71,7 +91,31 @@ const initialDraft: PropertyDraft = {
   estimatedValue: "",
   purchaseDate: "",
   rentalIncome: false,
+  hasMortgage: false,
+  lender: "",
+  loanBalance: "",
+  interestRate: "",
+  repaymentAmount: "",
+  repaymentFrequency: "Monthly",
+  repaymentType: "Principal and interest",
+  rateType: "Variable",
+  loanPurpose: "Purchase this property",
+  offsetBalance: "",
+  selectedDocuments: [],
 };
+
+const documentTypeLabels: Record<VaultDocumentSummary["documentType"], string> = {
+  bank_statement: "Bank statement",
+  payslip: "Payslip",
+  tax_return: "Tax return",
+  mortgage_statement: "Mortgage statement",
+  super_statement: "Super statement",
+};
+
+function documentStatusLabel(status: VaultDocumentSummary["status"]) {
+  if (status === "needs_review") return "Needs review";
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
 
 function savedDraft() {
   const stored = window.sessionStorage.getItem(draftKey);
@@ -140,6 +184,15 @@ export default function AddFinancialDataClient() {
   const [category, setCategory] = useState<CategoryId>(requestedCategory && categories.some((item) => item.id === requestedCategory) ? requestedCategory : "property");
   const [draft, setDraft] = useState<PropertyDraft>(initialDraft);
   const [saved, setSaved] = useState(false);
+  const [vaultOpen, setVaultOpen] = useState(false);
+  const [vaultDocuments, setVaultDocuments] = useState<VaultDocumentSummary[]>([]);
+  const [vaultLoading, setVaultLoading] = useState(false);
+  const [vaultError, setVaultError] = useState("");
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadType, setUploadType] = useState<VaultDocumentSummary["documentType"]>("mortgage_statement");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -153,14 +206,26 @@ export default function AddFinancialDataClient() {
 
   const selected = categories.find((item) => item.id === category) ?? categories[2];
   const propertyFlow = category === "property";
-  const reviewRows = useMemo(() => [
-    ["Property address", draft.address || "Not provided", draft.addressId ? "High" : draft.address ? "Check" : "Not found"],
-    ["Property type", draft.propertyType, "High"],
-    ["Ownership", draft.ownership, "Check"],
-    ["Primary use", draft.primaryUse, "High"],
-    ["Estimated value", draft.estimatedValue || "Not provided", draft.estimatedValue ? "Check" : "Not found"],
-    ["Purchase date", draft.purchaseDate || "Not provided", draft.purchaseDate ? "High" : "Not found"],
-  ] as const, [draft]);
+  const reviewRows = useMemo(() => {
+    const rows: Array<readonly [string, string, "High" | "Check" | "Not found"]> = [
+      ["Property address", draft.address || "Not provided", draft.addressId ? "High" : draft.address ? "Check" : "Not found"],
+      ["Property type", draft.propertyType, "High"],
+      ["Ownership", draft.ownership, "Check"],
+      ["Primary use", draft.primaryUse, "High"],
+      ["Estimated value", draft.estimatedValue || "Not provided", draft.estimatedValue ? "Check" : "Not found"],
+      ["Purchase date", draft.purchaseDate || "Not provided", draft.purchaseDate ? "High" : "Not found"],
+    ];
+    if (draft.hasMortgage) rows.push(
+      ["Mortgage lender", draft.lender || "Not provided", draft.lender ? "Check" : "Not found"],
+      ["Mortgage balance", draft.loanBalance || "Not provided", draft.loanBalance ? "Check" : "Not found"],
+      ["Interest rate", draft.interestRate ? `${draft.interestRate}%` : "Not provided", draft.interestRate ? "Check" : "Not found"],
+      ["Repayment", draft.repaymentAmount ? `${draft.repaymentAmount} ${draft.repaymentFrequency.toLowerCase()}` : "Not provided", draft.repaymentAmount ? "Check" : "Not found"],
+      ["Loan structure", `${draft.repaymentType} · ${draft.rateType}`, "Check"],
+      ["Loan purpose", draft.loanPurpose, "Check"],
+      ["Offset balance", draft.offsetBalance || "Not provided", draft.offsetBalance ? "Check" : "Not found"],
+    );
+    return rows;
+  }, [draft]);
   const confirmedCount = reviewRows.filter((row) => row[2] !== "Not found").length;
 
   function saveDraft() {
@@ -183,6 +248,66 @@ export default function AddFinancialDataClient() {
       addressPostcode: selection?.postcode ?? "",
       addressSource: selection?.provider ?? "manual",
     }));
+  }
+
+  async function loadVaultDocuments() {
+    if (vaultLoading) return;
+    setVaultLoading(true);
+    setVaultError("");
+    try {
+      const response = await fetch("/api/financial-vault", { cache: "no-store", credentials: "same-origin" });
+      const payload = await response.json() as { ok?: boolean; error?: string; vault?: { uploaded_documents?: VaultDocumentSummary[] } };
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "Document Vault could not be loaded.");
+      setVaultDocuments(payload.vault?.uploaded_documents ?? []);
+    } catch (error) {
+      setVaultError(error instanceof Error ? error.message : "Document Vault could not be loaded.");
+    } finally {
+      setVaultLoading(false);
+    }
+  }
+
+  function openVaultPicker() {
+    const nextOpen = !vaultOpen;
+    setVaultOpen(nextOpen);
+    if (nextOpen && vaultDocuments.length === 0) void loadVaultDocuments();
+  }
+
+  function toggleDocument(document: VaultDocumentSummary) {
+    setDraft((current) => {
+      const selected = current.selectedDocuments.some((item) => item.id === document.id);
+      return {
+        ...current,
+        selectedDocuments: selected
+          ? current.selectedDocuments.filter((item) => item.id !== document.id)
+          : [...current.selectedDocuments, document],
+      };
+    });
+  }
+
+  async function uploadDocument(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!uploadFile || uploadBusy) return;
+    setUploadBusy(true);
+    setUploadError("");
+    try {
+      const form = new FormData();
+      form.set("file", uploadFile);
+      form.set("documentType", uploadType);
+      const response = await fetch("/api/financial-vault", { method: "POST", body: form, credentials: "same-origin" });
+      const payload = await response.json() as { ok?: boolean; error?: string; vault?: { uploaded_documents?: VaultDocumentSummary[] } };
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "The document could not be uploaded.");
+      const documents = payload.vault?.uploaded_documents ?? [];
+      const uploaded = documents.find((document) => document.fileName === uploadFile.name && document.documentType === uploadType);
+      setVaultDocuments(documents);
+      if (uploaded) setDraft((current) => ({ ...current, selectedDocuments: current.selectedDocuments.some((item) => item.id === uploaded.id) ? current.selectedDocuments : [...current.selectedDocuments, uploaded] }));
+      setUploadFile(null);
+      setUploadOpen(false);
+      setVaultOpen(true);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "The document could not be uploaded.");
+    } finally {
+      setUploadBusy(false);
+    }
   }
 
   return (
@@ -250,8 +375,31 @@ export default function AddFinancialDataClient() {
                 <Field label="Purchase date"><input type="date" value={draft.purchaseDate} onChange={(event) => update("purchaseDate", event.target.value)} className={controlClass} /></Field>
               </div>
               <label className="mt-4 flex items-center gap-3 text-sm text-slate-700"><input type="checkbox" checked={draft.rentalIncome} onChange={(event) => update("rentalIncome", event.target.checked)} className="h-4 w-4 accent-blue-700" />This property earns rental income</label>
+              <div className="mt-6 border-t border-slate-200 pt-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                  <div className="flex-1"><h3 className="font-semibold text-slate-950">2. Mortgage or home loan</h3><p className="mt-1 text-sm leading-6 text-slate-500">Add the loan linked to this property for net worth, refinancing, borrowing and lender-ready applications.</p></div>
+                  <label className="flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={draft.hasMortgage} onChange={(event) => update("hasMortgage", event.target.checked)} className="h-4 w-4 accent-blue-700" />This property has a mortgage</label>
+                </div>
+                {draft.hasMortgage ? <div className="mt-4 grid gap-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-2">
+                  <Field label="Lender"><input value={draft.lender} onChange={(event) => update("lender", event.target.value)} placeholder="e.g. Commonwealth Bank" className={controlClass} /></Field>
+                  <Field label="Outstanding balance"><input inputMode="decimal" value={draft.loanBalance} onChange={(event) => update("loanBalance", event.target.value)} placeholder="$0" className={controlClass} /></Field>
+                  <Field label="Interest rate"><div className="relative"><input inputMode="decimal" value={draft.interestRate} onChange={(event) => update("interestRate", event.target.value)} placeholder="0.00" className={controlClass + " pr-9"} /><span className="pointer-events-none absolute right-3 top-3 text-sm text-slate-500">%</span></div></Field>
+                  <Field label="Repayment amount"><input inputMode="decimal" value={draft.repaymentAmount} onChange={(event) => update("repaymentAmount", event.target.value)} placeholder="$0" className={controlClass} /></Field>
+                  <Field label="Repayment frequency"><select value={draft.repaymentFrequency} onChange={(event) => update("repaymentFrequency", event.target.value)} className={controlClass}><option>Weekly</option><option>Fortnightly</option><option>Monthly</option></select></Field>
+                  <Field label="Repayment type"><select value={draft.repaymentType} onChange={(event) => update("repaymentType", event.target.value)} className={controlClass}><option>Principal and interest</option><option>Interest only</option></select></Field>
+                  <Field label="Rate type"><select value={draft.rateType} onChange={(event) => update("rateType", event.target.value)} className={controlClass}><option>Variable</option><option>Fixed</option><option>Split</option></select></Field>
+                  <Field label="Loan purpose"><select value={draft.loanPurpose} onChange={(event) => update("loanPurpose", event.target.value)} className={controlClass}><option>Purchase this property</option><option>Refinance this property</option><option>Investment or income-producing use</option><option>Mixed private and investment use</option></select></Field>
+                  <Field label="Offset account balance"><input inputMode="decimal" value={draft.offsetBalance} onChange={(event) => update("offsetBalance", event.target.value)} placeholder="$0" className={controlClass} /></Field>
+                </div> : null}
+              </div>
             </div> : <div className="p-5 sm:p-6"><div className="rounded-xl border border-blue-200 bg-blue-50/60 p-5"><h3 className="font-semibold text-slate-950">Continue in the owning Vireon workspace</h3><p className="mt-2 text-sm leading-6 text-slate-600">{selected.title} already has a canonical workspace. Continue there to add structured details, or use Document Vault for supporting evidence.</p><div className="mt-4 flex flex-col gap-2 sm:flex-row"><Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-700 px-4 text-sm font-semibold text-white">{owningWorkflows[category as Exclude<CategoryId, "property">].label}</Link><Link href="/financial-vault" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-300 bg-white px-4 text-sm font-semibold text-blue-700">Add supporting evidence</Link></div></div></div>}
-            <div className="border-t border-slate-200 p-5 sm:p-6"><h3 className="font-semibold text-slate-950">{propertyFlow ? "2. Add supporting evidence" : "Supporting evidence"}</h3><div className="mt-4 flex min-h-[175px] flex-col items-center justify-center rounded-xl border border-dashed border-blue-300 bg-blue-50/40 p-6 text-center"><UploadCloud className="h-7 w-7 text-blue-700" /><div className="mt-3 font-semibold text-slate-950">Add {propertyFlow ? "property documents" : selected.title.toLowerCase()} in Document Vault</div><div className="mt-1 text-sm text-slate-500">Evidence remains linked to its source and requires review before it becomes an active fact.</div><div className="mt-4 flex flex-col gap-2 sm:flex-row"><Link href="/financial-vault" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-blue-300 bg-white px-4 text-sm font-semibold text-blue-700">Choose from Document Vault</Link><Link href="/financial-vault" className="inline-flex min-h-10 items-center justify-center px-4 text-sm font-semibold text-blue-700">Upload new documents</Link></div></div><div className="mt-3 flex items-center gap-2 text-xs text-slate-500"><LockKeyhole className="h-4 w-4" />Documents are securely stored and reviewed in Document Vault.</div></div>
+            <div className="border-t border-slate-200 p-5 sm:p-6"><h3 className="font-semibold text-slate-950">{propertyFlow ? "3. Add supporting evidence" : "Supporting evidence"}</h3><div className="mt-4 flex min-h-[175px] flex-col items-center justify-center rounded-xl border border-dashed border-blue-300 bg-blue-50/40 p-6 text-center"><UploadCloud className="h-7 w-7 text-blue-700" /><div className="mt-3 font-semibold text-slate-950">Add {propertyFlow ? "property and mortgage documents" : selected.title.toLowerCase()} from Document Vault</div><div className="mt-1 max-w-2xl text-sm text-slate-500">Select existing evidence here without leaving this workflow. A current mortgage statement is recommended for refinance and loan applications; tax returns and bank statements support serviceability and tax review.</div><div className="mt-4 flex flex-col gap-2 sm:flex-row"><button type="button" onClick={() => void openVaultPicker()} aria-expanded={vaultOpen} aria-controls="document-vault-picker" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-blue-300 bg-white px-4 text-sm font-semibold text-blue-700">Choose from Document Vault<ChevronDown className={"h-4 w-4 transition " + (vaultOpen ? "rotate-180" : "")} /></button><button type="button" onClick={() => setUploadOpen((current) => !current)} aria-expanded={uploadOpen} aria-controls="document-vault-upload" className="inline-flex min-h-10 items-center justify-center px-4 text-sm font-semibold text-blue-700">Upload new documents</button></div></div>
+              {vaultOpen ? <div id="document-vault-picker" className="mt-3 rounded-xl border border-slate-200 bg-white p-4" aria-live="polite"><div className="flex items-center justify-between gap-3"><div><div className="font-semibold text-slate-950">Current Document Vault</div><div className="mt-1 text-xs text-slate-500">Select every document that supports this property or mortgage.</div></div><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{draft.selectedDocuments.length} selected</span></div>
+                {vaultLoading ? <div role="status" className="mt-4 text-sm text-slate-500">Loading your documents…</div> : vaultError ? <div role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{vaultError}<button type="button" onClick={() => void loadVaultDocuments()} className="ml-2 font-semibold underline">Try again</button></div> : vaultDocuments.length === 0 ? <div className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">No documents are currently available. Upload a mortgage statement, bank statement or tax document to Document Vault, then return to this draft.</div> : <div className="mt-4 max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200">{vaultDocuments.map((document) => { const checked = draft.selectedDocuments.some((item) => item.id === document.id); return <label key={document.id} className="flex cursor-pointer items-start gap-3 p-3 hover:bg-slate-50"><input type="checkbox" checked={checked} onChange={() => toggleDocument(document)} className="mt-1 h-4 w-4 accent-blue-700" /><FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-800">{document.fileName}</span><span className="mt-1 block text-xs text-slate-500">{documentTypeLabels[document.documentType]} · {new Date(document.uploadedAt).toLocaleDateString("en-AU")} · {documentStatusLabel(document.status)}</span></span>{document.documentType === "mortgage_statement" ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">Recommended</span> : null}</label>; })}</div>}
+              </div> : null}
+              {uploadOpen ? <form id="document-vault-upload" onSubmit={(event) => void uploadDocument(event)} className="mt-3 rounded-xl border border-blue-200 bg-blue-50/40 p-4"><div className="font-semibold text-slate-950">Upload supporting evidence</div><div className="mt-1 text-xs text-slate-500">The document will be stored in Document Vault and selected for this property.</div><div className="mt-4 grid gap-3 sm:grid-cols-[220px_1fr_auto]"><label><span className="mb-1.5 block text-xs font-semibold text-slate-600">Document type</span><select value={uploadType} onChange={(event) => setUploadType(event.target.value as VaultDocumentSummary["documentType"])} className={controlClass}>{Object.entries(documentTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label><span className="mb-1.5 block text-xs font-semibold text-slate-600">File</span><input type="file" accept=".pdf,.csv,.txt,application/pdf,text/csv,text/plain" onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)} className="block h-11 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:font-semibold file:text-blue-700" /></label><button type="submit" disabled={!uploadFile || uploadBusy} className="min-h-11 self-end rounded-xl bg-blue-700 px-4 text-sm font-semibold text-white disabled:bg-slate-300">{uploadBusy ? "Uploading…" : "Upload & select"}</button></div>{uploadError ? <div role="alert" className="mt-3 text-sm text-rose-700">{uploadError}</div> : null}</form> : null}
+              {draft.selectedDocuments.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{draft.selectedDocuments.map((document) => <span key={document.id} className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800"><FileCheck2 className="h-3.5 w-3.5" />{document.fileName}<button type="button" onClick={() => toggleDocument(document)} className="text-blue-600 hover:text-blue-900" aria-label={`Remove ${document.fileName}`}>×</button></span>)}</div> : null}
+              <div className="mt-3 flex items-center gap-2 text-xs text-slate-500"><LockKeyhole className="h-4 w-4" />Documents remain securely stored in Document Vault and linked to their original source.</div></div>
           </section>
           <aside className="space-y-4"><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">What we’ll verify</h2><ul className="mt-4 space-y-3 text-sm text-slate-600">{["Ownership and address", "Current value", "Rental income, if applicable", "Related loan details"].map((item) => <li key={item} className="flex items-center gap-3"><CheckCircle2 className="h-4 w-4 text-blue-700" />{item}</li>)}</ul></section><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">Your privacy</h2><p className="mt-3 flex gap-3 text-sm leading-6 text-slate-600"><ShieldCheck className="h-5 w-5 shrink-0" />Vireon only uses confirmed information in your financial position.</p></section></aside>
         </div>
@@ -262,7 +410,7 @@ export default function AddFinancialDataClient() {
             <h3 className="mt-6 font-semibold text-slate-950">Confirm entered values</h3>
             <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="border-b border-slate-200 text-xs text-slate-500"><tr><th className="w-10 py-3"><span className="sr-only">Selected</span></th><th className="py-3 font-semibold">Information</th><th className="py-3 font-semibold">Entered value</th><th className="py-3 font-semibold">Confidence</th><th className="py-3 font-semibold">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{reviewRows.map(([label, value, confidence]) => <tr key={label}><td className="py-3"><input type="checkbox" defaultChecked={confidence !== "Not found"} className="h-4 w-4 accent-blue-700" aria-label={`Confirm ${label}`} /></td><td className="py-3 font-medium text-slate-700">{label}</td><td className="py-3 text-slate-950">{value}</td><td className="py-3"><span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (confidence === "High" ? "bg-emerald-50 text-emerald-700" : confidence === "Check" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600")}>{confidence}</span></td><td className="py-3"><button type="button" onClick={() => setStep(2)} className="font-semibold text-blue-700">{confidence === "Not found" ? "Add" : "Edit"}</button></td></tr>)}</tbody></table></div>
             <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="font-semibold text-amber-900">Review values marked Check</div><div className="mt-1 text-sm text-amber-800">These values need supporting evidence before they can become active financial facts.</div></div>
-            <div className="mt-6"><h3 className="font-semibold text-slate-950">Related information</h3><div className="mt-3 flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center"><Landmark className="h-5 w-5 text-slate-500" /><div className="flex-1"><div className="font-semibold text-slate-800">Home loan</div><div className="mt-1 text-xs text-slate-500">Link the loan so Vireon can calculate equity and net worth.</div></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">Not linked</span><button type="button" onClick={() => { setCategory("loans"); setStep(2); }} className="min-h-10 rounded-xl border border-blue-300 px-4 text-sm font-semibold text-blue-700">Add loan details</button></div></div>
+            <div className="mt-6"><h3 className="font-semibold text-slate-950">Supporting evidence</h3>{draft.selectedDocuments.length > 0 ? <div className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">{draft.selectedDocuments.map((document) => <div key={document.id} className="flex items-center gap-3 p-4"><FileCheck2 className="h-5 w-5 shrink-0 text-blue-700" /><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-slate-800">{document.fileName}</div><div className="mt-1 text-xs text-slate-500">{documentTypeLabels[document.documentType]} · {documentStatusLabel(document.status)}</div></div><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Verify in Import Review</span></div>)}</div> : <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">No Document Vault evidence selected. Go back and attach a current statement before confirmation.</div>}</div>
           </section>
           <aside className="space-y-4"><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">Source & provenance</h2><dl className="mt-4 space-y-4 text-sm"><div><dt className="text-xs text-slate-500">Address source</dt><dd className="mt-1 font-medium text-slate-800">{draft.addressSource === "geoscape-gnaf" ? "Geoscape Australia (G-NAF)" : "Manual entry"}</dd></div><div><dt className="text-xs text-slate-500">Evidence</dt><dd className="mt-1 font-medium text-slate-800">Document Vault</dd></div></dl><Link href="/financial-vault" className="mt-4 inline-flex text-sm font-semibold text-blue-700">View sources</Link></section><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">What happens next?</h2><div className="mt-4 space-y-4 text-sm leading-6 text-slate-600"><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Import Review confirms evidence-backed values before they become active facts.</p><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Unconfirmed values remain in review and are never treated as zero.</p></div></section></aside>
         </div>

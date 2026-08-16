@@ -35,7 +35,30 @@ test("workflow preserves Vault authority and explicit confirmation semantics", (
     "Nothing updates your position until you confirm it.",
     "Unconfirmed values remain in review and are never treated as zero.",
   ]) assert.match(client, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.doesNotMatch(client, /fetch\([^)]*financial-vault[^)]*method:\s*["']POST/);
+  assert.match(client, /form\.set\("file", uploadFile\)/);
+  assert.match(client, /form\.set\("documentType", uploadType\)/);
+  assert.match(client, /fetch\("\/api\/financial-vault", \{ method: "POST", body: form/);
+});
+
+test("property workflow captures mortgage details and selects existing Vault evidence inline", () => {
+  const client = source("src/app/components/AddFinancialDataClient.tsx");
+  for (const copy of [
+    "This property has a mortgage",
+    "Outstanding balance",
+    "Interest rate",
+    "Repayment amount",
+    "Offset account balance",
+    "Current Document Vault",
+    "Upload & select",
+    "Select every document that supports this property or mortgage.",
+    "A current mortgage statement is recommended for refinance and loan applications",
+  ]) assert.match(client, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(client, /fetch\("\/api\/financial-vault"/);
+  assert.match(client, /type="button" onClick=\{\(\) => void openVaultPicker\(\)\}/);
+  assert.doesNotMatch(client, /href="\/financial-vault"[^>]*>Choose from Document Vault/);
+  assert.doesNotMatch(client, /href="\/financial-vault"[^>]*>Upload new documents/);
+  assert.match(client, /selectedDocuments/);
+  assert.match(client, /Verify in Import Review/);
 });
 
 test("property workflow uses authenticated Australian G-NAF address selection", () => {
