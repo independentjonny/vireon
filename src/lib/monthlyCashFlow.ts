@@ -24,6 +24,15 @@ export type MonthlyCashFlowModel = {
   sourceRecordIds: string[];
   excludedRecordIds: string[];
   warnings: string[];
+  missingInputs: MonthlyCashFlowMissingInput[];
+};
+
+export type MonthlyCashFlowMissingInput = {
+  code: "rental-income" | "mortgage-repayment" | "income-cadence" | "expense-cadence" | "income" | "expenses";
+  recordId: string | null;
+  title: string;
+  detail: string;
+  href: string;
 };
 
 type NormalisedAmount = { amount: number; cadence: string };
@@ -263,6 +272,23 @@ export function buildMonthlyCashFlowModel(records: CanonicalFinancialRecord[], u
     ...(mortgages.excludedRecordIds.length ? ["A confirmed mortgage has no usable repayment amount and frequency."] : []),
     ...(transactions.excludedRecordIds.length ? [`${transactions.excludedRecordIds.length} transfer, reimbursement, sale, refund or unclassified positive transaction${transactions.excludedRecordIds.length === 1 ? " was" : "s were"} excluded from cash flow.`] : []),
   ];
+  const recordById = new Map(confirmed.map((record) => [record.id, record]));
+  const propertyByEntityKey = new Map(confirmed.filter((record) => record.kind === "asset" && /property/i.test(`${record.subtype} ${record.label}`)).map((record) => [String(record.value.entityKey ?? ""), record]));
+  const missingInputs: MonthlyCashFlowMissingInput[] = [
+    ...rental.excludedRecordIds.map((recordId) => {
+      const record = recordById.get(recordId);
+      return { code: "rental-income" as const, recordId, title: `Add rent received for ${record?.label ?? "the rental property"}`, detail: "This property is marked as earning rent, but its amount and payment frequency were never saved.", href: `/financial-profile/add-data?category=property&propertyId=${encodeURIComponent(recordId)}` };
+    }),
+    ...mortgages.excludedRecordIds.map((recordId) => {
+      const record = recordById.get(recordId);
+      const property = propertyByEntityKey.get(String(record?.value.propertyEntityKey ?? ""));
+      return { code: "mortgage-repayment" as const, recordId, title: `Add repayment details for ${record?.label ?? "the mortgage"}`, detail: "The mortgage balance is confirmed, but its repayment amount or frequency is missing.", href: property ? `/financial-profile/add-data?category=property&propertyId=${encodeURIComponent(property.id)}` : "/financial-profile/property" };
+    }),
+    ...income.incompleteRecordIds.map((recordId) => ({ code: "income-cadence" as const, recordId, title: `Add payment frequency for ${recordById.get(recordId)?.label ?? "income"}`, detail: "The income amount is confirmed but cannot be converted to a monthly value without its cadence.", href: "/cash-flow" })),
+    ...expenses.incompleteRecordIds.map((recordId) => ({ code: "expense-cadence" as const, recordId, title: `Add payment frequency for ${recordById.get(recordId)?.label ?? "expense"}`, detail: "The expense amount is confirmed but cannot be converted to a monthly value without its cadence.", href: "/cash-flow" })),
+    ...(monthlyIncome === null && !incomeIncomplete && !incomeLines.length ? [{ code: "income" as const, recordId: null, title: "Add confirmed monthly income", detail: "No confirmed recurring income or classified income transactions are available.", href: "/financial-vault" }] : []),
+    ...(monthlyExpenses === null && !expenseIncomplete && !expenseLines.length ? [{ code: "expenses" as const, recordId: null, title: "Add confirmed monthly expenses", detail: "No confirmed recurring expenses or classified expense transactions are available.", href: "/financial-vault" }] : []),
+  ];
   const sourceRecordIds = [...new Set([...incomeLines, ...expenseLines].flatMap((line) => line.sourceRecordIds))];
   const basis = status === "confirmed"
     ? "Confirmed recurring income and expense records, normalised to monthly values."
@@ -270,5 +296,5 @@ export function buildMonthlyCashFlowModel(records: CanonicalFinancialRecord[], u
       ? `Estimated from confirmed records${usedTransactions ? `, including ${transactions.months} month${transactions.months === 1 ? "" : "s"} of transactions` : ""}.`
       : "Add confirmed income and expense records with a monthly amount or payment cadence.";
 
-  return { monthlyIncome, monthlyExpenses, monthlySurplus, status, basis, incomeLines, expenseLines, sourceRecordIds, excludedRecordIds, warnings };
+  return { monthlyIncome, monthlyExpenses, monthlySurplus, status, basis, incomeLines, expenseLines, sourceRecordIds, excludedRecordIds, warnings, missingInputs };
 }

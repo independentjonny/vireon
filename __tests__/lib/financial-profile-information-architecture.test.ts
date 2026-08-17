@@ -21,6 +21,8 @@ test("Financial Position answers the three canonical customer questions", () => 
   assert.match(client, /What should I do next\?/);
   assert.match(client, /Confirmed data only/);
   assert.match(client, /Missing means Vireon does not yet have a confirmed current record\. It never means zero\./);
+  assert.match(client, /position\.monthlyCashFlow\.missingInputs\.map/);
+  assert.match(client, /Complete cash-flow input/);
 });
 
 test("Financial Position routes changes to canonical owning workflows", () => {

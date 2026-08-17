@@ -72,6 +72,11 @@ export default async function CashFlowPage() {
           <p className="mt-1 text-sm leading-6">{cashFlow.basis}</p>
         </section>
 
+        {cashFlow.missingInputs.length ? <section className="rounded-lg border border-amber-200 bg-amber-50 p-5">
+          <h2 className="font-semibold text-amber-950">Complete the missing cash-flow details</h2>
+          <div className="mt-3 space-y-3">{cashFlow.missingInputs.map((input) => <div key={`${input.code}-${input.recordId ?? "new"}`} className="flex flex-col gap-3 rounded-lg bg-white p-4 sm:flex-row sm:items-center"><div className="flex-1"><div className="text-sm font-semibold text-slate-950">{input.title}</div><p className="mt-1 text-xs leading-5 text-slate-600">{input.detail}</p></div><Link href={input.href} className="inline-flex min-h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold text-blue-700">Add details</Link></div>)}</div>
+        </section> : null}
+
         <section className="grid gap-5 xl:grid-cols-2">
           <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.045)]">
             <div className="flex items-start justify-between gap-4">

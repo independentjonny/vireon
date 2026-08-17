@@ -46,7 +46,7 @@ function total(records: CanonicalFinancialRecord[], keys: string[]) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
 }
 
-function MetricCard({ label, value, icon: Icon, available, note }: { label: string; value: string; icon: LucideIcon; available: boolean; note?: string }) {
+function MetricCard({ label, value, icon: Icon, available, note, href, action }: { label: string; value: string; icon: LucideIcon; available: boolean; note?: string; href?: string; action?: string }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.045)]">
       <div className="flex items-start justify-between gap-4">
@@ -59,6 +59,7 @@ function MetricCard({ label, value, icon: Icon, available, note }: { label: stri
         </div>
       </div>
       <div className="mt-3 text-xs text-slate-500">{note ?? (available ? "Confirmed data only" : "Waiting for confirmed data")}</div>
+      {href && action ? <Link href={href} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-700">{action}<ArrowRight className="h-3.5 w-3.5" /></Link> : null}
     </article>
   );
 }
@@ -85,12 +86,16 @@ export default function FinancialProfileBuilderClient({ position, savedProperty 
   const otherDebt = total(position.liabilities.filter((record) => !mortgageIds.has(record.id)), ["balance", "amount", "principal", "value"]);
   const needsReview = position.documentImportStatus.unresolvedExtractionReviewCount + position.confidenceSummary.lowConfidenceFactCount;
   const confirmedSources = position.provenanceSummary.sourceRecordIds.length;
+  const cashFlowMissing = position.monthlyCashFlow.missingInputs[0];
+  const hasMissingIncome = position.monthlyCashFlow.missingInputs.some((input) => input.code === "income");
+  const hasMissingExpenses = position.monthlyCashFlow.missingInputs.some((input) => input.code === "expenses");
 
   const gapCandidates: Gap[] = [
-    ...(position.income.length === 0
+    ...position.monthlyCashFlow.missingInputs.map((input) => ({ title: input.title, detail: input.detail, status: "Missing" as const, action: "Complete cash-flow input", href: input.href, icon: Banknote })),
+    ...(position.income.length === 0 && !hasMissingIncome
       ? [{ title: "Employment income needs confirmation", detail: "Confirm your current income to strengthen borrowing and cash-flow guidance.", status: "Needs review" as const, action: "Review income", href: "/cash-flow", icon: Banknote }]
       : []),
-    ...(position.expenses.length === 0
+    ...(position.expenses.length === 0 && !hasMissingExpenses
       ? [{ title: "Living expenses are incomplete", detail: "Add confirmed recurring expenses to improve cash-flow accuracy.", status: "Missing" as const, action: "Review expenses", href: "/cash-flow", icon: WalletCards }]
       : []),
     ...(position.superannuation.length === 0
@@ -155,7 +160,7 @@ export default function FinancialProfileBuilderClient({ position, savedProperty 
           <MetricCard label="Net worth" value={netWorth === null ? "Unavailable" : money(netWorth)} icon={CircleDollarSign} available={netWorth !== null} />
           <MetricCard label="Assets" value={assets === null ? "Unavailable" : money(assets)} icon={WalletCards} available={assets !== null} />
           <MetricCard label="Liabilities" value={liabilities === null ? "Unavailable" : money(liabilities)} icon={Landmark} available={liabilities !== null} />
-          <MetricCard label="Monthly cash flow" value={monthlyCashFlow === null ? "Unavailable" : `${monthlyCashFlow >= 0 ? "+" : ""}${money(monthlyCashFlow)}`} icon={Banknote} available={monthlyCashFlow !== null} note={position.monthlyCashFlow.status === "confirmed" ? "Confirmed recurring data" : position.monthlyCashFlow.status === "estimated" ? "Estimated from confirmed records" : "Waiting for confirmed income and expenses"} />
+          <MetricCard label="Monthly cash flow" value={monthlyCashFlow === null ? "Incomplete" : `${monthlyCashFlow >= 0 ? "+" : ""}${money(monthlyCashFlow)}`} icon={Banknote} available={monthlyCashFlow !== null} note={cashFlowMissing?.title ?? (position.monthlyCashFlow.status === "confirmed" ? "Confirmed recurring data" : position.monthlyCashFlow.status === "estimated" ? "Estimated from confirmed records" : "Waiting for confirmed income and expenses")} href={cashFlowMissing?.href} action={cashFlowMissing ? "Add missing details" : undefined} />
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">

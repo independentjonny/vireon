@@ -126,16 +126,42 @@ test("a rent flag without amount and cadence is disclosed rather than invented",
   assert.equal(model.monthlyIncome, null);
   assert.equal(model.monthlySurplus, null);
   assert.equal(model.warnings.some((warning) => warning.includes("marked as earning rent")), true);
+  assert.deepEqual(model.missingInputs.map(({ code, recordId, href }) => ({ code, recordId, href })), [{
+    code: "rental-income",
+    recordId: "rental",
+    href: "/financial-profile/add-data?category=property&propertyId=rental",
+  }]);
 });
 
 test("a mortgage without repayment amount and cadence does not produce a falsely complete surplus", () => {
   const model = buildMonthlyCashFlowModel([
     record("salary", "income", { monthlyAmount: 12000 }),
     record("living", "expense", { monthlyAmount: 5000 }),
-    record("mortgage", "liability", { balance: 245000 }, { subtype: "mortgage", label: "Home loan" }),
+    record("home", "asset", { entityKey: "property:home", rentalIncome: false }, { subtype: "property", label: "Home" }),
+    record("mortgage", "liability", { balance: 245000, propertyEntityKey: "property:home" }, { subtype: "mortgage", label: "Home loan" }),
   ], userId);
   assert.equal(model.monthlyExpenses, null);
   assert.equal(model.monthlySurplus, null);
   assert.equal(model.status, "unavailable");
   assert.equal(model.warnings.some((warning) => warning.includes("mortgage has no usable repayment")), true);
+  assert.deepEqual(model.missingInputs.map(({ code, recordId, href }) => ({ code, recordId, href })), [{
+    code: "mortgage-repayment",
+    recordId: "mortgage",
+    href: "/financial-profile/add-data?category=property&propertyId=home",
+  }]);
+});
+
+test("identifies only the incomplete property when two confirmed properties are evaluated", () => {
+  const model = buildMonthlyCashFlowModel([
+    record("salary", "income", { monthlyAmount: 12000 }),
+    record("living", "expense", { monthlyAmount: 5000 }),
+    record("complete-rental", "asset", { entityKey: "property:complete", rentalIncome: true, rentalIncomeAmount: 600, rentalIncomeFrequency: "Weekly" }, { subtype: "property", label: "Complete rental" }),
+    record("incomplete-rental", "asset", { entityKey: "property:incomplete", rentalIncome: true }, { subtype: "property", label: "Incomplete rental" }),
+  ], userId);
+
+  assert.equal(model.monthlySurplus, null);
+  assert.equal(model.missingInputs.length, 1);
+  assert.equal(model.missingInputs[0]?.recordId, "incomplete-rental");
+  assert.equal(model.missingInputs[0]?.href, "/financial-profile/add-data?category=property&propertyId=incomplete-rental");
+  assert.match(model.missingInputs[0]?.title ?? "", /Incomplete rental/);
 });
