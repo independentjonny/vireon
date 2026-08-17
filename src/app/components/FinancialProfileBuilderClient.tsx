@@ -46,7 +46,7 @@ function total(records: CanonicalFinancialRecord[], keys: string[]) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
 }
 
-function MetricCard({ label, value, icon: Icon, available }: { label: string; value: string; icon: LucideIcon; available: boolean }) {
+function MetricCard({ label, value, icon: Icon, available, note }: { label: string; value: string; icon: LucideIcon; available: boolean; note?: string }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.045)]">
       <div className="flex items-start justify-between gap-4">
@@ -58,7 +58,7 @@ function MetricCard({ label, value, icon: Icon, available }: { label: string; va
           <Icon className="h-5 w-5" strokeWidth={2} />
         </div>
       </div>
-      <div className="mt-3 text-xs text-slate-500">{available ? "Confirmed data only" : "Waiting for confirmed data"}</div>
+      <div className="mt-3 text-xs text-slate-500">{note ?? (available ? "Confirmed data only" : "Waiting for confirmed data")}</div>
     </article>
   );
 }
@@ -75,10 +75,8 @@ type Gap = {
 export default function FinancialProfileBuilderClient({ position, savedProperty = false }: { position: FinancialPositionReadModel; savedProperty?: boolean }) {
   const assets = total(position.assets, ["marketValue", "balance", "amount", "value"]);
   const liabilities = total(position.liabilities, ["balance", "amount", "principal", "value"]);
-  const income = total(position.income, ["monthlyAmount", "monthlyIncome", "amount"]);
-  const expenses = total(position.expenses, ["monthlyAmount", "monthlyExpense", "amount"]);
   const netWorth = assets !== null && liabilities !== null ? assets - liabilities : null;
-  const monthlyCashFlow = income !== null && expenses !== null ? income - expenses : null;
+  const monthlyCashFlow = position.monthlyCashFlow.monthlySurplus;
   const cash = position.cashPosition.sourceRecordIds.length ? position.cashPosition.confirmedCash : null;
   const property = total(position.propertyDetails, ["marketValue", "balance", "amount", "value"]);
   const superannuation = total(position.superannuation, ["balance", "marketValue", "amount", "value"]);
@@ -157,7 +155,7 @@ export default function FinancialProfileBuilderClient({ position, savedProperty 
           <MetricCard label="Net worth" value={netWorth === null ? "Unavailable" : money(netWorth)} icon={CircleDollarSign} available={netWorth !== null} />
           <MetricCard label="Assets" value={assets === null ? "Unavailable" : money(assets)} icon={WalletCards} available={assets !== null} />
           <MetricCard label="Liabilities" value={liabilities === null ? "Unavailable" : money(liabilities)} icon={Landmark} available={liabilities !== null} />
-          <MetricCard label="Monthly cash flow" value={monthlyCashFlow === null ? "Unavailable" : `${monthlyCashFlow >= 0 ? "+" : ""}${money(monthlyCashFlow)}`} icon={Banknote} available={monthlyCashFlow !== null} />
+          <MetricCard label="Monthly cash flow" value={monthlyCashFlow === null ? "Unavailable" : `${monthlyCashFlow >= 0 ? "+" : ""}${money(monthlyCashFlow)}`} icon={Banknote} available={monthlyCashFlow !== null} note={position.monthlyCashFlow.status === "confirmed" ? "Confirmed recurring data" : position.monthlyCashFlow.status === "estimated" ? "Estimated from confirmed records" : "Waiting for confirmed income and expenses"} />
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">

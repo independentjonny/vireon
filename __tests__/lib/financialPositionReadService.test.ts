@@ -45,6 +45,10 @@ test("financial read model maps confirmed persisted facts by user and category",
   assert.equal(model.netWorthInputs.assets, 925000);
   assert.equal(model.netWorthInputs.liabilities, 450000);
   assert.equal(model.netWorthInputs.netWorth, 475000);
+  assert.equal(model.monthlyCashFlow.monthlyIncome, 12000);
+  assert.equal(model.monthlyCashFlow.monthlyExpenses, 5000);
+  assert.equal(model.monthlyCashFlow.monthlySurplus, 7000);
+  assert.equal(model.monthlyCashFlow.status, "confirmed");
   assert.deepEqual(model.staleDataSummary.staleRecordIds, ["cash-a"]);
   assert.equal(model.documentImportStatus.activeImportCount, 1);
   assert.equal(model.confirmedFacts.some((item) => item.id === "other-user"), false);
@@ -64,4 +68,6 @@ test("financial read model distinguishes missing data from zero-valued persisted
   assert.equal(model.profileSummary.completenessScore, 0);
   assert.equal(model.documentImportStatus.unresolvedExtractionReviewCount, 0);
   assert.equal(model.confidenceSummary.averageFactConfidence, 0);
+  assert.equal(model.monthlyCashFlow.monthlySurplus, null);
+  assert.equal(model.monthlyCashFlow.status, "unavailable");
 });
