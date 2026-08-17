@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { resolve } from "node:path";
+import { buildAddFinancialDataSummary } from "../../src/lib/addFinancialDataStatus.ts";
+import type { FinancialPositionReadModel } from "../../src/server/services/financialPositionReadService.ts";
 
 function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), "utf8");
@@ -10,8 +12,42 @@ function source(path: string) {
 test("Add financial data route is authenticated and uses the dedicated shell state", () => {
   const page = source("src/app/financial-profile/add-data/page.tsx");
   assert.match(page, /requireServerPageSession\("\/financial-profile\/add-data"\)/);
+  assert.match(page, /createFinancialPositionReadServiceFromEnv\(\)\.read\(session\)/);
+  assert.match(page, /buildAddFinancialDataSummary\(position\)/);
+  assert.match(page, /<AddFinancialDataClient summary=\{summary\}/);
   assert.match(page, /<AppShell active="financial-data">/);
-  assert.match(page, /<AddFinancialDataClient \/>/);
+});
+
+test("category badges, progress and recommendation come from persisted financial position", () => {
+  const client = source("src/app/components/AddFinancialDataClient.tsx");
+  const summary = source("src/lib/addFinancialDataStatus.ts");
+  assert.match(client, /summary\.categoryStatuses\[item\.id\]/);
+  assert.match(client, /summary\.confirmedSources/);
+  assert.match(client, /summary\.needsReview/);
+  assert.match(client, /summary\.reviewedPercent/);
+  assert.match(client, /summary\.recommendedCategory/);
+  assert.match(summary, /position\.propertyDetails\.length > 0 \? "Confirmed"/);
+  assert.match(summary, /position\.liabilities\.length > 0 \? "Confirmed"/);
+  assert.doesNotMatch(client, />21<|>19<|53% reviewed|status: "Missing"/);
+});
+
+test("a persisted property and mortgage are never labelled missing", () => {
+  const position = {
+    propertyDetails: [{ id: "property-1" }],
+    liabilities: [{ id: "mortgage-1" }],
+    income: [],
+    superannuation: [],
+    cashPosition: { sourceRecordIds: [] },
+    documentImportStatus: { documents: [], unresolvedExtractionReviewCount: 2 },
+    confidenceSummary: { lowConfidenceFactCount: 1 },
+    provenanceSummary: { sourceRecordIds: ["property-1", "mortgage-1"] },
+  } as unknown as FinancialPositionReadModel;
+  const summary = buildAddFinancialDataSummary(position);
+  assert.equal(summary.categoryStatuses.property, "Confirmed");
+  assert.equal(summary.categoryStatuses.loans, "Confirmed");
+  assert.equal(summary.confirmedSources, 2);
+  assert.equal(summary.needsReview, 3);
+  assert.notEqual(summary.recommendedCategory, "property");
 });
 
 test("desktop and mobile navigation expose both Financial Profile journeys", () => {

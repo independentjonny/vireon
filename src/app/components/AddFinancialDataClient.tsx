@@ -24,8 +24,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import AustralianAddressAutocomplete, { type AustralianAddressSelection } from "./AustralianAddressAutocomplete";
+import type { AddFinancialDataCategoryId, AddFinancialDataCategoryStatus, AddFinancialDataSummary } from "@/lib/addFinancialDataStatus";
 
-type CategoryId = "bank" | "employment" | "property" | "loans" | "tax" | "super" | "other";
+type CategoryId = AddFinancialDataCategoryId;
 type Step = 1 | 2 | 3;
 type VaultDocumentSummary = {
   id: string;
@@ -61,20 +62,19 @@ type PropertyDraft = {
 
 const draftKey = "vireon-add-financial-data-draft-v1";
 
-const categories: Array<{
+const categoryDefinitions: Array<{
   id: CategoryId;
   title: string;
   detail: string;
-  status: "Confirmed" | "Needs review" | "Missing" | "Not added" | "Optional";
   icon: LucideIcon;
 }> = [
-  { id: "bank", title: "Bank & savings", detail: "Accounts and statements", status: "Confirmed", icon: Landmark },
-  { id: "employment", title: "Employment income", detail: "Payslips and employer details", status: "Needs review", icon: BriefcaseBusiness },
-  { id: "property", title: "Property & rent", detail: "Ownership, value and rent", status: "Missing", icon: House },
-  { id: "loans", title: "Loans & credit", detail: "Home loans, cards and other debt", status: "Missing", icon: WalletCards },
-  { id: "tax", title: "Tax & ATO", detail: "Tax returns and notices of assessment", status: "Not added", icon: FileText },
-  { id: "super", title: "Superannuation", detail: "Fund and statement details", status: "Confirmed", icon: CircleDollarSign },
-  { id: "other", title: "Other document", detail: "Add supporting financial evidence", status: "Optional", icon: Paperclip },
+  { id: "bank", title: "Bank & savings", detail: "Accounts and statements", icon: Landmark },
+  { id: "employment", title: "Employment income", detail: "Payslips and employer details", icon: BriefcaseBusiness },
+  { id: "property", title: "Property & rent", detail: "Ownership, value and rent", icon: House },
+  { id: "loans", title: "Loans & credit", detail: "Home loans, cards and other debt", icon: WalletCards },
+  { id: "tax", title: "Tax & ATO", detail: "Tax returns and notices of assessment", icon: FileText },
+  { id: "super", title: "Superannuation", detail: "Fund and statement details", icon: CircleDollarSign },
+  { id: "other", title: "Other document", detail: "Add supporting financial evidence", icon: Paperclip },
 ];
 
 const initialDraft: PropertyDraft = {
@@ -137,7 +137,7 @@ const owningWorkflows: Record<Exclude<CategoryId, "property">, { label: string; 
   other: { label: "Continue to Document Vault", href: "/financial-vault" },
 };
 
-function statusClass(status: (typeof categories)[number]["status"]) {
+function statusClass(status: AddFinancialDataCategoryStatus) {
   if (status === "Confirmed") return "bg-emerald-50 text-emerald-700";
   if (status === "Needs review") return "bg-amber-50 text-amber-700";
   if (status === "Missing") return "bg-rose-50 text-rose-700";
@@ -177,11 +177,12 @@ function Field({ label, children, full = false }: { label: string; children: Rea
 
 const controlClass = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
-export default function AddFinancialDataClient() {
+export default function AddFinancialDataClient({ summary }: { summary: AddFinancialDataSummary }) {
   const searchParams = useSearchParams();
   const requestedCategory = searchParams.get("category") as CategoryId | null;
-  const [step, setStep] = useState<Step>(requestedCategory && categories.some((item) => item.id === requestedCategory) ? 2 : 1);
-  const [category, setCategory] = useState<CategoryId>(requestedCategory && categories.some((item) => item.id === requestedCategory) ? requestedCategory : "property");
+  const categories = categoryDefinitions.map((item) => ({ ...item, status: summary.categoryStatuses[item.id] }));
+  const [step, setStep] = useState<Step>(requestedCategory && categoryDefinitions.some((item) => item.id === requestedCategory) ? 2 : 1);
+  const [category, setCategory] = useState<CategoryId>(requestedCategory && categoryDefinitions.some((item) => item.id === requestedCategory) ? requestedCategory : summary.recommendedCategory);
   const [draft, setDraft] = useState<PropertyDraft>(initialDraft);
   const [saved, setSaved] = useState(false);
   const [vaultOpen, setVaultOpen] = useState(false);
@@ -201,7 +202,7 @@ export default function AddFinancialDataClient() {
     const frame = window.requestAnimationFrame(() => {
       const stored = savedDraft();
       if (!stored) return;
-      if (!requestedCategory && stored.category && categories.some((item) => item.id === stored.category)) setCategory(stored.category);
+      if (!requestedCategory && stored.category && categoryDefinitions.some((item) => item.id === stored.category)) setCategory(stored.category);
       if (stored.draft) setDraft((current) => ({ ...current, ...stored.draft }));
     });
     return () => window.cancelAnimationFrame(frame);
@@ -386,8 +387,8 @@ export default function AddFinancialDataClient() {
             <h2 className="text-lg font-semibold text-slate-950">What would you like to add?</h2>
             <div className="mt-5 flex flex-col gap-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4 sm:flex-row sm:items-center">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700"><Sparkles className="h-5 w-5" /></div>
-              <div className="min-w-0 flex-1"><div className="font-semibold text-slate-950">Recommended next</div><div className="mt-1 text-sm text-slate-600">Add property and loan details to complete your net worth.</div></div>
-              <button type="button" onClick={() => { setCategory("property"); setStep(2); }} className="min-h-11 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Start with property</button>
+              <div className="min-w-0 flex-1"><div className="font-semibold text-slate-950">Recommended next</div><div className="mt-1 text-sm text-slate-600">{summary.recommendation}</div></div>
+              <button type="button" onClick={() => { setCategory(summary.recommendedCategory); setStep(2); }} className="min-h-11 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{summary.recommendationAction}</button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {categories.map((item) => {
@@ -406,8 +407,8 @@ export default function AddFinancialDataClient() {
           <aside className="space-y-4">
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)]">
               <h2 className="font-semibold text-slate-950">Your progress</h2>
-              <div className="mt-5 grid grid-cols-2 divide-x divide-slate-200"><div className="pr-3"><div className="text-2xl font-semibold">21</div><div className="text-xs text-slate-500">confirmed sources</div></div><div className="pl-3"><div className="text-2xl font-semibold">19</div><div className="text-xs text-slate-500">need review</div></div></div>
-              <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full w-[53%] rounded-full bg-blue-700" /></div><div className="mt-2 text-xs font-semibold text-blue-700">53% reviewed</div>
+              <div className="mt-5 grid grid-cols-2 divide-x divide-slate-200"><div className="pr-3"><div className="text-2xl font-semibold">{summary.confirmedSources}</div><div className="text-xs text-slate-500">confirmed sources</div></div><div className="pl-3"><div className="text-2xl font-semibold">{summary.needsReview}</div><div className="text-xs text-slate-500">need review</div></div></div>
+              <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-blue-700" style={{ width: `${summary.reviewedPercent}%` }} /></div><div className="mt-2 text-xs font-semibold text-blue-700">{summary.reviewedPercent}% reviewed</div>
             </section>
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)]"><h2 className="font-semibold text-slate-950">How it works</h2><ol className="mt-4 space-y-4 text-sm text-slate-600">{["Add the key details", "Upload or connect evidence", "Review extracted values"].map((item, index) => <li key={item} className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-blue-300 text-xs font-semibold text-blue-700">{index + 1}</span>{item}</li>)}</ol><div className="mt-5 flex gap-3 border-t border-slate-100 pt-4 text-xs leading-5 text-slate-500"><ShieldCheck className="h-5 w-5 shrink-0" />Nothing updates your position until you confirm it.</div></section>
           </aside>
