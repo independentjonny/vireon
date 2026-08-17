@@ -115,6 +115,13 @@ function documentStatusLabel(status: VaultDocumentSummary["status"]) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+function moneyLabel(value: string) {
+  const amount = Number(value.replace(/[$,\s]/g, ""));
+  return Number.isFinite(amount)
+    ? new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(amount)
+    : "Value not provided";
+}
+
 function savedDraft() {
   const stored = window.sessionStorage.getItem(draftKey);
   if (!stored) return null;
@@ -177,7 +184,7 @@ function Field({ label, children, full = false }: { label: string; children: Rea
 
 const controlClass = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
-export default function AddFinancialDataClient({ summary, existingProperty }: { summary: AddFinancialDataSummary; existingProperty: ExistingPropertyDraft | null }) {
+export default function AddFinancialDataClient({ summary, existingProperty, savedProperties }: { summary: AddFinancialDataSummary; existingProperty: ExistingPropertyDraft | null; savedProperties: ExistingPropertyDraft[] }) {
   const searchParams = useSearchParams();
   const requestedCategory = searchParams.get("category") as CategoryId | null;
   const categories = categoryDefinitions.map((item) => ({ ...item, status: summary.categoryStatuses[item.id] }));
@@ -427,6 +434,7 @@ export default function AddFinancialDataClient({ summary, existingProperty }: { 
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_40px_rgba(15,23,42,0.04)]">
             <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-5 py-4 sm:px-6"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><h2 className="font-semibold text-slate-950">{selected.title}</h2><span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (editingExisting && propertyFlow ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>{editingExisting && propertyFlow ? "Current saved details" : "In progress"}</span><div className="ml-auto flex items-center gap-3">{editingExisting && propertyFlow ? <button type="button" onClick={startAnotherProperty} className="text-sm font-semibold text-blue-700">Add another property</button> : null}<button type="button" onClick={() => setStep(1)} className="text-sm font-semibold text-blue-700">Change category</button></div></div>
             {propertyFlow ? <div className="p-5 sm:p-6">
+              {savedProperties.length > 1 ? <section className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4" aria-labelledby="saved-properties-heading"><div className="flex items-center justify-between gap-3"><div><h3 id="saved-properties-heading" className="font-semibold text-slate-950">Your saved properties</h3><p className="mt-1 text-xs text-slate-500">Choose a property to view or update its current details.</p></div><span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">{savedProperties.length} properties</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{savedProperties.map((property) => { const active = editingExisting && existingProperty?.recordId === property.recordId; return <Link key={property.recordId} href={`/financial-profile/add-data?category=property&propertyId=${encodeURIComponent(property.recordId)}`} aria-current={active ? "page" : undefined} className={"flex min-w-0 items-center gap-3 rounded-xl border p-3 transition " + (active ? "border-blue-500 bg-blue-50 ring-1 ring-blue-200" : "border-slate-200 bg-white hover:border-blue-300")}><span className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-full " + (active ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-600")}><House className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-900">{property.address}</span><span className="mt-0.5 block text-xs text-slate-500">{moneyLabel(property.estimatedValue)}</span></span>{active ? <CheckCircle2 className="h-5 w-5 shrink-0 text-blue-700" /> : <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />}</Link>; })}</div></section> : null}
               {editingExisting ? <div role="status" className="mb-5 flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700" /><div><div className="font-semibold">Showing your current saved property details</div><div className="mt-1 text-emerald-800">Review or change any field below. Nothing is replaced until you confirm the update.</div></div></div> : null}
               <h3 className="font-semibold text-slate-950">1. Property details</h3>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">

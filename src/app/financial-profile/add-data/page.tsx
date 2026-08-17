@@ -11,11 +11,16 @@ export default async function AddFinancialDataPage({ searchParams }: { searchPar
   const session = await requireServerPageSession("/financial-profile/add-data");
   const position = await createFinancialPositionReadServiceFromEnv().read(session);
   const summary = buildAddFinancialDataSummary(position);
-  const existingProperty = buildExistingPropertyDraft(position, params.propertyId);
+  const savedProperties = position.propertyDetails
+    .map((property) => buildExistingPropertyDraft(position, property.id))
+    .filter((property): property is NonNullable<typeof property> => property !== null);
+  const existingProperty = params.propertyId
+    ? savedProperties.find((property) => property.recordId === params.propertyId) ?? null
+    : savedProperties[0] ?? null;
 
   return (
     <AppShell active="financial-data">
-      <AddFinancialDataClient summary={summary} existingProperty={existingProperty} />
+      <AddFinancialDataClient summary={summary} existingProperty={existingProperty} savedProperties={savedProperties} />
     </AppShell>
   );
 }

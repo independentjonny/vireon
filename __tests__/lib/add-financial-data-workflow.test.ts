@@ -14,8 +14,9 @@ test("Add financial data route is authenticated and uses the dedicated shell sta
   assert.match(page, /requireServerPageSession\("\/financial-profile\/add-data"\)/);
   assert.match(page, /createFinancialPositionReadServiceFromEnv\(\)\.read\(session\)/);
   assert.match(page, /buildAddFinancialDataSummary\(position\)/);
-  assert.match(page, /buildExistingPropertyDraft\(position, params\.propertyId\)/);
-  assert.match(page, /<AddFinancialDataClient summary=\{summary\} existingProperty=\{existingProperty\}/);
+  assert.match(page, /buildExistingPropertyDraft\(position, property\.id\)/);
+  assert.match(page, /savedProperties = position\.propertyDetails/);
+  assert.match(page, /<AddFinancialDataClient summary=\{summary\} existingProperty=\{existingProperty\} savedProperties=\{savedProperties\}/);
   assert.match(page, /<AppShell active="financial-data">/);
 });
 
@@ -63,6 +64,9 @@ test("saved property, mortgage and linked evidence prefill the update workflow",
   assert.match(client, /Showing your current saved property details/);
   assert.match(client, /Confirm & update Financial Position/);
   assert.match(client, /Add another property/);
+  assert.match(client, /Your saved properties/);
+  assert.match(client, /savedProperties\.map/);
+  assert.match(client, /propertyId=\$\{encodeURIComponent\(property\.recordId\)\}/);
   assert.match(detail, /propertyId=\$\{property\.id\}/);
 
   const position = {
@@ -77,6 +81,18 @@ test("saved property, mortgage and linked evidence prefill the update workflow",
   assert.equal(draft?.lender, "ANZ");
   assert.equal(draft?.loanBalance, "245000");
   assert.equal(draft?.selectedDocuments[0]?.fileName, "mortgage.pdf");
+
+  const secondPosition = {
+    ...position,
+    propertyDetails: [
+      ...position.propertyDetails,
+      { id: "property-2", label: "8 Beach Road", value: { entityKey: "property:gnaf-2", address: "8 Beach Road, Geelong VIC 3220", marketValue: 630_000 } },
+    ],
+  } as unknown as FinancialPositionReadModel;
+  const second = buildExistingPropertyDraft(secondPosition, "property-2");
+  assert.equal(second?.address, "8 Beach Road, Geelong VIC 3220");
+  assert.equal(second?.estimatedValue, "630000");
+  assert.equal(second?.hasMortgage, false);
 });
 
 test("desktop and mobile navigation expose both Financial Profile journeys", () => {
