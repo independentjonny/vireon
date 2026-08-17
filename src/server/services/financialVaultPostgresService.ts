@@ -35,6 +35,8 @@ export type PropertyPositionInput = {
   estimatedValue: number;
   purchaseDate?: string;
   rentalIncome: boolean;
+  rentalIncomeAmount?: number;
+  rentalIncomeFrequency?: string;
   hasMortgage: boolean;
   lender?: string;
   loanBalance?: number;
@@ -694,6 +696,9 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
         if (input.hasMortgage && (!input.lender?.trim() || !Number.isFinite(input.loanBalance) || Number(input.loanBalance) < 0)) {
           throw new FinancialVaultPersistenceError("VALIDATION_FAILED", "Mortgage lender and a valid outstanding balance are required.", 422);
         }
+        if (input.rentalIncome && (!Number.isFinite(input.rentalIncomeAmount) || Number(input.rentalIncomeAmount) <= 0 || !input.rentalIncomeFrequency?.trim())) {
+          throw new FinancialVaultPersistenceError("VALIDATION_FAILED", "A positive rent amount and payment frequency are required when this property earns rental income.", 422);
+        }
         const replay = await assertIdempotency(ctx, "financial-vault.property-position.save", input.idempotencyKey, { ...input, idempotencyKey: undefined });
         const entityKey = `property:${input.addressId?.trim() || createHash("sha256").update(address.toLowerCase()).digest("hex").slice(0, 24)}`;
         const mortgageKey = `mortgage:${entityKey}`;
@@ -724,6 +729,8 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
             marketValue: input.estimatedValue,
             purchaseDate: input.purchaseDate ?? "",
             rentalIncome: input.rentalIncome,
+            rentalIncomeAmount: input.rentalIncome ? Number(input.rentalIncomeAmount) : 0,
+            rentalIncomeFrequency: input.rentalIncome ? input.rentalIncomeFrequency : "",
             currency: "AUD",
           },
         });

@@ -142,7 +142,7 @@ export default async function PropertyDetailsPage() {
                       <Detail label="Ownership" value={text(property.value.ownership)} icon={Users} />
                       <Detail label="Primary use" value={text(property.value.primaryUse)} icon={Building2} />
                       <Detail label="Purchase date" value={date(property.value.purchaseDate)} icon={CalendarDays} />
-                      <Detail label="Rental income" value={property.value.rentalIncome ? money(property.value.rentalIncome) : "No rental income recorded"} icon={Banknote} />
+                      <Detail label="Rental income" value={property.value.rentalIncome ? `${money(property.value.rentalIncomeAmount)} ${text(property.value.rentalIncomeFrequency, "").toLowerCase()}`.trim() : "No rental income recorded"} icon={Banknote} />
                     </div>
                   </section>
 

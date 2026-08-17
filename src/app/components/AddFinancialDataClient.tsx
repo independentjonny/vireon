@@ -49,6 +49,8 @@ type PropertyDraft = {
   estimatedValue: string;
   purchaseDate: string;
   rentalIncome: boolean;
+  rentalIncomeAmount: string;
+  rentalIncomeFrequency: string;
   hasMortgage: boolean;
   lender: string;
   loanBalance: string;
@@ -91,6 +93,8 @@ const initialDraft: PropertyDraft = {
   estimatedValue: "",
   purchaseDate: "",
   rentalIncome: false,
+  rentalIncomeAmount: "",
+  rentalIncomeFrequency: "Weekly",
   hasMortgage: false,
   lender: "",
   loanBalance: "",
@@ -238,6 +242,7 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
       ["Estimated value", draft.estimatedValue || "Not provided", draft.estimatedValue ? "Check" : "Not found"],
       ["Purchase date", draft.purchaseDate || "Not provided", draft.purchaseDate ? "High" : "Not found"],
     ];
+    if (draft.rentalIncome) rows.push(["Rental income", draft.rentalIncomeAmount ? `${draft.rentalIncomeAmount} ${draft.rentalIncomeFrequency.toLowerCase()}` : "Not provided", draft.rentalIncomeAmount ? "Check" : "Not found"]);
     if (draft.hasMortgage) rows.push(
       ["Mortgage lender", draft.lender || "Not provided", draft.lender ? "Check" : "Not found"],
       ["Mortgage balance", draft.loanBalance || "Not provided", draft.loanBalance ? "Check" : "Not found"],
@@ -361,6 +366,12 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
       setStep(2);
       return;
     }
+    const rentAmount = Number(draft.rentalIncomeAmount.replace(/[$,\s]/g, ""));
+    if (draft.rentalIncome && (!Number.isFinite(rentAmount) || rentAmount <= 0)) {
+      setSubmitError("Enter a positive rent amount and payment frequency.");
+      setStep(2);
+      return;
+    }
 
     const key = submissionKey || window.crypto.randomUUID();
     if (!submissionKey) setSubmissionKey(key);
@@ -465,6 +476,11 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
                 <Field label="Purchase date"><input type="date" value={draft.purchaseDate} onChange={(event) => update("purchaseDate", event.target.value)} className={controlClass} /></Field>
               </div>
               <label className="mt-4 flex items-center gap-3 text-sm text-slate-700"><input type="checkbox" checked={draft.rentalIncome} onChange={(event) => update("rentalIncome", event.target.checked)} className="h-4 w-4 accent-blue-700" />This property earns rental income</label>
+              {draft.rentalIncome ? <div className="mt-4 grid gap-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 sm:grid-cols-2">
+                <Field label="Rent received"><input inputMode="decimal" value={draft.rentalIncomeAmount} onChange={(event) => update("rentalIncomeAmount", event.target.value)} placeholder="$0" className={controlClass} /></Field>
+                <Field label="Rent frequency"><select value={draft.rentalIncomeFrequency} onChange={(event) => update("rentalIncomeFrequency", event.target.value)} className={controlClass}><option>Weekly</option><option>Fortnightly</option><option>Monthly</option><option>Quarterly</option><option>Annual</option></select></Field>
+                <p className="text-xs leading-5 text-emerald-800 sm:col-span-2">Confirmed rent is normalised to a monthly value and included in monthly cash flow.</p>
+              </div> : null}
               <div className="mt-6 border-t border-slate-200 pt-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                   <div className="flex-1"><h3 className="font-semibold text-slate-950">2. Mortgage or home loan</h3><p className="mt-1 text-sm leading-6 text-slate-500">Add the current loan linked to this property so your balance, repayments and net worth stay up to date.</p></div>

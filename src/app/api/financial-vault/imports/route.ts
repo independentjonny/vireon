@@ -77,6 +77,8 @@ export async function POST(request:Request){
         estimatedValue:numberValue(body.estimatedValue),
         purchaseDate:optionalString(body.purchaseDate),
         rentalIncome:body.rentalIncome===true,
+        rentalIncomeAmount:numberValue(body.rentalIncomeAmount),
+        rentalIncomeFrequency:optionalString(body.rentalIncomeFrequency),
         hasMortgage:body.hasMortgage===true,
         lender:optionalString(body.lender),
         loanBalance:numberValue(body.loanBalance),

@@ -220,9 +220,11 @@ describe("Financial Vault PostgreSQL service", () => {
       addressSource: "geoscape-gnaf" as const,
       propertyType: "House",
       ownership: "Joint",
-      primaryUse: "Owner occupied",
+      primaryUse: "Investment",
       estimatedValue: 900_000,
-      rentalIncome: false,
+      rentalIncome: true,
+      rentalIncomeAmount: 500,
+      rentalIncomeFrequency: "Weekly",
       hasMortgage: true,
       lender: "Example Bank",
       loanBalance: 410_000,
@@ -238,6 +240,8 @@ describe("Financial Vault PostgreSQL service", () => {
 
     const created = await service.savePropertyPosition(userA, input, "corr-property-1");
     assert.equal(created.property.value.marketValue, 900_000);
+    assert.equal(created.property.value.rentalIncomeAmount, 500);
+    assert.equal(created.property.value.rentalIncomeFrequency, "Weekly");
     assert.equal(created.mortgage?.value.balance, 410_000);
     assert.equal(client.facts.length, 2);
     assert.ok(client.evidence.some((item) => item.sourceRef.includes(documentId)));

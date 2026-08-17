@@ -71,7 +71,7 @@ test("saved property, mortgage and linked evidence prefill the update workflow",
   assert.match(detail, /propertyId=\$\{property\.id\}/);
 
   const position = {
-    propertyDetails: [{ id: "property-1", label: "12 Smith Street", value: { entityKey: "property:gnaf-1", address: "12 Smith Street, Richmond VIC 3121", addressId: "gnaf-1", locality: "Richmond", state: "VIC", postcode: "3121", addressSource: "geoscape-gnaf", propertyType: "House", ownership: "Joint", primaryUse: "Owner occupied", marketValue: 920_000, purchaseDate: "2020-02-03", rentalIncome: false, sourceDocumentIds: ["document-1"] } }],
+    propertyDetails: [{ id: "property-1", label: "12 Smith Street", value: { entityKey: "property:gnaf-1", address: "12 Smith Street, Richmond VIC 3121", addressId: "gnaf-1", locality: "Richmond", state: "VIC", postcode: "3121", addressSource: "geoscape-gnaf", propertyType: "House", ownership: "Joint", primaryUse: "Investment", marketValue: 920_000, purchaseDate: "2020-02-03", rentalIncome: true, rentalIncomeAmount: 500, rentalIncomeFrequency: "Weekly", sourceDocumentIds: ["document-1"] } }],
     mortgageDetails: [{ id: "mortgage-1", value: { propertyEntityKey: "property:gnaf-1", lender: "ANZ", balance: 245_000, interestRate: 6.12, repaymentAmount: 450, repaymentFrequency: "Weekly", repaymentType: "Principal and interest", rateType: "Variable", offsetBalance: 12_000, sourceDocumentIds: ["document-1"] } }],
     documentImportStatus: { documents: [{ id: "document-1", fileName: "mortgage.pdf", documentType: "mortgage_statement", uploadedAt: "2026-08-01T00:00:00.000Z", status: "extracted" }] },
   } as unknown as FinancialPositionReadModel;
@@ -82,6 +82,9 @@ test("saved property, mortgage and linked evidence prefill the update workflow",
   assert.equal(draft?.lender, "ANZ");
   assert.equal(draft?.loanBalance, "245000");
   assert.equal(draft?.selectedDocuments[0]?.fileName, "mortgage.pdf");
+  assert.equal(draft?.rentalIncome, true);
+  assert.equal(draft?.rentalIncomeAmount, "500");
+  assert.equal(draft?.rentalIncomeFrequency, "Weekly");
 
   const secondPosition = {
     ...position,
@@ -202,6 +205,8 @@ test("property workflow captures mortgage details and selects existing Vault evi
   const client = source("src/app/components/AddFinancialDataClient.tsx");
   for (const copy of [
     "This property has a mortgage",
+    "Rent received",
+    "Rent frequency",
     "Outstanding balance",
     "Interest rate",
     "Repayment amount",

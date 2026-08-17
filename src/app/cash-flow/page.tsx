@@ -27,7 +27,7 @@ function breakdown(lines: MonthlyCashFlowLine[], total: number | null, tone: "in
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-sm font-semibold text-slate-950">{line.label}</div>
-            <div className="mt-1 text-xs text-slate-500">{line.cadence} · {line.approximate ? "Estimated" : "Confirmed"} · Record {line.sourceRecordIds[0]}</div>
+            <div className="mt-1 text-xs capitalize text-slate-500">{line.category.replaceAll("-", " ")} · {line.cadence} · {line.approximate ? "Estimated" : "Confirmed"} · Record {line.sourceRecordIds[0]}</div>
           </div>
           <div className="text-lg font-semibold text-slate-950">{money(line.monthlyAmount)}</div>
         </div>

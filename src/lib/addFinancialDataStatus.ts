@@ -27,6 +27,8 @@ export type ExistingPropertyDraft = {
   estimatedValue: string;
   purchaseDate: string;
   rentalIncome: boolean;
+  rentalIncomeAmount: string;
+  rentalIncomeFrequency: string;
   hasMortgage: boolean;
   lender: string;
   loanBalance: string;
@@ -78,6 +80,8 @@ export function buildExistingPropertyDraft(position: FinancialPositionReadModel,
     estimatedValue: editableNumber(property.value.marketValue),
     purchaseDate: stringValue(property.value.purchaseDate),
     rentalIncome: property.value.rentalIncome === true,
+    rentalIncomeAmount: editableNumber(property.value.rentalIncomeAmount),
+    rentalIncomeFrequency: stringValue(property.value.rentalIncomeFrequency) || "Weekly",
     hasMortgage: Boolean(mortgage),
     lender: stringValue(mortgage?.value.lender),
     loanBalance: editableNumber(mortgage?.value.balance),
