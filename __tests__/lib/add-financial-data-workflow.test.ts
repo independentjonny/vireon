@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { resolve } from "node:path";
 import { buildAddFinancialDataSummary, buildExistingPropertyDraft } from "../../src/lib/addFinancialDataStatus.ts";
+import { propertyWorkflowPresentation, propertyWorkflowState } from "../../src/lib/propertyWorkflowState.ts";
 import type { FinancialPositionReadModel } from "../../src/server/services/financialPositionReadService.ts";
 
 function source(path: string) {
@@ -136,6 +137,7 @@ test("desktop and mobile navigation expose both Financial Profile journeys", () 
 
 test("workflow preserves Vault authority and explicit confirmation semantics", () => {
   const client = source("src/app/components/AddFinancialDataClient.tsx");
+  const workflowSources = client + source("src/lib/propertyWorkflowState.ts");
   for (const copy of [
     "Choose information",
     "Add details & evidence",
@@ -145,7 +147,7 @@ test("workflow preserves Vault authority and explicit confirmation semantics", (
     "Save draft in this browser",
     "Your confirmed property and mortgage appear immediately in Financial Position.",
     "Import Review separately verifies values extracted from supporting documents.",
-  ]) assert.match(client, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  ]) assert.match(workflowSources, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(client, /form\.set\("file", uploadFile\)/);
   assert.match(client, /form\.set\("documentType", uploadType\)/);
   assert.match(client, /fetch\("\/api\/financial-vault", \{ method: "POST", body: form/);
@@ -156,6 +158,7 @@ test("workflow preserves Vault authority and explicit confirmation semantics", (
 
 test("confirmed saved properties are distinguished from unsaved edit progress", () => {
   const client = source("src/app/components/AddFinancialDataClient.tsx");
+  const workflowSources = client + source("src/lib/propertyWorkflowState.ts");
   for (const copy of [
     "Saved record",
     "Details & evidence",
@@ -167,12 +170,32 @@ test("confirmed saved properties are distinguished from unsaved edit progress", 
     "Viewing saved details",
     "Editing saved details",
     "These details are already saved and confirmed",
-  ]) assert.match(client, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  ]) assert.match(workflowSources, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(client, /draftFingerprint\(draft\) !== draftFingerprint\(originalDraft\)/);
-  assert.match(client, /confirmedDetails = confirmedView && number === 2/);
-  assert.match(client, /savedRecord \|\| confirmedDetails \|\| confirmedSummary/);
+  assert.match(client, /propertyWorkflowPresentation/);
+  assert.match(client, /propertyPresentation\.primaryAction/);
   assert.doesNotMatch(client, /disabled=\{editingExisting && !hasPendingChanges\}/);
   assert.doesNotMatch(client, /editingExisting && propertyFlow \? "Current saved details"/);
+});
+
+test("property workflow state matrix keeps accepted records complete until edited", () => {
+  const confirmed = propertyWorkflowPresentation(propertyWorkflowState(true, false));
+  assert.equal(confirmed.recordStatus, "Confirmed");
+  assert.deepEqual(confirmed.completedSteps, [true, true, true]);
+  assert.deepEqual(confirmed.steps, ["Saved record", "Details & evidence", "Confirmed summary"]);
+  assert.equal(confirmed.primaryAction, "View confirmed summary");
+
+  const viewed = propertyWorkflowPresentation(propertyWorkflowState(true, false));
+  assert.deepEqual(viewed, confirmed);
+
+  const edited = propertyWorkflowPresentation(propertyWorkflowState(true, true));
+  assert.equal(edited.recordStatus, "Unsaved changes");
+  assert.deepEqual(edited.completedSteps, [true, false, false]);
+  assert.deepEqual(edited.steps, ["Saved record", "Edit details & evidence", "Review changes"]);
+  assert.equal(edited.primaryAction, "Review changes");
+
+  const savedAgain = propertyWorkflowPresentation(propertyWorkflowState(true, false));
+  assert.deepEqual(savedAgain, confirmed);
 });
 
 test("property workflow captures mortgage details and selects existing Vault evidence inline", () => {

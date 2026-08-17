@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import AustralianAddressAutocomplete, { type AustralianAddressSelection } from "./AustralianAddressAutocomplete";
 import type { AddFinancialDataCategoryId, AddFinancialDataCategoryStatus, AddFinancialDataSummary, ExistingPropertyDraft } from "@/lib/addFinancialDataStatus";
+import { propertyWorkflowPresentation, propertyWorkflowState, type PropertyWorkflowState } from "@/lib/propertyWorkflowState";
 
 type CategoryId = AddFinancialDataCategoryId;
 type Step = 1 | 2 | 3;
@@ -151,28 +152,21 @@ function statusClass(status: AddFinancialDataCategoryStatus) {
   return "bg-slate-100 text-slate-600";
 }
 
-function Stepper({ step, editingExisting, hasPendingChanges }: { step: Step; editingExisting: boolean; hasPendingChanges: boolean }) {
-  const confirmedView = editingExisting && !hasPendingChanges;
-  const steps = editingExisting
-    ? confirmedView
-      ? ["Saved record", "Details & evidence", "Confirmed summary"]
-      : ["Saved record", "Edit details & evidence", "Review changes"]
-    : ["Choose information", "Add details & evidence", "Review & confirm"];
+function Stepper({ step, workflowState }: { step: Step; workflowState: PropertyWorkflowState }) {
+  const presentation = propertyWorkflowPresentation(workflowState);
   return (
     <ol className="grid gap-3 sm:grid-cols-3" aria-label="Financial data workflow progress">
-      {steps.map((label, index) => {
+      {presentation.steps.map((label, index) => {
         const number = (index + 1) as Step;
-        const savedRecord = editingExisting && number === 1;
-        const confirmedDetails = confirmedView && number === 2;
-        const confirmedSummary = confirmedView && number === 3;
-        const complete = savedRecord || confirmedDetails || confirmedSummary || number < step;
+        const confirmedComplete = presentation.completedSteps[index];
+        const complete = confirmedComplete || number < step;
         const active = number === step;
         return (
           <li key={label} className="flex items-center gap-3">
-            <span className={"flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " + (savedRecord || confirmedDetails || confirmedSummary ? "border-emerald-600 bg-emerald-600 text-white" : complete || active ? "border-blue-700 bg-blue-700 text-white" : "border-slate-300 bg-white text-slate-500")}>
+            <span className={"flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " + (confirmedComplete ? "border-emerald-600 bg-emerald-600 text-white" : complete || active ? "border-blue-700 bg-blue-700 text-white" : "border-slate-300 bg-white text-slate-500")}>
               {complete ? <Check className="h-4 w-4" /> : number}
             </span>
-            <span className={"text-sm font-semibold " + (savedRecord || confirmedDetails || confirmedSummary ? "text-emerald-700" : active ? "text-blue-700" : "text-slate-600")}>{label}</span>
+            <span className={"text-sm font-semibold " + (confirmedComplete ? "text-emerald-700" : active ? "text-blue-700" : "text-slate-600")}>{label}</span>
             {number < 3 ? <span className="hidden h-px flex-1 bg-slate-200 xl:block" /> : null}
           </li>
         );
@@ -233,6 +227,8 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
     selectedDocuments: value.selectedDocuments.map((document) => document.id).sort(),
   });
   const hasPendingChanges = editingExisting && draftFingerprint(draft) !== draftFingerprint(originalDraft);
+  const propertyState = propertyWorkflowState(editingExisting && propertyFlow, hasPendingChanges);
+  const propertyPresentation = propertyWorkflowPresentation(propertyState);
   const reviewRows = useMemo(() => {
     const rows: Array<readonly [string, string, "High" | "Check" | "Not found"]> = [
       ["Property address", draft.address || "Not provided", draft.addressId ? "High" : draft.address ? "Check" : "Not found"],
@@ -417,7 +413,7 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
         </p>
       </header>
 
-      <Stepper step={step} editingExisting={editingExisting && propertyFlow} hasPendingChanges={hasPendingChanges} />
+      <Stepper step={step} workflowState={propertyFlow ? propertyState : "new"} />
 
       {step === 1 ? (
         <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
@@ -515,7 +511,7 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
         {saved ? <span role="status" className="text-sm font-semibold text-emerald-700">Draft saved in this browser. It is not yet part of Financial Position.</span> : null}
         {submitError ? <span role="alert" className="max-w-md text-sm font-semibold text-rose-700">{submitError}</span> : null}
         <button type="button" onClick={saveDraft} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-blue-700 hover:bg-blue-50">Save draft in this browser</button>
-        {step === 1 ? <button type="button" onClick={() => setStep(2)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Continue<ArrowRight className="h-4 w-4" /></button> : step === 2 ? propertyFlow ? <button type="button" onClick={() => setStep(3)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{editingExisting ? hasPendingChanges ? "Review changes" : "View confirmed summary" : "Review details"}<ArrowRight className="h-4 w-4" /></button> : <Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{owningWorkflows[category as Exclude<CategoryId, "property">].label}<ArrowRight className="h-4 w-4" /></Link> : editingExisting && !hasPendingChanges ? <Link href="/financial-profile" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Back to Financial Position<ArrowRight className="h-4 w-4" /></Link> : <button type="button" onClick={() => void confirmProperty()} disabled={submitBusy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-400">{submitBusy ? "Saving…" : editingExisting ? "Confirm & update Financial Position" : "Confirm & save to Financial Position"}<ArrowRight className="h-4 w-4" /></button>}
+        {step === 1 ? <button type="button" onClick={() => setStep(2)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Continue<ArrowRight className="h-4 w-4" /></button> : step === 2 ? propertyFlow ? <button type="button" onClick={() => setStep(3)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{propertyPresentation.primaryAction}<ArrowRight className="h-4 w-4" /></button> : <Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{owningWorkflows[category as Exclude<CategoryId, "property">].label}<ArrowRight className="h-4 w-4" /></Link> : propertyState === "confirmed" ? <Link href="/financial-profile" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Back to Financial Position<ArrowRight className="h-4 w-4" /></Link> : <button type="button" onClick={() => void confirmProperty()} disabled={submitBusy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-400">{submitBusy ? "Saving…" : editingExisting ? "Confirm & update Financial Position" : "Confirm & save to Financial Position"}<ArrowRight className="h-4 w-4" /></button>}
       </footer>
     </div>
   );
