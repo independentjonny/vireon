@@ -152,23 +152,26 @@ function statusClass(status: AddFinancialDataCategoryStatus) {
 }
 
 function Stepper({ step, editingExisting, hasPendingChanges }: { step: Step; editingExisting: boolean; hasPendingChanges: boolean }) {
+  const confirmedView = editingExisting && !hasPendingChanges;
   const steps = editingExisting
-    ? ["Saved record", "Edit details & evidence", "Review changes"]
+    ? confirmedView
+      ? ["Saved record", "Details & evidence", "Confirmed summary"]
+      : ["Saved record", "Edit details & evidence", "Review changes"]
     : ["Choose information", "Add details & evidence", "Review & confirm"];
   return (
     <ol className="grid gap-3 sm:grid-cols-3" aria-label="Financial data workflow progress">
       {steps.map((label, index) => {
         const number = (index + 1) as Step;
         const savedRecord = editingExisting && number === 1;
-        const complete = savedRecord || number < step;
+        const confirmedSummary = confirmedView && number === 3;
+        const complete = savedRecord || confirmedSummary || number < step;
         const active = number === step;
-        const unavailable = editingExisting && number === 3 && !hasPendingChanges;
         return (
           <li key={label} className="flex items-center gap-3">
-            <span className={"flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " + (savedRecord ? "border-emerald-600 bg-emerald-600 text-white" : complete || active ? "border-blue-700 bg-blue-700 text-white" : "border-slate-300 bg-white text-slate-500")}>
+            <span className={"flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " + (savedRecord || confirmedSummary ? "border-emerald-600 bg-emerald-600 text-white" : complete || active ? "border-blue-700 bg-blue-700 text-white" : "border-slate-300 bg-white text-slate-500")}>
               {complete ? <Check className="h-4 w-4" /> : number}
             </span>
-            <span className={"text-sm font-semibold " + (savedRecord ? "text-emerald-700" : active ? "text-blue-700" : unavailable ? "text-slate-400" : "text-slate-600")}>{label}</span>
+            <span className={"text-sm font-semibold " + (savedRecord || confirmedSummary ? "text-emerald-700" : active ? "text-blue-700" : "text-slate-600")}>{label}</span>
             {number < 3 ? <span className="hidden h-px flex-1 bg-slate-200 xl:block" /> : null}
           </li>
         );
@@ -394,7 +397,7 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
       <header>
         <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Financial profile</div>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-          {step === 1 ? "Add financial data" : step === 2 ? `${editingExisting && selected.id === "property" ? "View or update" : "Add"} ${selected.id === "property" ? "property details" : selected.title.toLowerCase()}` : editingExisting ? "Review property changes" : "Review property information"}
+          {step === 1 ? "Add financial data" : step === 2 ? `${editingExisting && selected.id === "property" ? "View or update" : "Add"} ${selected.id === "property" ? "property details" : selected.title.toLowerCase()}` : editingExisting && !hasPendingChanges ? "Confirmed property summary" : editingExisting ? "Review property changes" : "Review property information"}
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
           {step === 1
@@ -405,8 +408,10 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
                   ? "You are editing a confirmed property record. Review your changes before updating Financial Position."
                   : "This is the confirmed information currently saved in Financial Position. Make a change only when the property information needs updating."
                 : "Tell us the key details, then add evidence so Vireon can verify the information."
-              : editingExisting
-                ? "Compare the changes below, then confirm to update the saved property record."
+              : editingExisting && !hasPendingChanges
+                ? "These property and mortgage details have already been reviewed, accepted and saved in Financial Position."
+                : editingExisting
+                  ? "Compare the changes below, then confirm to update the saved property record."
                 : "Check the values, then confirm to save your current property and mortgage details to Financial Position. Supporting documents remain available for evidence review."}
         </p>
       </header>
@@ -493,10 +498,10 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
       ) : (
         <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)] sm:p-6">
-            <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><div><h2 className="font-semibold text-slate-950">{draft.address || "Property details"}</h2><div className="mt-1 text-xs text-slate-500">Source: {draft.addressSource === "geoscape-gnaf" ? "Geoscape Australia (G-NAF) address selection" : "manual entry"}; evidence remains managed by Document Vault</div></div><span className="ml-auto rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{editingExisting ? "Changes not saved" : "Review before saving"}</span></div>
-            <h3 className="mt-6 font-semibold text-slate-950">{editingExisting ? "Confirm changed values" : "Confirm entered values"}</h3>
+            <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><div><h2 className="font-semibold text-slate-950">{draft.address || "Property details"}</h2><div className="mt-1 text-xs text-slate-500">Source: {draft.addressSource === "geoscape-gnaf" ? "Geoscape Australia (G-NAF) address selection" : "manual entry"}; evidence remains managed by Document Vault</div></div><span className={"ml-auto rounded-full px-3 py-1 text-xs font-semibold " + (editingExisting && !hasPendingChanges ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700")}>{editingExisting && !hasPendingChanges ? "Confirmed" : editingExisting ? "Changes not saved" : "Review before saving"}</span></div>
+            <h3 className="mt-6 font-semibold text-slate-950">{editingExisting && !hasPendingChanges ? "Confirmed values" : editingExisting ? "Confirm changed values" : "Confirm entered values"}</h3>
             <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead className="border-b border-slate-200 text-xs text-slate-500"><tr><th className="py-3 font-semibold">Information</th><th className="py-3 font-semibold">Entered value</th><th className="py-3 font-semibold">Confidence</th><th className="py-3 font-semibold">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{reviewRows.map(([label, value, confidence]) => <tr key={label}><td className="py-3 font-medium text-slate-700">{label}</td><td className="py-3 text-slate-950">{value}</td><td className="py-3"><span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (confidence === "High" ? "bg-emerald-50 text-emerald-700" : confidence === "Check" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600")}>{confidence}</span></td><td className="py-3"><button type="button" onClick={() => setStep(2)} className="font-semibold text-blue-700">{confidence === "Not found" ? "Add" : "Edit"}</button></td></tr>)}</tbody></table></div>
-            <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50/60 p-4"><div className="font-semibold text-blue-950">Your confirmation saves these current details</div><div className="mt-1 text-sm text-blue-900">Values marked Check are saved as user-confirmed information. Linked documents remain in Document Vault for separate evidence review.</div></div>
+            <div className={"mt-5 rounded-xl border p-4 " + (editingExisting && !hasPendingChanges ? "border-emerald-200 bg-emerald-50/60" : "border-blue-200 bg-blue-50/60")}><div className={"font-semibold " + (editingExisting && !hasPendingChanges ? "text-emerald-950" : "text-blue-950")}>{editingExisting && !hasPendingChanges ? "These details are already saved and confirmed" : "Your confirmation saves these current details"}</div><div className={"mt-1 text-sm " + (editingExisting && !hasPendingChanges ? "text-emerald-900" : "text-blue-900")}>{editingExisting && !hasPendingChanges ? "No further review is required unless you change a property, mortgage or linked-document value." : "Values marked Check are saved as user-confirmed information. Linked documents remain in Document Vault for separate evidence review."}</div></div>
             <div className="mt-6"><h3 className="font-semibold text-slate-950">Supporting evidence</h3>{draft.selectedDocuments.length > 0 ? <div className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">{draft.selectedDocuments.map((document) => <div key={document.id} className="flex items-center gap-3 p-4"><FileCheck2 className="h-5 w-5 shrink-0 text-blue-700" /><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-slate-800">{document.fileName}</div><div className="mt-1 text-xs text-slate-500">{documentTypeLabels[document.documentType]} · {documentStatusLabel(document.status)}</div></div><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Verify in Import Review</span></div>)}</div> : <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">No Document Vault evidence selected. Go back and attach a current statement before confirmation.</div>}</div>
           </section>
           <aside className="space-y-4"><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">Source & provenance</h2><dl className="mt-4 space-y-4 text-sm"><div><dt className="text-xs text-slate-500">Address source</dt><dd className="mt-1 font-medium text-slate-800">{draft.addressSource === "geoscape-gnaf" ? "Geoscape Australia (G-NAF)" : "Manual entry"}</dd></div><div><dt className="text-xs text-slate-500">Evidence</dt><dd className="mt-1 font-medium text-slate-800">Document Vault</dd></div></dl><Link href="/financial-vault" className="mt-4 inline-flex text-sm font-semibold text-blue-700">View sources</Link></section><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">What happens next?</h2><div className="mt-4 space-y-4 text-sm leading-6 text-slate-600"><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Your confirmed property and mortgage appear immediately in Financial Position.</p><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Import Review separately verifies values extracted from supporting documents.</p></div></section></aside>
@@ -509,7 +514,7 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
         {saved ? <span role="status" className="text-sm font-semibold text-emerald-700">Draft saved in this browser. It is not yet part of Financial Position.</span> : null}
         {submitError ? <span role="alert" className="max-w-md text-sm font-semibold text-rose-700">{submitError}</span> : null}
         <button type="button" onClick={saveDraft} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-blue-700 hover:bg-blue-50">Save draft in this browser</button>
-        {step === 1 ? <button type="button" onClick={() => setStep(2)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Continue<ArrowRight className="h-4 w-4" /></button> : step === 2 ? propertyFlow ? <button type="button" onClick={() => setStep(3)} disabled={editingExisting && !hasPendingChanges} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300">{editingExisting ? "Review changes" : "Review details"}<ArrowRight className="h-4 w-4" /></button> : <Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{owningWorkflows[category as Exclude<CategoryId, "property">].label}<ArrowRight className="h-4 w-4" /></Link> : <button type="button" onClick={() => void confirmProperty()} disabled={submitBusy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-400">{submitBusy ? "Saving…" : editingExisting ? "Confirm & update Financial Position" : "Confirm & save to Financial Position"}<ArrowRight className="h-4 w-4" /></button>}
+        {step === 1 ? <button type="button" onClick={() => setStep(2)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Continue<ArrowRight className="h-4 w-4" /></button> : step === 2 ? propertyFlow ? <button type="button" onClick={() => setStep(3)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{editingExisting ? hasPendingChanges ? "Review changes" : "View confirmed summary" : "Review details"}<ArrowRight className="h-4 w-4" /></button> : <Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{owningWorkflows[category as Exclude<CategoryId, "property">].label}<ArrowRight className="h-4 w-4" /></Link> : editingExisting && !hasPendingChanges ? <Link href="/financial-profile" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Back to Financial Position<ArrowRight className="h-4 w-4" /></Link> : <button type="button" onClick={() => void confirmProperty()} disabled={submitBusy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-400">{submitBusy ? "Saving…" : editingExisting ? "Confirm & update Financial Position" : "Confirm & save to Financial Position"}<ArrowRight className="h-4 w-4" /></button>}
       </footer>
     </div>
   );

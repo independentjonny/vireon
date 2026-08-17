@@ -158,16 +158,18 @@ test("confirmed saved properties are distinguished from unsaved edit progress", 
   const client = source("src/app/components/AddFinancialDataClient.tsx");
   for (const copy of [
     "Saved record",
-    "Edit details & evidence",
+    "Details & evidence",
+    "Confirmed summary",
     "Review changes",
+    "View confirmed summary",
     "Record status: Confirmed",
     "Current action:",
     "Viewing saved details",
     "Editing saved details",
-    "Changes not saved",
+    "These details are already saved and confirmed",
   ]) assert.match(client, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.match(client, /disabled=\{editingExisting && !hasPendingChanges\}/);
   assert.match(client, /draftFingerprint\(draft\) !== draftFingerprint\(originalDraft\)/);
+  assert.doesNotMatch(client, /disabled=\{editingExisting && !hasPendingChanges\}/);
   assert.doesNotMatch(client, /editingExisting && propertyFlow \? "Current saved details"/);
 });
 
