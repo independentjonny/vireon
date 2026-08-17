@@ -31,13 +31,17 @@ test("workflow preserves Vault authority and explicit confirmation semantics", (
     "Add details & evidence",
     "Review & confirm",
     "Choose from Document Vault",
-    "Continue to Import Review",
-    "Nothing updates your position until you confirm it.",
-    "Unconfirmed values remain in review and are never treated as zero.",
+    "Confirm & save to Financial Position",
+    "Save draft in this browser",
+    "Your confirmed property and mortgage appear immediately in Financial Position.",
+    "Import Review separately verifies values extracted from supporting documents.",
   ]) assert.match(client, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(client, /form\.set\("file", uploadFile\)/);
   assert.match(client, /form\.set\("documentType", uploadType\)/);
   assert.match(client, /fetch\("\/api\/financial-vault", \{ method: "POST", body: form/);
+  assert.match(client, /action: "save-property-position"/);
+  assert.match(client, /window\.location\.assign\("\/financial-profile\?saved=property"\)/);
+  assert.doesNotMatch(client, /Continue to Import Review/);
 });
 
 test("property workflow captures mortgage details and selects existing Vault evidence inline", () => {

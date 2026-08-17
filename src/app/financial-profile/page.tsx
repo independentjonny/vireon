@@ -5,13 +5,14 @@ import { createFinancialPositionReadServiceFromEnv } from "@/server/services/fin
 
 export const dynamic = "force-dynamic";
 
-export default async function FinancialPositionPage() {
+export default async function FinancialPositionPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
+  const params = await searchParams;
   const session = await requireServerPageSession("/financial-profile");
   const position = await createFinancialPositionReadServiceFromEnv().read(session);
 
   return (
     <AppShell active="financial-position">
-      <FinancialProfileBuilderClient position={position} />
+      <FinancialProfileBuilderClient position={position} savedProperty={params.saved === "property"} />
     </AppShell>
   );
 }

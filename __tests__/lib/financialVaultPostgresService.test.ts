@@ -16,7 +16,7 @@ class FakeVaultClient implements PostgresPilotClient {
   profiles = new Set<string>();
   imports = new Map<string, { userId: string; sourceChecksum: string; preview: Record<string, unknown>; status: string }>();
   idempotency = new Map<string, string>();
-  facts: Array<{ id: string; userId: string; source: string; value: unknown; version: number }> = [];
+  facts: Array<{ id: string; userId: string; source: string; kind: string; value: unknown; version: number }> = [];
   factVersions: Array<{ userId: string; factId: string; value: unknown; reason: string }> = [];
   evidence: Array<{ id: string; userId: string; sourceRef: string }> = [];
   documents: Array<{ id: string; userId: string; title: string; documentType: string; contentHash: string; status: string; extraction: Record<string, unknown> }> = [];
@@ -46,6 +46,10 @@ class FakeVaultClient implements PostgresPilotClient {
     if (/insert into idempotency_keys/i.test(sql)) {
       this.idempotency.set(`${params[0]}:${params[2]}:${params[1]}`, String(params[3]));
       return { rows: [] };
+    }
+    if (/select id from documents where user_id = \$1 and id = any/i.test(sql)) {
+      const requested = new Set(params[1] as string[]);
+      return { rows: this.documents.filter((item) => item.userId === params[0] && requested.has(item.id)).map((item) => ({ id: item.id })) as T[] };
     }
     if (/select id from documents/i.test(sql)) {
       const doc = this.documents.find((item) => item.userId === params[0] && item.contentHash === params[1] && item.documentType === params[2]);
@@ -93,14 +97,29 @@ class FakeVaultClient implements PostgresPilotClient {
       }
       return { rows: [] };
     }
+    if (/from financial_facts[\s\S]*fact_value->'value'->>'entityKey'/i.test(sql)) {
+      const fact = this.facts.find((item) => item.userId === params[0] && item.kind === params[1] && (item.value as { value?: { entityKey?: string } }).value?.entityKey === params[2]);
+      return { rows: fact ? ([{ id: fact.id, version: fact.version, record: fact.value }] as T[]) : [] };
+    }
     if (/select fact_value as record/i.test(sql)) {
       return { rows: this.facts.filter((fact) => fact.userId === params[0]).map((fact) => ({ record: fact.value })) as T[] };
+    }
+    if (/update financial_facts/i.test(sql)) {
+      const retires = !/source_document_id/i.test(sql);
+      const id = String(params[retires ? 2 : 4]);
+      const userId = String(params[retires ? 3 : 5]);
+      const version = Number(params[retires ? 4 : 6]);
+      const fact = this.facts.find((item) => item.id === id && item.userId === userId && item.version === version);
+      if (!fact) return { rows: [] };
+      fact.value = JSON.parse(String(params[0]));
+      fact.version += 1;
+      return { rows: [{ id: fact.id, version: fact.version }] as T[] };
     }
     if (/insert into financial_facts/i.test(sql)) {
       const id = `fact-${this.facts.length + 1}`;
       const source = sql.includes("'financial-vault-import'") ? "financial-vault-import" : sql.includes("'financial-vault-manual'") ? "financial-vault-manual" : "financial-vault-document";
       const valueParam = source === "financial-vault-document" ? params[2] : params[2];
-      this.facts.push({ id, userId: String(params[0]), source, value: JSON.parse(String(valueParam)), version: 1 });
+      this.facts.push({ id, userId: String(params[0]), source, kind: String(params[1]), value: JSON.parse(String(valueParam)), version: 1 });
       return { rows: [{ id, version: 1 }] as T[] };
     }
     if (/insert into evidence/i.test(sql)) {
@@ -187,11 +206,65 @@ describe("Financial Vault PostgreSQL service", () => {
     assert.ok(client.factVersions.length > 0);
   });
 
+  it("durably upserts a property and linked mortgage without duplicating the financial position", async () => {
+    const client = new FakeVaultClient();
+    const service = createFinancialVaultPostgresService(client);
+    const documentId = "33333333-3333-4333-8333-333333333333";
+    client.documents.push({ id: documentId, userId: userA.userId, title: "mortgage.pdf", documentType: "mortgage_statement", contentHash: "hash", status: "extracted", extraction: {} });
+    const input = {
+      address: "12 Smith Street, Richmond VIC 3121",
+      addressId: "gnaf-12-smith",
+      addressLocality: "Richmond",
+      addressState: "VIC",
+      addressPostcode: "3121",
+      addressSource: "geoscape-gnaf" as const,
+      propertyType: "House",
+      ownership: "Joint",
+      primaryUse: "Owner occupied",
+      estimatedValue: 900_000,
+      rentalIncome: false,
+      hasMortgage: true,
+      lender: "Example Bank",
+      loanBalance: 410_000,
+      interestRate: 6.1,
+      repaymentAmount: 2_600,
+      repaymentFrequency: "Monthly",
+      repaymentType: "Principal and interest",
+      rateType: "Variable",
+      offsetBalance: 20_000,
+      documentIds: [documentId],
+      idempotencyKey: "property-save-1",
+    };
+
+    const created = await service.savePropertyPosition(userA, input, "corr-property-1");
+    assert.equal(created.property.value.marketValue, 900_000);
+    assert.equal(created.mortgage?.value.balance, 410_000);
+    assert.equal(client.facts.length, 2);
+    assert.ok(client.evidence.some((item) => item.sourceRef.includes(documentId)));
+
+    const updatedInput = { ...input, estimatedValue: 950_000, loanBalance: 390_000, idempotencyKey: "property-save-2" };
+    await service.savePropertyPosition(userA, updatedInput, "corr-property-2");
+    assert.equal(client.facts.length, 2);
+    assert.deepEqual(client.facts.map((fact) => fact.version), [2, 2]);
+    assert.equal((client.facts[0].value as { value: { marketValue: number } }).value.marketValue, 950_000);
+
+    await service.savePropertyPosition(userA, updatedInput, "corr-property-replay");
+    assert.deepEqual(client.facts.map((fact) => fact.version), [2, 2]);
+
+    await service.savePropertyPosition(userB, { ...input, documentIds: [], idempotencyKey: "property-save-user-b" }, "corr-property-b");
+    assert.equal(client.facts.length, 4);
+
+    await service.savePropertyPosition(userA, { ...updatedInput, hasMortgage: false, idempotencyKey: "property-save-3" }, "corr-property-3");
+    const mortgage = client.facts.find((fact) => fact.userId === userA.userId && fact.kind === "liability");
+    assert.equal((mortgage?.value as { superseded: boolean }).superseded, true);
+  });
+
   it("removes active route imports of local Financial Vault repositories", () => {
     const route = readFileSync(join(process.cwd(), "src/app/api/financial-vault/route.ts"), "utf8");
     const importsRoute = readFileSync(join(process.cwd(), "src/app/api/financial-vault/imports/route.ts"), "utf8");
 
     assert.equal(route.includes("financialVaultStore"), false);
     assert.equal(importsRoute.includes("manualFinancialDataRepository"), false);
+    assert.match(importsRoute, /save-property-position/);
   });
 });

@@ -193,6 +193,9 @@ export default function AddFinancialDataClient() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [submitBusy, setSubmitBusy] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [submissionKey, setSubmissionKey] = useState("");
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -225,8 +228,6 @@ export default function AddFinancialDataClient() {
     );
     return rows;
   }, [draft]);
-  const confirmedCount = reviewRows.filter((row) => row[2] !== "Not found").length;
-
   function saveDraft() {
     window.sessionStorage.setItem(draftKey, JSON.stringify({ category, draft }));
     setSaved(true);
@@ -234,10 +235,14 @@ export default function AddFinancialDataClient() {
   }
 
   function update<K extends keyof PropertyDraft>(key: K, value: PropertyDraft[K]) {
+    setSubmissionKey("");
+    setSubmitError("");
     setDraft((current) => ({ ...current, [key]: value }));
   }
 
   function updateAddress(address: string, selection: AustralianAddressSelection | null) {
+    setSubmissionKey("");
+    setSubmitError("");
     setDraft((current) => ({
       ...current,
       address,
@@ -272,6 +277,8 @@ export default function AddFinancialDataClient() {
   }
 
   function toggleDocument(document: VaultDocumentSummary) {
+    setSubmissionKey("");
+    setSubmitError("");
     setDraft((current) => {
       const selected = current.selectedDocuments.some((item) => item.id === document.id);
       return {
@@ -309,6 +316,52 @@ export default function AddFinancialDataClient() {
     }
   }
 
+  async function confirmProperty() {
+    if (submitBusy) return;
+    if (!draft.address.trim()) {
+      setSubmitError("Enter the property address before saving.");
+      setStep(2);
+      return;
+    }
+    const estimatedValue = Number(draft.estimatedValue.replace(/[$,\s]/g, ""));
+    if (!Number.isFinite(estimatedValue) || estimatedValue <= 0) {
+      setSubmitError("Enter a positive estimated property value before saving.");
+      setStep(2);
+      return;
+    }
+    if (draft.hasMortgage && (!draft.lender.trim() || !Number.isFinite(Number(draft.loanBalance.replace(/[$,\s]/g, ""))))) {
+      setSubmitError("Enter the mortgage lender and a valid outstanding balance before saving.");
+      setStep(2);
+      return;
+    }
+
+    const key = submissionKey || window.crypto.randomUUID();
+    if (!submissionKey) setSubmissionKey(key);
+    setSubmitBusy(true);
+    setSubmitError("");
+    try {
+      const response = await fetch("/api/financial-vault/imports", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json", "idempotency-key": key },
+        body: JSON.stringify({
+          action: "save-property-position",
+          ...draft,
+          selectedDocuments: undefined,
+          documentIds: draft.selectedDocuments.map((document) => document.id),
+        }),
+      });
+      const payload = await response.json() as { ok?: boolean; error?: string };
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "The property could not be saved.");
+      window.sessionStorage.removeItem(draftKey);
+      window.location.assign("/financial-profile?saved=property");
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "The property could not be saved.");
+    } finally {
+      setSubmitBusy(false);
+    }
+  }
+
   return (
     <div className="mx-auto w-full max-w-[1180px] space-y-7 pb-10">
       <header>
@@ -321,7 +374,7 @@ export default function AddFinancialDataClient() {
             ? "Choose what you want to add. Vireon will guide you through the right evidence and confirm every value before it updates your position."
             : step === 2
               ? "Tell us the key details, then add evidence so Vireon can verify the information."
-              : "Check the values you entered and any extracted evidence. Nothing updates your financial position until confirmation is completed in Import Review."}
+              : "Check the values, then confirm to save your current property and mortgage details to Financial Position. Supporting documents remain available for evidence review."}
         </p>
       </header>
 
@@ -406,20 +459,21 @@ export default function AddFinancialDataClient() {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)] sm:p-6">
             <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><div><h2 className="font-semibold text-slate-950">{draft.address || "Property details"}</h2><div className="mt-1 text-xs text-slate-500">Source: {draft.addressSource === "geoscape-gnaf" ? "Geoscape Australia (G-NAF) address selection" : "manual entry"}; evidence remains managed by Document Vault</div></div><span className="ml-auto rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Review required</span></div>
             <h3 className="mt-6 font-semibold text-slate-950">Confirm entered values</h3>
-            <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="border-b border-slate-200 text-xs text-slate-500"><tr><th className="w-10 py-3"><span className="sr-only">Selected</span></th><th className="py-3 font-semibold">Information</th><th className="py-3 font-semibold">Entered value</th><th className="py-3 font-semibold">Confidence</th><th className="py-3 font-semibold">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{reviewRows.map(([label, value, confidence]) => <tr key={label}><td className="py-3"><input type="checkbox" defaultChecked={confidence !== "Not found"} className="h-4 w-4 accent-blue-700" aria-label={`Confirm ${label}`} /></td><td className="py-3 font-medium text-slate-700">{label}</td><td className="py-3 text-slate-950">{value}</td><td className="py-3"><span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (confidence === "High" ? "bg-emerald-50 text-emerald-700" : confidence === "Check" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600")}>{confidence}</span></td><td className="py-3"><button type="button" onClick={() => setStep(2)} className="font-semibold text-blue-700">{confidence === "Not found" ? "Add" : "Edit"}</button></td></tr>)}</tbody></table></div>
-            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="font-semibold text-amber-900">Review values marked Check</div><div className="mt-1 text-sm text-amber-800">These values need supporting evidence before they can become active financial facts.</div></div>
+            <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead className="border-b border-slate-200 text-xs text-slate-500"><tr><th className="py-3 font-semibold">Information</th><th className="py-3 font-semibold">Entered value</th><th className="py-3 font-semibold">Confidence</th><th className="py-3 font-semibold">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{reviewRows.map(([label, value, confidence]) => <tr key={label}><td className="py-3 font-medium text-slate-700">{label}</td><td className="py-3 text-slate-950">{value}</td><td className="py-3"><span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (confidence === "High" ? "bg-emerald-50 text-emerald-700" : confidence === "Check" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600")}>{confidence}</span></td><td className="py-3"><button type="button" onClick={() => setStep(2)} className="font-semibold text-blue-700">{confidence === "Not found" ? "Add" : "Edit"}</button></td></tr>)}</tbody></table></div>
+            <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50/60 p-4"><div className="font-semibold text-blue-950">Your confirmation saves these current details</div><div className="mt-1 text-sm text-blue-900">Values marked Check are saved as user-confirmed information. Linked documents remain in Document Vault for separate evidence review.</div></div>
             <div className="mt-6"><h3 className="font-semibold text-slate-950">Supporting evidence</h3>{draft.selectedDocuments.length > 0 ? <div className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">{draft.selectedDocuments.map((document) => <div key={document.id} className="flex items-center gap-3 p-4"><FileCheck2 className="h-5 w-5 shrink-0 text-blue-700" /><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-slate-800">{document.fileName}</div><div className="mt-1 text-xs text-slate-500">{documentTypeLabels[document.documentType]} · {documentStatusLabel(document.status)}</div></div><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Verify in Import Review</span></div>)}</div> : <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">No Document Vault evidence selected. Go back and attach a current statement before confirmation.</div>}</div>
           </section>
-          <aside className="space-y-4"><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">Source & provenance</h2><dl className="mt-4 space-y-4 text-sm"><div><dt className="text-xs text-slate-500">Address source</dt><dd className="mt-1 font-medium text-slate-800">{draft.addressSource === "geoscape-gnaf" ? "Geoscape Australia (G-NAF)" : "Manual entry"}</dd></div><div><dt className="text-xs text-slate-500">Evidence</dt><dd className="mt-1 font-medium text-slate-800">Document Vault</dd></div></dl><Link href="/financial-vault" className="mt-4 inline-flex text-sm font-semibold text-blue-700">View sources</Link></section><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">What happens next?</h2><div className="mt-4 space-y-4 text-sm leading-6 text-slate-600"><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Import Review confirms evidence-backed values before they become active facts.</p><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Unconfirmed values remain in review and are never treated as zero.</p></div></section></aside>
+          <aside className="space-y-4"><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">Source & provenance</h2><dl className="mt-4 space-y-4 text-sm"><div><dt className="text-xs text-slate-500">Address source</dt><dd className="mt-1 font-medium text-slate-800">{draft.addressSource === "geoscape-gnaf" ? "Geoscape Australia (G-NAF)" : "Manual entry"}</dd></div><div><dt className="text-xs text-slate-500">Evidence</dt><dd className="mt-1 font-medium text-slate-800">Document Vault</dd></div></dl><Link href="/financial-vault" className="mt-4 inline-flex text-sm font-semibold text-blue-700">View sources</Link></section><section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">What happens next?</h2><div className="mt-4 space-y-4 text-sm leading-6 text-slate-600"><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Your confirmed property and mortgage appear immediately in Financial Position.</p><p className="flex gap-3"><ShieldCheck className="h-5 w-5 shrink-0 text-blue-700" />Import Review separately verifies values extracted from supporting documents.</p></div></section></aside>
         </div>
       )}
 
       <footer className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center">
         {step === 1 ? <Link href="/financial-profile" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-blue-700"><ArrowLeft className="h-4 w-4" />Back to Financial Position</Link> : <button type="button" onClick={() => setStep(step === 2 ? 1 : 2)} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-blue-700"><ArrowLeft className="h-4 w-4" />{step === 2 ? "Back" : "Back to details"}</button>}
         <div className="flex-1" />
-        {saved ? <span role="status" className="text-sm font-semibold text-emerald-700">Draft saved for this session</span> : null}
-        <button type="button" onClick={saveDraft} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-blue-700 hover:bg-blue-50">Save and finish later</button>
-        {step === 1 ? <button type="button" onClick={() => setStep(2)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Continue<ArrowRight className="h-4 w-4" /></button> : step === 2 ? propertyFlow ? <button type="button" onClick={() => setStep(3)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Review details<ArrowRight className="h-4 w-4" /></button> : <Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{owningWorkflows[category as Exclude<CategoryId, "property">].label}<ArrowRight className="h-4 w-4" /></Link> : <Link href="/financial-vault/imports" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Continue to Import Review ({confirmedCount})<ArrowRight className="h-4 w-4" /></Link>}
+        {saved ? <span role="status" className="text-sm font-semibold text-emerald-700">Draft saved in this browser. It is not yet part of Financial Position.</span> : null}
+        {submitError ? <span role="alert" className="max-w-md text-sm font-semibold text-rose-700">{submitError}</span> : null}
+        <button type="button" onClick={saveDraft} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-blue-700 hover:bg-blue-50">Save draft in this browser</button>
+        {step === 1 ? <button type="button" onClick={() => setStep(2)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Continue<ArrowRight className="h-4 w-4" /></button> : step === 2 ? propertyFlow ? <button type="button" onClick={() => setStep(3)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Review details<ArrowRight className="h-4 w-4" /></button> : <Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{owningWorkflows[category as Exclude<CategoryId, "property">].label}<ArrowRight className="h-4 w-4" /></Link> : <button type="button" onClick={() => void confirmProperty()} disabled={submitBusy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-400">{submitBusy ? "Saving…" : "Confirm & save to Financial Position"}<ArrowRight className="h-4 w-4" /></button>}
       </footer>
     </div>
   );

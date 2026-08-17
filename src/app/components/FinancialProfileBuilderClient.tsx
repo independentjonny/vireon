@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Banknote,
   Building2,
+  CheckCircle2,
   CircleDollarSign,
   Clock3,
   FileCheck2,
@@ -71,7 +72,7 @@ type Gap = {
   icon: LucideIcon;
 };
 
-export default function FinancialProfileBuilderClient({ position }: { position: FinancialPositionReadModel }) {
+export default function FinancialProfileBuilderClient({ position, savedProperty = false }: { position: FinancialPositionReadModel; savedProperty?: boolean }) {
   const assets = total(position.assets, ["marketValue", "balance", "amount", "value"]);
   const liabilities = total(position.liabilities, ["balance", "amount", "principal", "value"]);
   const income = total(position.income, ["monthlyAmount", "monthlyIncome", "amount"]);
@@ -138,6 +139,16 @@ export default function FinancialProfileBuilderClient({ position }: { position: 
           Updated {dateLabel(position.profileSummary.lastUpdatedAt)}
         </div>
       </header>
+
+      {savedProperty ? (
+        <section role="status" className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+          <div>
+            <div className="font-semibold">Property and mortgage details saved</div>
+            <p className="mt-1 text-sm text-emerald-800">Your confirmed current information is included below. Any supporting documents remain in Document Vault for evidence review.</p>
+          </div>
+        </section>
+      ) : null}
 
       <section aria-labelledby="known-heading">
         <h2 id="known-heading" className="text-xl font-semibold tracking-tight text-slate-950">What Vireon knows</h2>

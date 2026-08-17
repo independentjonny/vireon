@@ -1,6 +1,6 @@
 import { authErrorResponse, requireSession } from "@/lib/auth/middleware";
 import type { FinancialRecordKind, IngestionSource } from "@/lib/manualFinancialDataPlatform";
-import { createFinancialVaultServiceFromEnv, toFinancialVaultSafeError } from "@/server/services/financialVaultPostgresService";
+import { createFinancialVaultServiceFromEnv, FinancialVaultPersistenceError, toFinancialVaultSafeError } from "@/server/services/financialVaultPostgresService";
 import { randomUUID } from "crypto";
 
 function correlationId(request: Request) {
@@ -13,6 +13,20 @@ function idempotencyKey(request: Request, body: Record<string, unknown>) {
 
 function ownershipForged(body: Record<string, unknown>, userId: string, workspaceId: string): boolean {
   return (typeof body.userId === "string" && body.userId !== userId) || (typeof body.workspaceId === "string" && body.workspaceId !== workspaceId);
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function numberValue(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value !== "string") return Number.NaN;
+  return Number(value.replace(/[$,\s]/g, ""));
+}
+
+function documentIds(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(0, 20) : [];
 }
 
 export async function GET(request:Request){
@@ -47,6 +61,35 @@ export async function POST(request:Request){
     else if(action==="review")result=await service.reviewImport(current,String(body.ingestionId),(body.actions??[]) as Array<{candidateId:string;action:"accept"|"edit"|"reject";value?:unknown}>,requestId);
     else if(action==="confirm")result=await service.confirmImport(current,String(body.ingestionId),requestId);
     else if(action==="rollback")result=await service.rollbackImport(current,String(body.ingestionId),requestId);
+    else if(action==="save-property-position") {
+      const key=idempotencyKey(request,body);
+      if(!key)throw new FinancialVaultPersistenceError("VALIDATION_FAILED","A save request key is required.",422);
+      result=await service.savePropertyPosition(current,{
+        address:String(body.address??""),
+        addressId:optionalString(body.addressId),
+        addressLocality:optionalString(body.addressLocality),
+        addressState:optionalString(body.addressState),
+        addressPostcode:optionalString(body.addressPostcode),
+        addressSource:body.addressSource==="geoscape-gnaf"?"geoscape-gnaf":"manual",
+        propertyType:String(body.propertyType??"House"),
+        ownership:String(body.ownership??"Sole"),
+        primaryUse:String(body.primaryUse??"Owner occupied"),
+        estimatedValue:numberValue(body.estimatedValue),
+        purchaseDate:optionalString(body.purchaseDate),
+        rentalIncome:body.rentalIncome===true,
+        hasMortgage:body.hasMortgage===true,
+        lender:optionalString(body.lender),
+        loanBalance:numberValue(body.loanBalance),
+        interestRate:numberValue(body.interestRate),
+        repaymentAmount:numberValue(body.repaymentAmount),
+        repaymentFrequency:optionalString(body.repaymentFrequency),
+        repaymentType:optionalString(body.repaymentType),
+        rateType:optionalString(body.rateType),
+        offsetBalance:numberValue(body.offsetBalance),
+        documentIds:documentIds(body.documentIds),
+        idempotencyKey:key,
+      },requestId);
+    }
     else if(action==="manual")result=await service.manualRecord(current,{kind:String(body.kind) as Exclude<FinancialRecordKind,"transaction"|"document">,subtype:String(body.subtype),label:String(body.label),value:(body.value??{}) as Record<string,unknown>,approximate:Boolean(body.approximate),idempotencyKey:idempotencyKey(request,body)},requestId);
     else throw new Error("UNKNOWN_ACTION");
     return Response.json({ok:true,result});
