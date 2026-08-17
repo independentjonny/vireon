@@ -151,20 +151,24 @@ function statusClass(status: AddFinancialDataCategoryStatus) {
   return "bg-slate-100 text-slate-600";
 }
 
-function Stepper({ step }: { step: Step }) {
-  const steps = ["Choose information", "Add details & evidence", "Review & confirm"];
+function Stepper({ step, editingExisting, hasPendingChanges }: { step: Step; editingExisting: boolean; hasPendingChanges: boolean }) {
+  const steps = editingExisting
+    ? ["Saved record", "Edit details & evidence", "Review changes"]
+    : ["Choose information", "Add details & evidence", "Review & confirm"];
   return (
     <ol className="grid gap-3 sm:grid-cols-3" aria-label="Financial data workflow progress">
       {steps.map((label, index) => {
         const number = (index + 1) as Step;
-        const complete = number < step;
+        const savedRecord = editingExisting && number === 1;
+        const complete = savedRecord || number < step;
         const active = number === step;
+        const unavailable = editingExisting && number === 3 && !hasPendingChanges;
         return (
           <li key={label} className="flex items-center gap-3">
-            <span className={"flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " + (complete || active ? "border-blue-700 bg-blue-700 text-white" : "border-slate-300 bg-white text-slate-500")}>
+            <span className={"flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " + (savedRecord ? "border-emerald-600 bg-emerald-600 text-white" : complete || active ? "border-blue-700 bg-blue-700 text-white" : "border-slate-300 bg-white text-slate-500")}>
               {complete ? <Check className="h-4 w-4" /> : number}
             </span>
-            <span className={"text-sm font-semibold " + (active ? "text-blue-700" : "text-slate-600")}>{label}</span>
+            <span className={"text-sm font-semibold " + (savedRecord ? "text-emerald-700" : active ? "text-blue-700" : unavailable ? "text-slate-400" : "text-slate-600")}>{label}</span>
             {number < 3 ? <span className="hidden h-px flex-1 bg-slate-200 xl:block" /> : null}
           </li>
         );
@@ -219,6 +223,12 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
 
   const selected = categories.find((item) => item.id === category) ?? categories[2];
   const propertyFlow = category === "property";
+  const originalDraft = useMemo<PropertyDraft>(() => existingProperty ? { ...initialDraft, ...existingProperty } : initialDraft, [existingProperty]);
+  const draftFingerprint = (value: PropertyDraft) => JSON.stringify({
+    ...value,
+    selectedDocuments: value.selectedDocuments.map((document) => document.id).sort(),
+  });
+  const hasPendingChanges = editingExisting && draftFingerprint(draft) !== draftFingerprint(originalDraft);
   const reviewRows = useMemo(() => {
     const rows: Array<readonly [string, string, "High" | "Check" | "Not found"]> = [
       ["Property address", draft.address || "Not provided", draft.addressId ? "High" : draft.address ? "Check" : "Not found"],
@@ -384,18 +394,24 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
       <header>
         <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Financial profile</div>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-          {step === 1 ? "Add financial data" : step === 2 ? `${editingExisting && selected.id === "property" ? "Update" : "Add"} ${selected.id === "property" ? "property details" : selected.title.toLowerCase()}` : "Review property information"}
+          {step === 1 ? "Add financial data" : step === 2 ? `${editingExisting && selected.id === "property" ? "View or update" : "Add"} ${selected.id === "property" ? "property details" : selected.title.toLowerCase()}` : editingExisting ? "Review property changes" : "Review property information"}
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
           {step === 1
             ? "Choose what you want to add. Vireon will guide you through the right evidence and confirm every value before it updates your position."
             : step === 2
-              ? "Tell us the key details, then add evidence so Vireon can verify the information."
-              : "Check the values, then confirm to save your current property and mortgage details to Financial Position. Supporting documents remain available for evidence review."}
+              ? editingExisting && propertyFlow
+                ? hasPendingChanges
+                  ? "You are editing a confirmed property record. Review your changes before updating Financial Position."
+                  : "This is the confirmed information currently saved in Financial Position. Make a change only when the property information needs updating."
+                : "Tell us the key details, then add evidence so Vireon can verify the information."
+              : editingExisting
+                ? "Compare the changes below, then confirm to update the saved property record."
+                : "Check the values, then confirm to save your current property and mortgage details to Financial Position. Supporting documents remain available for evidence review."}
         </p>
       </header>
 
-      <Stepper step={step} />
+      <Stepper step={step} editingExisting={editingExisting && propertyFlow} hasPendingChanges={hasPendingChanges} />
 
       {step === 1 ? (
         <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
@@ -432,9 +448,10 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
       ) : step === 2 ? (
         <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_40px_rgba(15,23,42,0.04)]">
-            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-5 py-4 sm:px-6"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><h2 className="font-semibold text-slate-950">{selected.title}</h2><span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (editingExisting && propertyFlow ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>{editingExisting && propertyFlow ? "Current saved details" : "In progress"}</span><div className="ml-auto flex items-center gap-3">{editingExisting && propertyFlow ? <button type="button" onClick={startAnotherProperty} className="text-sm font-semibold text-blue-700">Add another property</button> : null}<button type="button" onClick={() => setStep(1)} className="text-sm font-semibold text-blue-700">Change category</button></div></div>
+            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-5 py-4 sm:px-6"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><h2 className="font-semibold text-slate-950">{selected.title}</h2><span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (editingExisting && propertyFlow ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>{editingExisting && propertyFlow ? "Confirmed" : "In progress"}</span><div className="ml-auto flex items-center gap-3">{editingExisting && propertyFlow ? <button type="button" onClick={startAnotherProperty} className="text-sm font-semibold text-blue-700">Add another property</button> : null}<button type="button" onClick={() => setStep(1)} className="text-sm font-semibold text-blue-700">Change category</button></div></div>
             {propertyFlow ? <div className="p-5 sm:p-6">
-              {savedProperties.length > 1 ? <section className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4" aria-labelledby="saved-properties-heading"><div className="flex items-center justify-between gap-3"><div><h3 id="saved-properties-heading" className="font-semibold text-slate-950">Your saved properties</h3><p className="mt-1 text-xs text-slate-500">Choose a property to view or update its current details.</p></div><span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">{savedProperties.length} properties</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{savedProperties.map((property) => { const active = editingExisting && existingProperty?.recordId === property.recordId; return <Link key={property.recordId} href={`/financial-profile/add-data?category=property&propertyId=${encodeURIComponent(property.recordId)}`} aria-current={active ? "page" : undefined} className={"flex min-w-0 items-center gap-3 rounded-xl border p-3 transition " + (active ? "border-blue-500 bg-blue-50 ring-1 ring-blue-200" : "border-slate-200 bg-white hover:border-blue-300")}><span className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-full " + (active ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-600")}><House className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-900">{property.address}</span><span className="mt-0.5 block text-xs text-slate-500">{moneyLabel(property.estimatedValue)}</span></span>{active ? <CheckCircle2 className="h-5 w-5 shrink-0 text-blue-700" /> : <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />}</Link>; })}</div></section> : null}
+              {editingExisting ? <div className={"mb-5 flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between " + (hasPendingChanges ? "border-blue-200 bg-blue-50/60" : "border-emerald-200 bg-emerald-50/60")}><div><div className={"text-sm font-semibold " + (hasPendingChanges ? "text-blue-900" : "text-emerald-900")}>Record status: Confirmed</div><div className={"mt-1 text-xs " + (hasPendingChanges ? "text-blue-700" : "text-emerald-700")}>Current action: {hasPendingChanges ? "Editing saved details" : "Viewing saved details"}</div></div><div className="text-xs font-medium text-slate-600">Property ID: <span className="font-mono">{existingProperty?.recordId}</span></div></div> : null}
+              {savedProperties.length > 1 ? <section className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4" aria-labelledby="saved-properties-heading"><div className="flex items-center justify-between gap-3"><div><h3 id="saved-properties-heading" className="font-semibold text-slate-950">Your saved properties</h3><p className="mt-1 text-xs text-slate-500">Choose a confirmed property to view or update its current details.</p></div><span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600">{savedProperties.length} properties</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{savedProperties.map((property) => { const active = editingExisting && existingProperty?.recordId === property.recordId; return <Link key={property.recordId} href={`/financial-profile/add-data?category=property&propertyId=${encodeURIComponent(property.recordId)}`} aria-current={active ? "page" : undefined} className={"flex min-w-0 items-center gap-3 rounded-xl border p-3 transition " + (active ? "border-blue-500 bg-blue-50 ring-1 ring-blue-200" : "border-slate-200 bg-white hover:border-blue-300")}><span className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-full " + (active ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-600")}><House className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-900">{property.address}</span><span className="mt-1 flex items-center gap-2"><span className="text-xs text-slate-500">{moneyLabel(property.estimatedValue)}</span><span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Confirmed</span></span></span>{active ? <CheckCircle2 className="h-5 w-5 shrink-0 text-blue-700" /> : <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />}</Link>; })}</div></section> : null}
               {editingExisting ? <div role="status" className="mb-5 flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700" /><div><div className="font-semibold">Showing your current saved property details</div><div className="mt-1 text-emerald-800">Review or change any field below. Nothing is replaced until you confirm the update.</div></div></div> : null}
               <h3 className="font-semibold text-slate-950">1. Property details</h3>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -476,8 +493,8 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
       ) : (
         <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)] sm:p-6">
-            <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><div><h2 className="font-semibold text-slate-950">{draft.address || "Property details"}</h2><div className="mt-1 text-xs text-slate-500">Source: {draft.addressSource === "geoscape-gnaf" ? "Geoscape Australia (G-NAF) address selection" : "manual entry"}; evidence remains managed by Document Vault</div></div><span className="ml-auto rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Review required</span></div>
-            <h3 className="mt-6 font-semibold text-slate-950">Confirm entered values</h3>
+            <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><div><h2 className="font-semibold text-slate-950">{draft.address || "Property details"}</h2><div className="mt-1 text-xs text-slate-500">Source: {draft.addressSource === "geoscape-gnaf" ? "Geoscape Australia (G-NAF) address selection" : "manual entry"}; evidence remains managed by Document Vault</div></div><span className="ml-auto rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{editingExisting ? "Changes not saved" : "Review before saving"}</span></div>
+            <h3 className="mt-6 font-semibold text-slate-950">{editingExisting ? "Confirm changed values" : "Confirm entered values"}</h3>
             <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead className="border-b border-slate-200 text-xs text-slate-500"><tr><th className="py-3 font-semibold">Information</th><th className="py-3 font-semibold">Entered value</th><th className="py-3 font-semibold">Confidence</th><th className="py-3 font-semibold">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{reviewRows.map(([label, value, confidence]) => <tr key={label}><td className="py-3 font-medium text-slate-700">{label}</td><td className="py-3 text-slate-950">{value}</td><td className="py-3"><span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (confidence === "High" ? "bg-emerald-50 text-emerald-700" : confidence === "Check" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600")}>{confidence}</span></td><td className="py-3"><button type="button" onClick={() => setStep(2)} className="font-semibold text-blue-700">{confidence === "Not found" ? "Add" : "Edit"}</button></td></tr>)}</tbody></table></div>
             <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50/60 p-4"><div className="font-semibold text-blue-950">Your confirmation saves these current details</div><div className="mt-1 text-sm text-blue-900">Values marked Check are saved as user-confirmed information. Linked documents remain in Document Vault for separate evidence review.</div></div>
             <div className="mt-6"><h3 className="font-semibold text-slate-950">Supporting evidence</h3>{draft.selectedDocuments.length > 0 ? <div className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">{draft.selectedDocuments.map((document) => <div key={document.id} className="flex items-center gap-3 p-4"><FileCheck2 className="h-5 w-5 shrink-0 text-blue-700" /><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-slate-800">{document.fileName}</div><div className="mt-1 text-xs text-slate-500">{documentTypeLabels[document.documentType]} · {documentStatusLabel(document.status)}</div></div><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Verify in Import Review</span></div>)}</div> : <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">No Document Vault evidence selected. Go back and attach a current statement before confirmation.</div>}</div>
@@ -492,7 +509,7 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
         {saved ? <span role="status" className="text-sm font-semibold text-emerald-700">Draft saved in this browser. It is not yet part of Financial Position.</span> : null}
         {submitError ? <span role="alert" className="max-w-md text-sm font-semibold text-rose-700">{submitError}</span> : null}
         <button type="button" onClick={saveDraft} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-blue-700 hover:bg-blue-50">Save draft in this browser</button>
-        {step === 1 ? <button type="button" onClick={() => setStep(2)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Continue<ArrowRight className="h-4 w-4" /></button> : step === 2 ? propertyFlow ? <button type="button" onClick={() => setStep(3)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Review details<ArrowRight className="h-4 w-4" /></button> : <Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{owningWorkflows[category as Exclude<CategoryId, "property">].label}<ArrowRight className="h-4 w-4" /></Link> : <button type="button" onClick={() => void confirmProperty()} disabled={submitBusy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-400">{submitBusy ? "Saving…" : editingExisting ? "Confirm & update Financial Position" : "Confirm & save to Financial Position"}<ArrowRight className="h-4 w-4" /></button>}
+        {step === 1 ? <button type="button" onClick={() => setStep(2)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Continue<ArrowRight className="h-4 w-4" /></button> : step === 2 ? propertyFlow ? <button type="button" onClick={() => setStep(3)} disabled={editingExisting && !hasPendingChanges} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300">{editingExisting ? "Review changes" : "Review details"}<ArrowRight className="h-4 w-4" /></button> : <Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{owningWorkflows[category as Exclude<CategoryId, "property">].label}<ArrowRight className="h-4 w-4" /></Link> : <button type="button" onClick={() => void confirmProperty()} disabled={submitBusy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-400">{submitBusy ? "Saving…" : editingExisting ? "Confirm & update Financial Position" : "Confirm & save to Financial Position"}<ArrowRight className="h-4 w-4" /></button>}
       </footer>
     </div>
   );

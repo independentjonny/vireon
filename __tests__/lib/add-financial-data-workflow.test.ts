@@ -95,6 +95,35 @@ test("saved property, mortgage and linked evidence prefill the update workflow",
   assert.equal(second?.hasMortgage, false);
 });
 
+test("two persisted properties retain independent identity, mortgage and document linkage", () => {
+  const position = {
+    propertyDetails: [
+      { id: "property-home", label: "10 Home Street", value: { entityKey: "property:home", address: "10 Home Street, Hillside VIC 3037", propertyType: "House", ownership: "Joint", primaryUse: "Owner occupied", marketValue: 970_000, sourceDocumentIds: ["document-home"] } },
+      { id: "property-unit", label: "20 Unit Road", value: { entityKey: "property:unit", address: "20 Unit Road, Melbourne VIC 3000", propertyType: "Apartment", ownership: "Sole", primaryUse: "Secondary residence", marketValue: 630_000, sourceDocumentIds: ["document-unit"] } },
+    ],
+    mortgageDetails: [
+      { id: "mortgage-home", value: { propertyEntityKey: "property:home", lender: "Home Bank", balance: 270_000, repaymentAmount: 2_100, sourceDocumentIds: ["document-home"] } },
+      { id: "mortgage-unit", value: { propertyEntityKey: "property:unit", lender: "Unit Bank", balance: 110_000, repaymentAmount: 900, sourceDocumentIds: ["document-unit"] } },
+    ],
+    documentImportStatus: { documents: [
+      { id: "document-home", fileName: "home-mortgage.pdf", documentType: "mortgage_statement", uploadedAt: "2026-08-01T00:00:00.000Z", status: "extracted" },
+      { id: "document-unit", fileName: "unit-mortgage.pdf", documentType: "mortgage_statement", uploadedAt: "2026-08-02T00:00:00.000Z", status: "extracted" },
+    ] },
+  } as unknown as FinancialPositionReadModel;
+
+  const home = buildExistingPropertyDraft(position, "property-home");
+  const unit = buildExistingPropertyDraft(position, "property-unit");
+
+  assert.deepEqual(
+    { id: home?.recordId, address: home?.address, value: home?.estimatedValue, type: home?.propertyType, use: home?.primaryUse, lender: home?.lender, balance: home?.loanBalance, document: home?.selectedDocuments[0]?.fileName },
+    { id: "property-home", address: "10 Home Street, Hillside VIC 3037", value: "970000", type: "House", use: "Owner occupied", lender: "Home Bank", balance: "270000", document: "home-mortgage.pdf" },
+  );
+  assert.deepEqual(
+    { id: unit?.recordId, address: unit?.address, value: unit?.estimatedValue, type: unit?.propertyType, use: unit?.primaryUse, lender: unit?.lender, balance: unit?.loanBalance, document: unit?.selectedDocuments[0]?.fileName },
+    { id: "property-unit", address: "20 Unit Road, Melbourne VIC 3000", value: "630000", type: "Apartment", use: "Secondary residence", lender: "Unit Bank", balance: "110000", document: "unit-mortgage.pdf" },
+  );
+});
+
 test("desktop and mobile navigation expose both Financial Profile journeys", () => {
   for (const path of ["src/app/components/AppShell.tsx", "src/app/components/MobileNav.tsx"]) {
     const navigation = source(path);
@@ -123,6 +152,23 @@ test("workflow preserves Vault authority and explicit confirmation semantics", (
   assert.match(client, /action: "save-property-position"/);
   assert.match(client, /window\.location\.assign\("\/financial-profile\?saved=property"\)/);
   assert.doesNotMatch(client, /Continue to Import Review/);
+});
+
+test("confirmed saved properties are distinguished from unsaved edit progress", () => {
+  const client = source("src/app/components/AddFinancialDataClient.tsx");
+  for (const copy of [
+    "Saved record",
+    "Edit details & evidence",
+    "Review changes",
+    "Record status: Confirmed",
+    "Current action:",
+    "Viewing saved details",
+    "Editing saved details",
+    "Changes not saved",
+  ]) assert.match(client, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(client, /disabled=\{editingExisting && !hasPendingChanges\}/);
+  assert.match(client, /draftFingerprint\(draft\) !== draftFingerprint\(originalDraft\)/);
+  assert.doesNotMatch(client, /editingExisting && propertyFlow \? "Current saved details"/);
 });
 
 test("property workflow captures mortgage details and selects existing Vault evidence inline", () => {
