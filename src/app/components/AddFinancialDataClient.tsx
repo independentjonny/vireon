@@ -163,15 +163,16 @@ function Stepper({ step, editingExisting, hasPendingChanges }: { step: Step; edi
       {steps.map((label, index) => {
         const number = (index + 1) as Step;
         const savedRecord = editingExisting && number === 1;
+        const confirmedDetails = confirmedView && number === 2;
         const confirmedSummary = confirmedView && number === 3;
-        const complete = savedRecord || confirmedSummary || number < step;
+        const complete = savedRecord || confirmedDetails || confirmedSummary || number < step;
         const active = number === step;
         return (
           <li key={label} className="flex items-center gap-3">
-            <span className={"flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " + (savedRecord || confirmedSummary ? "border-emerald-600 bg-emerald-600 text-white" : complete || active ? "border-blue-700 bg-blue-700 text-white" : "border-slate-300 bg-white text-slate-500")}>
+            <span className={"flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold " + (savedRecord || confirmedDetails || confirmedSummary ? "border-emerald-600 bg-emerald-600 text-white" : complete || active ? "border-blue-700 bg-blue-700 text-white" : "border-slate-300 bg-white text-slate-500")}>
               {complete ? <Check className="h-4 w-4" /> : number}
             </span>
-            <span className={"text-sm font-semibold " + (savedRecord || confirmedSummary ? "text-emerald-700" : active ? "text-blue-700" : "text-slate-600")}>{label}</span>
+            <span className={"text-sm font-semibold " + (savedRecord || confirmedDetails || confirmedSummary ? "text-emerald-700" : active ? "text-blue-700" : "text-slate-600")}>{label}</span>
             {number < 3 ? <span className="hidden h-px flex-1 bg-slate-200 xl:block" /> : null}
           </li>
         );

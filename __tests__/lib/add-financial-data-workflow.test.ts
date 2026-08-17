@@ -169,6 +169,8 @@ test("confirmed saved properties are distinguished from unsaved edit progress", 
     "These details are already saved and confirmed",
   ]) assert.match(client, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(client, /draftFingerprint\(draft\) !== draftFingerprint\(originalDraft\)/);
+  assert.match(client, /confirmedDetails = confirmedView && number === 2/);
+  assert.match(client, /savedRecord \|\| confirmedDetails \|\| confirmedSummary/);
   assert.doesNotMatch(client, /disabled=\{editingExisting && !hasPendingChanges\}/);
   assert.doesNotMatch(client, /editingExisting && propertyFlow \? "Current saved details"/);
 });
