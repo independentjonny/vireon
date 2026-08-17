@@ -94,9 +94,9 @@ export default async function PropertyDetailsPage() {
               <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Your property details</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Current property, mortgage and supporting evidence saved in your financial profile.</p>
             </div>
-            <Link href="/financial-profile/add-data?category=property" className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800">
+            {properties.length === 1 ? <Link href={`/financial-profile/add-data?category=property&propertyId=${properties[0].id}`} className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800">
               <RefreshCw className="h-4 w-4" /> Update property details
-            </Link>
+            </Link> : null}
           </div>
         </header>
 
@@ -130,6 +130,7 @@ export default async function PropertyDetailsPage() {
                     <div className="sm:text-right">
                       <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Estimated value</div>
                       <div className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{money(property.value.marketValue)}</div>
+                      <Link href={`/financial-profile/add-data?category=property&propertyId=${property.id}`} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:text-blue-900">Update details <ArrowRight className="h-4 w-4" /></Link>
                     </div>
                   </div>
 

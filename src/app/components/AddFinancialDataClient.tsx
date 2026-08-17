@@ -24,7 +24,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import AustralianAddressAutocomplete, { type AustralianAddressSelection } from "./AustralianAddressAutocomplete";
-import type { AddFinancialDataCategoryId, AddFinancialDataCategoryStatus, AddFinancialDataSummary } from "@/lib/addFinancialDataStatus";
+import type { AddFinancialDataCategoryId, AddFinancialDataCategoryStatus, AddFinancialDataSummary, ExistingPropertyDraft } from "@/lib/addFinancialDataStatus";
 
 type CategoryId = AddFinancialDataCategoryId;
 type Step = 1 | 2 | 3;
@@ -177,13 +177,14 @@ function Field({ label, children, full = false }: { label: string; children: Rea
 
 const controlClass = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
-export default function AddFinancialDataClient({ summary }: { summary: AddFinancialDataSummary }) {
+export default function AddFinancialDataClient({ summary, existingProperty }: { summary: AddFinancialDataSummary; existingProperty: ExistingPropertyDraft | null }) {
   const searchParams = useSearchParams();
   const requestedCategory = searchParams.get("category") as CategoryId | null;
   const categories = categoryDefinitions.map((item) => ({ ...item, status: summary.categoryStatuses[item.id] }));
   const [step, setStep] = useState<Step>(requestedCategory && categoryDefinitions.some((item) => item.id === requestedCategory) ? 2 : 1);
   const [category, setCategory] = useState<CategoryId>(requestedCategory && categoryDefinitions.some((item) => item.id === requestedCategory) ? requestedCategory : summary.recommendedCategory);
-  const [draft, setDraft] = useState<PropertyDraft>(initialDraft);
+  const [draft, setDraft] = useState<PropertyDraft>(() => existingProperty ? { ...initialDraft, ...existingProperty } : initialDraft);
+  const [editingExisting, setEditingExisting] = useState(Boolean(existingProperty));
   const [saved, setSaved] = useState(false);
   const [vaultOpen, setVaultOpen] = useState(false);
   const [vaultDocuments, setVaultDocuments] = useState<VaultDocumentSummary[]>([]);
@@ -200,13 +201,14 @@ export default function AddFinancialDataClient({ summary }: { summary: AddFinanc
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
+      if (existingProperty) return;
       const stored = savedDraft();
       if (!stored) return;
       if (!requestedCategory && stored.category && categoryDefinitions.some((item) => item.id === stored.category)) setCategory(stored.category);
       if (stored.draft) setDraft((current) => ({ ...current, ...stored.draft }));
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [requestedCategory]);
+  }, [existingProperty, requestedCategory]);
 
   const selected = categories.find((item) => item.id === category) ?? categories[2];
   const propertyFlow = category === "property";
@@ -253,6 +255,13 @@ export default function AddFinancialDataClient({ summary }: { summary: AddFinanc
       addressPostcode: selection?.postcode ?? "",
       addressSource: selection?.provider ?? "manual",
     }));
+  }
+
+  function startAnotherProperty() {
+    setDraft(initialDraft);
+    setEditingExisting(false);
+    setSubmissionKey("");
+    setSubmitError("");
   }
 
   async function loadVaultDocuments() {
@@ -368,7 +377,7 @@ export default function AddFinancialDataClient({ summary }: { summary: AddFinanc
       <header>
         <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Financial profile</div>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-          {step === 1 ? "Add financial data" : step === 2 ? `Add ${selected.id === "property" ? "property details" : selected.title.toLowerCase()}` : "Review property information"}
+          {step === 1 ? "Add financial data" : step === 2 ? `${editingExisting && selected.id === "property" ? "Update" : "Add"} ${selected.id === "property" ? "property details" : selected.title.toLowerCase()}` : "Review property information"}
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
           {step === 1
@@ -416,8 +425,9 @@ export default function AddFinancialDataClient({ summary }: { summary: AddFinanc
       ) : step === 2 ? (
         <div className="grid gap-5 xl:grid-cols-[1fr_280px]">
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_40px_rgba(15,23,42,0.04)]">
-            <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 sm:px-6"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><h2 className="font-semibold text-slate-950">{selected.title}</h2><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">In progress</span><button type="button" onClick={() => setStep(1)} className="ml-auto text-sm font-semibold text-blue-700">Change category</button></div>
+            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-5 py-4 sm:px-6"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><House className="h-5 w-5" /></span><h2 className="font-semibold text-slate-950">{selected.title}</h2><span className={"rounded-full px-2.5 py-1 text-xs font-semibold " + (editingExisting && propertyFlow ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>{editingExisting && propertyFlow ? "Current saved details" : "In progress"}</span><div className="ml-auto flex items-center gap-3">{editingExisting && propertyFlow ? <button type="button" onClick={startAnotherProperty} className="text-sm font-semibold text-blue-700">Add another property</button> : null}<button type="button" onClick={() => setStep(1)} className="text-sm font-semibold text-blue-700">Change category</button></div></div>
             {propertyFlow ? <div className="p-5 sm:p-6">
+              {editingExisting ? <div role="status" className="mb-5 flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700" /><div><div className="font-semibold">Showing your current saved property details</div><div className="mt-1 text-emerald-800">Review or change any field below. Nothing is replaced until you confirm the update.</div></div></div> : null}
               <h3 className="font-semibold text-slate-950">1. Property details</h3>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2"><div className="mb-1.5 text-sm font-semibold text-slate-700">Property address</div><AustralianAddressAutocomplete value={draft.address} selectionId={draft.addressId} onChange={updateAddress} /></div>
@@ -474,7 +484,7 @@ export default function AddFinancialDataClient({ summary }: { summary: AddFinanc
         {saved ? <span role="status" className="text-sm font-semibold text-emerald-700">Draft saved in this browser. It is not yet part of Financial Position.</span> : null}
         {submitError ? <span role="alert" className="max-w-md text-sm font-semibold text-rose-700">{submitError}</span> : null}
         <button type="button" onClick={saveDraft} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-blue-700 hover:bg-blue-50">Save draft in this browser</button>
-        {step === 1 ? <button type="button" onClick={() => setStep(2)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Continue<ArrowRight className="h-4 w-4" /></button> : step === 2 ? propertyFlow ? <button type="button" onClick={() => setStep(3)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Review details<ArrowRight className="h-4 w-4" /></button> : <Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{owningWorkflows[category as Exclude<CategoryId, "property">].label}<ArrowRight className="h-4 w-4" /></Link> : <button type="button" onClick={() => void confirmProperty()} disabled={submitBusy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-400">{submitBusy ? "Saving…" : "Confirm & save to Financial Position"}<ArrowRight className="h-4 w-4" /></button>}
+        {step === 1 ? <button type="button" onClick={() => setStep(2)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Continue<ArrowRight className="h-4 w-4" /></button> : step === 2 ? propertyFlow ? <button type="button" onClick={() => setStep(3)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">Review details<ArrowRight className="h-4 w-4" /></button> : <Link href={owningWorkflows[category as Exclude<CategoryId, "property">].href} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800">{owningWorkflows[category as Exclude<CategoryId, "property">].label}<ArrowRight className="h-4 w-4" /></Link> : <button type="button" onClick={() => void confirmProperty()} disabled={submitBusy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-400">{submitBusy ? "Saving…" : editingExisting ? "Confirm & update Financial Position" : "Confirm & save to Financial Position"}<ArrowRight className="h-4 w-4" /></button>}
       </footer>
     </div>
   );

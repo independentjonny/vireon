@@ -13,6 +13,84 @@ export type AddFinancialDataSummary = {
   recommendationAction: string;
 };
 
+export type ExistingPropertyDraft = {
+  recordId: string;
+  address: string;
+  addressId: string;
+  addressLocality: string;
+  addressState: string;
+  addressPostcode: string;
+  addressSource: "manual" | "geoscape-gnaf";
+  propertyType: string;
+  ownership: string;
+  primaryUse: string;
+  estimatedValue: string;
+  purchaseDate: string;
+  rentalIncome: boolean;
+  hasMortgage: boolean;
+  lender: string;
+  loanBalance: string;
+  interestRate: string;
+  repaymentAmount: string;
+  repaymentFrequency: string;
+  repaymentType: string;
+  rateType: string;
+  offsetBalance: string;
+  selectedDocuments: FinancialPositionReadModel["documentImportStatus"]["documents"];
+};
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function editableNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return typeof value === "string" ? value : "";
+}
+
+function sourceDocumentIds(value: Record<string, unknown>) {
+  return Array.isArray(value.sourceDocumentIds)
+    ? value.sourceDocumentIds.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+export function buildExistingPropertyDraft(position: FinancialPositionReadModel, requestedRecordId?: string): ExistingPropertyDraft | null {
+  const property = requestedRecordId
+    ? position.propertyDetails.find((record) => record.id === requestedRecordId)
+    : position.propertyDetails[0];
+  if (!property) return null;
+  const propertyEntityKey = stringValue(property.value.entityKey);
+  const mortgage = position.mortgageDetails.find((record) => record.value.propertyEntityKey === propertyEntityKey)
+    ?? (position.propertyDetails.length === 1 && position.mortgageDetails.length === 1 ? position.mortgageDetails[0] : undefined);
+  const linkedIds = new Set([...sourceDocumentIds(property.value), ...(mortgage ? sourceDocumentIds(mortgage.value) : [])]);
+
+  return {
+    recordId: property.id,
+    address: stringValue(property.value.address) || property.label,
+    addressId: stringValue(property.value.addressId),
+    addressLocality: stringValue(property.value.locality),
+    addressState: stringValue(property.value.state),
+    addressPostcode: stringValue(property.value.postcode),
+    addressSource: property.value.addressSource === "geoscape-gnaf" ? "geoscape-gnaf" : "manual",
+    propertyType: stringValue(property.value.propertyType) || "House",
+    ownership: stringValue(property.value.ownership) || "Joint",
+    primaryUse: stringValue(property.value.primaryUse) || "Owner occupied",
+    estimatedValue: editableNumber(property.value.marketValue),
+    purchaseDate: stringValue(property.value.purchaseDate),
+    rentalIncome: property.value.rentalIncome === true,
+    hasMortgage: Boolean(mortgage),
+    lender: stringValue(mortgage?.value.lender),
+    loanBalance: editableNumber(mortgage?.value.balance),
+    interestRate: editableNumber(mortgage?.value.interestRate),
+    repaymentAmount: editableNumber(mortgage?.value.repaymentAmount),
+    repaymentFrequency: stringValue(mortgage?.value.repaymentFrequency) || "Monthly",
+    repaymentType: stringValue(mortgage?.value.repaymentType) || "Principal and interest",
+    rateType: stringValue(mortgage?.value.rateType) || "Variable",
+    offsetBalance: editableNumber(mortgage?.value.offsetBalance),
+    selectedDocuments: position.documentImportStatus.documents.filter((document) => linkedIds.has(document.id)),
+  };
+}
+
 function hasDocument(position: FinancialPositionReadModel, documentType: string) {
   return position.documentImportStatus.documents.some((document) => document.documentType === documentType);
 }

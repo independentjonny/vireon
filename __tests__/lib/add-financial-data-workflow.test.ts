@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { resolve } from "node:path";
-import { buildAddFinancialDataSummary } from "../../src/lib/addFinancialDataStatus.ts";
+import { buildAddFinancialDataSummary, buildExistingPropertyDraft } from "../../src/lib/addFinancialDataStatus.ts";
 import type { FinancialPositionReadModel } from "../../src/server/services/financialPositionReadService.ts";
 
 function source(path: string) {
@@ -14,7 +14,8 @@ test("Add financial data route is authenticated and uses the dedicated shell sta
   assert.match(page, /requireServerPageSession\("\/financial-profile\/add-data"\)/);
   assert.match(page, /createFinancialPositionReadServiceFromEnv\(\)\.read\(session\)/);
   assert.match(page, /buildAddFinancialDataSummary\(position\)/);
-  assert.match(page, /<AddFinancialDataClient summary=\{summary\}/);
+  assert.match(page, /buildExistingPropertyDraft\(position, params\.propertyId\)/);
+  assert.match(page, /<AddFinancialDataClient summary=\{summary\} existingProperty=\{existingProperty\}/);
   assert.match(page, /<AppShell active="financial-data">/);
 });
 
@@ -48,6 +49,34 @@ test("a persisted property and mortgage are never labelled missing", () => {
   assert.equal(summary.confirmedSources, 2);
   assert.equal(summary.needsReview, 3);
   assert.notEqual(summary.recommendedCategory, "property");
+});
+
+test("saved property, mortgage and linked evidence prefill the update workflow", () => {
+  const summary = source("src/lib/addFinancialDataStatus.ts");
+  const client = source("src/app/components/AddFinancialDataClient.tsx");
+  const detail = source("src/app/financial-profile/property/page.tsx");
+  assert.match(summary, /buildExistingPropertyDraft/);
+  assert.match(summary, /property\.value\.address/);
+  assert.match(summary, /property\.value\.marketValue/);
+  assert.match(summary, /mortgage\?\.value\.repaymentAmount/);
+  assert.match(summary, /selectedDocuments: position\.documentImportStatus\.documents\.filter/);
+  assert.match(client, /Showing your current saved property details/);
+  assert.match(client, /Confirm & update Financial Position/);
+  assert.match(client, /Add another property/);
+  assert.match(detail, /propertyId=\$\{property\.id\}/);
+
+  const position = {
+    propertyDetails: [{ id: "property-1", label: "12 Smith Street", value: { entityKey: "property:gnaf-1", address: "12 Smith Street, Richmond VIC 3121", addressId: "gnaf-1", locality: "Richmond", state: "VIC", postcode: "3121", addressSource: "geoscape-gnaf", propertyType: "House", ownership: "Joint", primaryUse: "Owner occupied", marketValue: 920_000, purchaseDate: "2020-02-03", rentalIncome: false, sourceDocumentIds: ["document-1"] } }],
+    mortgageDetails: [{ id: "mortgage-1", value: { propertyEntityKey: "property:gnaf-1", lender: "ANZ", balance: 245_000, interestRate: 6.12, repaymentAmount: 450, repaymentFrequency: "Weekly", repaymentType: "Principal and interest", rateType: "Variable", offsetBalance: 12_000, sourceDocumentIds: ["document-1"] } }],
+    documentImportStatus: { documents: [{ id: "document-1", fileName: "mortgage.pdf", documentType: "mortgage_statement", uploadedAt: "2026-08-01T00:00:00.000Z", status: "extracted" }] },
+  } as unknown as FinancialPositionReadModel;
+  const draft = buildExistingPropertyDraft(position);
+  assert.equal(draft?.address, "12 Smith Street, Richmond VIC 3121");
+  assert.equal(draft?.estimatedValue, "920000");
+  assert.equal(draft?.hasMortgage, true);
+  assert.equal(draft?.lender, "ANZ");
+  assert.equal(draft?.loanBalance, "245000");
+  assert.equal(draft?.selectedDocuments[0]?.fileName, "mortgage.pdf");
 });
 
 test("desktop and mobile navigation expose both Financial Profile journeys", () => {
