@@ -20,7 +20,7 @@ export default async function AddFinancialDataPage({ searchParams }: { searchPar
 
   return (
     <AppShell active="financial-data">
-      <AddFinancialDataClient summary={summary} existingProperty={existingProperty} savedProperties={savedProperties} />
+      <AddFinancialDataClient key={existingProperty?.recordId ?? "new-property"} summary={summary} existingProperty={existingProperty} savedProperties={savedProperties} />
     </AppShell>
   );
 }

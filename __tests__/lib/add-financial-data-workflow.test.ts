@@ -16,7 +16,7 @@ test("Add financial data route is authenticated and uses the dedicated shell sta
   assert.match(page, /buildAddFinancialDataSummary\(position\)/);
   assert.match(page, /buildExistingPropertyDraft\(position, property\.id\)/);
   assert.match(page, /savedProperties = position\.propertyDetails/);
-  assert.match(page, /<AddFinancialDataClient summary=\{summary\} existingProperty=\{existingProperty\} savedProperties=\{savedProperties\}/);
+  assert.match(page, /<AddFinancialDataClient key=\{existingProperty\?\.recordId \?\? "new-property"\} summary=\{summary\} existingProperty=\{existingProperty\} savedProperties=\{savedProperties\}/);
   assert.match(page, /<AppShell active="financial-data">/);
 });
 
