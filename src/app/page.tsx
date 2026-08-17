@@ -101,6 +101,13 @@ export default async function HomePage() {
     98,
     Math.round(Object.keys(vault.financial_profile.sources).length * 6.5 + vault.uploaded_documents.filter((doc) => doc.status === "extracted").length * 6)
   );
+  const monthlyCashFlow = readModel.monthlyCashFlow;
+  const savingsRate = monthlyCashFlow.monthlySurplus !== null && monthlyCashFlow.monthlyIncome !== null && monthlyCashFlow.monthlyIncome > 0
+    ? `${Math.round((monthlyCashFlow.monthlySurplus / monthlyCashFlow.monthlyIncome) * 100)}%`
+    : "Unknown";
+  const runwayMonths = readModel.cashPosition.sourceRecordIds.length && monthlyCashFlow.monthlyExpenses !== null && monthlyCashFlow.monthlyExpenses > 0
+    ? readModel.cashPosition.confirmedCash / monthlyCashFlow.monthlyExpenses
+    : null;
 
   return (
     <AppShell active="dashboard">
@@ -109,9 +116,9 @@ export default async function HomePage() {
               netWorthValue={balanceSheet.netWorth}
               netWorthTrend={`${formatAud(balanceSheet.monthlyNetChange)} persisted monthly change`}
               netWorthTrendValue={balanceSheet.monthlyNetChange}
-              cashFlow={formatAud(readModel.income.reduce((sum, record) => sum + Number(record.value.monthlyAmount ?? record.value.amount ?? 0), 0) - readModel.expenses.reduce((sum, record) => sum + Number(record.value.monthlyAmount ?? record.value.amount ?? 0), 0))}
-              savingsRate={readModel.income.length ? `${Math.round(((readModel.income.reduce((sum, record) => sum + Number(record.value.monthlyAmount ?? record.value.amount ?? 0), 0) - readModel.expenses.reduce((sum, record) => sum + Number(record.value.monthlyAmount ?? record.value.amount ?? 0), 0)) / Math.max(1, readModel.income.reduce((sum, record) => sum + Number(record.value.monthlyAmount ?? record.value.amount ?? 0), 0))) * 100)}%` : "Unknown"}
-              runway={balanceSheet.emergencyFundMonths ? `${balanceSheet.emergencyFundMonths.toFixed(1)} mo` : "Unknown"}
+              cashFlow={monthlyCashFlow.monthlySurplus === null ? "Unavailable" : formatAud(monthlyCashFlow.monthlySurplus)}
+              savingsRate={savingsRate}
+              runway={runwayMonths === null ? "Unknown" : `${runwayMonths.toFixed(1)} mo`}
               aiConfidence="Not calculated yet"
               healthScore={0}
               healthLabel="Needs confirmed data"

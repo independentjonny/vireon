@@ -16,3 +16,12 @@ test("Financial Position consumes the same canonical monthly cash flow", () => {
   assert.match(client, /position\.monthlyCashFlow\.monthlySurplus/);
   assert.doesNotMatch(client, /total\(position\.income, \["monthlyAmount", "monthlyIncome", "amount"\]\)/);
 });
+
+test("Dashboard consumes the same canonical monthly cash flow and savings rate", () => {
+  const dashboard = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
+  assert.match(dashboard, /const monthlyCashFlow = readModel\.monthlyCashFlow/);
+  assert.match(dashboard, /monthlyCashFlow\.monthlySurplus/);
+  assert.match(dashboard, /monthlyCashFlow\.monthlyIncome/);
+  assert.match(dashboard, /monthlyCashFlow\.monthlyExpenses/);
+  assert.doesNotMatch(dashboard, /record\.value\.monthlyAmount \?\? record\.value\.amount/);
+});
