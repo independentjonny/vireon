@@ -160,7 +160,7 @@ export default function FinancialProfileBuilderClient({ position, savedProperty 
           <MetricCard label="Net worth" value={netWorth === null ? "Unavailable" : money(netWorth)} icon={CircleDollarSign} available={netWorth !== null} />
           <MetricCard label="Assets" value={assets === null ? "Unavailable" : money(assets)} icon={WalletCards} available={assets !== null} />
           <MetricCard label="Liabilities" value={liabilities === null ? "Unavailable" : money(liabilities)} icon={Landmark} available={liabilities !== null} />
-          <MetricCard label="Monthly cash flow" value={monthlyCashFlow === null ? "Incomplete" : `${monthlyCashFlow >= 0 ? "+" : ""}${money(monthlyCashFlow)}`} icon={Banknote} available={monthlyCashFlow !== null} note={cashFlowMissing?.title ?? (position.monthlyCashFlow.status === "confirmed" ? "Confirmed recurring data" : position.monthlyCashFlow.status === "estimated" ? "Estimated from confirmed records" : "Waiting for confirmed income and expenses")} href={cashFlowMissing?.href} action={cashFlowMissing ? "Add missing details" : undefined} />
+          <MetricCard label="Monthly cash flow" value={monthlyCashFlow === null ? "Incomplete" : `${monthlyCashFlow >= 0 ? "+" : ""}${money(monthlyCashFlow)}`} icon={Banknote} available={monthlyCashFlow !== null} note={cashFlowMissing?.title ?? (position.monthlyCashFlow.status === "confirmed" ? "Confirmed recurring data" : position.monthlyCashFlow.status === "estimated" ? "Estimated from confirmed records" : "Waiting for confirmed income and expenses")} href={cashFlowMissing?.href ?? "/cash-flow"} action={cashFlowMissing ? "Add missing details" : "View calculation"} />
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
