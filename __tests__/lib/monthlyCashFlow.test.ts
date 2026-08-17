@@ -43,9 +43,10 @@ test("normalises supported cadences and excludes one-off or cadence-free amounts
     record("unknown", "expense", { amount: 100 }),
   ], userId);
   assert.equal(model.monthlyIncome, 12000 + (1000 * 26) / 12);
-  assert.equal(model.monthlyExpenses, (500 * 52) / 12);
+  assert.equal(model.monthlyExpenses, null);
+  assert.equal(model.monthlySurplus, null);
   assert.deepEqual(model.excludedRecordIds.sort(), ["one-off", "unknown"]);
-  assert.equal(model.status, "confirmed");
+  assert.equal(model.status, "unavailable");
 });
 
 test("does not invent a surplus when either recurring side is missing", () => {
@@ -118,10 +119,23 @@ test("transaction fallback includes classified cash income and excludes transfer
 
 test("a rent flag without amount and cadence is disclosed rather than invented", () => {
   const model = buildMonthlyCashFlowModel([
+    record("salary", "income", { monthlyAmount: 12000 }),
     record("rental", "asset", { rentalIncome: true }, { subtype: "property", label: "Rental unit" }),
     record("living", "expense", { monthlyAmount: 5000 }),
   ], userId);
   assert.equal(model.monthlyIncome, null);
   assert.equal(model.monthlySurplus, null);
   assert.equal(model.warnings.some((warning) => warning.includes("marked as earning rent")), true);
+});
+
+test("a mortgage without repayment amount and cadence does not produce a falsely complete surplus", () => {
+  const model = buildMonthlyCashFlowModel([
+    record("salary", "income", { monthlyAmount: 12000 }),
+    record("living", "expense", { monthlyAmount: 5000 }),
+    record("mortgage", "liability", { balance: 245000 }, { subtype: "mortgage", label: "Home loan" }),
+  ], userId);
+  assert.equal(model.monthlyExpenses, null);
+  assert.equal(model.monthlySurplus, null);
+  assert.equal(model.status, "unavailable");
+  assert.equal(model.warnings.some((warning) => warning.includes("mortgage has no usable repayment")), true);
 });

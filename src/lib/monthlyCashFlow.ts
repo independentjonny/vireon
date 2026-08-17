@@ -105,10 +105,12 @@ function incomeCategory(record: CanonicalFinancialRecord): MonthlyCashFlowLine["
 function explicitLines(records: CanonicalFinancialRecord[], kind: "income" | "expense") {
   const lines: MonthlyCashFlowLine[] = [];
   const excludedRecordIds: string[] = [];
+  const incompleteRecordIds: string[] = [];
   for (const record of records.filter((item) => item.kind === kind)) {
     const normalised = normaliseExplicitRecord(record);
     if (!normalised) {
       excludedRecordIds.push(record.id);
+      if (cadence(record) !== "oneoff") incompleteRecordIds.push(record.id);
       continue;
     }
     lines.push({
@@ -122,7 +124,7 @@ function explicitLines(records: CanonicalFinancialRecord[], kind: "income" | "ex
       category: kind === "income" ? incomeCategory(record) : "living-expense",
     });
   }
-  return { lines, excludedRecordIds };
+  return { lines, excludedRecordIds, incompleteRecordIds };
 }
 
 function propertyRentalLines(records: CanonicalFinancialRecord[]) {
@@ -169,12 +171,17 @@ function investmentIncomeLines(records: CanonicalFinancialRecord[]) {
 }
 
 function mortgageRepaymentLines(records: CanonicalFinancialRecord[]) {
-  return records.flatMap((record) => {
-    if (record.kind !== "liability" || !/mortgage|home loan/i.test(`${record.subtype} ${record.label}`)) return [];
+  const lines: MonthlyCashFlowLine[] = [];
+  const excludedRecordIds: string[] = [];
+  for (const record of records.filter((item) => item.kind === "liability" && /mortgage|home loan/i.test(`${item.subtype} ${item.label}`))) {
     const normalised = normaliseAmount(record.value.repaymentAmount, record.value.repaymentFrequency);
-    if (!normalised || normalised.amount <= 0) return [];
-    return [{ id: `mortgage-${record.id}`, label: `Mortgage repayment — ${record.label}`, kind: "expense", monthlyAmount: normalised.amount, cadence: normalised.cadence, sourceRecordIds: [record.id], approximate: record.approximate, category: "mortgage" } satisfies MonthlyCashFlowLine];
-  });
+    if (!normalised || normalised.amount <= 0) {
+      excludedRecordIds.push(record.id);
+      continue;
+    }
+    lines.push({ id: `mortgage-${record.id}`, label: `Mortgage repayment — ${record.label}`, kind: "expense", monthlyAmount: normalised.amount, cadence: normalised.cadence, sourceRecordIds: [record.id], approximate: record.approximate, category: "mortgage" });
+  }
+  return { lines, excludedRecordIds };
 }
 
 function transactionText(record: CanonicalFinancialRecord) {
@@ -230,25 +237,30 @@ export function buildMonthlyCashFlowModel(records: CanonicalFinancialRecord[], u
   const expenses = explicitLines(confirmed, "expense");
   const rental = income.lines.some((line) => line.category === "rental") ? { lines: [], excludedRecordIds: [] } : propertyRentalLines(confirmed);
   const investment = income.lines.some((line) => line.category === "investment") ? [] : investmentIncomeLines(confirmed);
-  const mortgages = expenses.lines.some((line) => /mortgage|home loan/i.test(line.label)) ? [] : mortgageRepaymentLines(confirmed);
+  const mortgages = expenses.lines.some((line) => /mortgage|home loan/i.test(line.label)) ? { lines: [], excludedRecordIds: [] } : mortgageRepaymentLines(confirmed);
   const transactions = transactionFallback(confirmed);
   const recurringIncomeLines = [...income.lines, ...rental.lines, ...investment];
-  const recurringExpenseLines = [...expenses.lines, ...mortgages];
+  const recurringExpenseLines = [...expenses.lines, ...mortgages.lines];
   const incomeLines = recurringIncomeLines.length ? recurringIncomeLines : transactions.incomeLines;
   const expenseLines = recurringExpenseLines.length ? recurringExpenseLines : transactions.expenseLines;
-  const monthlyIncome = incomeLines.length ? incomeLines.reduce((sum, line) => sum + line.monthlyAmount, 0) : null;
-  const monthlyExpenses = expenseLines.length ? expenseLines.reduce((sum, line) => sum + line.monthlyAmount, 0) : null;
+  const transactionIncomeFallback = !recurringIncomeLines.length && transactions.incomeLines.length > 0;
+  const transactionExpenseFallback = !recurringExpenseLines.length && transactions.expenseLines.length > 0;
+  const incomeIncomplete = !transactionIncomeFallback && (income.incompleteRecordIds.length > 0 || rental.excludedRecordIds.length > 0);
+  const expenseIncomplete = !transactionExpenseFallback && (expenses.incompleteRecordIds.length > 0 || mortgages.excludedRecordIds.length > 0);
+  const monthlyIncome = incomeLines.length && !incomeIncomplete ? incomeLines.reduce((sum, line) => sum + line.monthlyAmount, 0) : null;
+  const monthlyExpenses = expenseLines.length && !expenseIncomplete ? expenseLines.reduce((sum, line) => sum + line.monthlyAmount, 0) : null;
   const monthlySurplus = monthlyIncome !== null && monthlyExpenses !== null ? monthlyIncome - monthlyExpenses : null;
   const usedTransactions = (!recurringIncomeLines.length && incomeLines.length > 0) || (!recurringExpenseLines.length && expenseLines.length > 0);
   const approximate = [...incomeLines, ...expenseLines].some((line) => line.approximate);
   const status: MonthlyCashFlowStatus = monthlySurplus === null ? "unavailable" : usedTransactions || approximate ? "estimated" : "confirmed";
   const cadenceExcludedRecordIds = [...income.excludedRecordIds, ...expenses.excludedRecordIds];
-  const excludedRecordIds = [...new Set([...income.excludedRecordIds, ...expenses.excludedRecordIds, ...rental.excludedRecordIds, ...transactions.excludedRecordIds])];
+  const excludedRecordIds = [...new Set([...income.excludedRecordIds, ...expenses.excludedRecordIds, ...rental.excludedRecordIds, ...mortgages.excludedRecordIds, ...transactions.excludedRecordIds])];
   const warnings = [
-    ...(cadenceExcludedRecordIds.length ? [`${cadenceExcludedRecordIds.length} recurring record${cadenceExcludedRecordIds.length === 1 ? " was" : "s were"} excluded because its monthly cadence could not be established.`] : []),
+    ...(cadenceExcludedRecordIds.length ? [`${cadenceExcludedRecordIds.length} record${cadenceExcludedRecordIds.length === 1 ? " was" : "s were"} excluded because it is one-off or its monthly cadence could not be established.`] : []),
     ...(monthlyIncome === null ? ["Confirmed monthly income is unavailable."] : []),
     ...(monthlyExpenses === null ? ["Confirmed monthly expenses are unavailable."] : []),
     ...(rental.excludedRecordIds.length ? ["A property is marked as earning rent but has no confirmed rent amount and frequency."] : []),
+    ...(mortgages.excludedRecordIds.length ? ["A confirmed mortgage has no usable repayment amount and frequency."] : []),
     ...(transactions.excludedRecordIds.length ? [`${transactions.excludedRecordIds.length} transfer, reimbursement, sale, refund or unclassified positive transaction${transactions.excludedRecordIds.length === 1 ? " was" : "s were"} excluded from cash flow.`] : []),
   ];
   const sourceRecordIds = [...new Set([...incomeLines, ...expenseLines].flatMap((line) => line.sourceRecordIds))];
