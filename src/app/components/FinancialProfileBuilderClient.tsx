@@ -119,10 +119,10 @@ export default function FinancialProfileBuilderClient({ position, savedProperty 
   };
 
   const summary = [
-    { label: "Property", value: property, icon: Building2, href: "/housing-scenarios" },
+    { label: "Property", value: property, icon: Building2, href: "/financial-profile/property" },
     { label: "Cash & savings", value: cash, icon: WalletCards, href: "/accounts" },
     { label: "Superannuation", value: superannuation, icon: CircleDollarSign, href: "/financial-vault" },
-    { label: "Home loans", value: homeLoans, icon: Landmark, href: "/balance-sheet" },
+    { label: "Home loans", value: homeLoans, icon: Landmark, href: "/financial-profile/property#mortgage" },
     { label: "Other debt", value: otherDebt, icon: Banknote, href: "/balance-sheet" },
   ];
 

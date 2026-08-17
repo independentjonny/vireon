@@ -25,10 +25,27 @@ test("Financial Position answers the three canonical customer questions", () => 
 
 test("Financial Position routes changes to canonical owning workflows", () => {
   const client = source("src/app/components/FinancialProfileBuilderClient.tsx");
-  for (const href of ["/accounts", "/balance-sheet", "/cash-flow", "/housing-scenarios", "/financial-vault"]) {
+  for (const href of ["/accounts", "/balance-sheet", "/cash-flow", "/financial-profile/property", "/financial-vault"]) {
     assert.match(client, new RegExp(href.replace("/", "\\/")));
   }
   assert.match(client, /Figures use confirmed current records only/);
+});
+
+test("Property summary opens the authenticated persisted property and mortgage detail", () => {
+  const client = source("src/app/components/FinancialProfileBuilderClient.tsx");
+  const page = source("src/app/financial-profile/property/page.tsx");
+  assert.match(client, /href: "\/financial-profile\/property"/);
+  assert.match(client, /href: "\/financial-profile\/property#mortgage"/);
+  assert.match(page, /requireServerPageSession\("\/financial-profile\/property"\)/);
+  assert.match(page, /createFinancialPositionReadServiceFromEnv\(\)\.read\(session\)/);
+  assert.match(page, /position\.propertyDetails/);
+  assert.match(page, /position\.mortgageDetails/);
+  assert.match(page, /property\.value\.address/);
+  assert.match(page, /property\.value\.marketValue/);
+  assert.match(page, /mortgage\.value\.repaymentAmount/);
+  assert.match(page, /Supporting evidence/);
+  assert.match(page, /documentImportStatus\.documents/);
+  assert.doesNotMatch(page, /housing-scenarios/);
 });
 
 test("legacy builder journey language is absent from the rendered component", () => {
