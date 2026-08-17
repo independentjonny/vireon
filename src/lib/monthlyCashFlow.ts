@@ -70,6 +70,9 @@ function normaliseExplicitRecord(record: CanonicalFinancialRecord): NormalisedAm
   const amount = firstPresentNumber(record, ["amount"]);
   if (amount === null) return null;
   const recordCadence = cadence(record);
+  if (!recordCadence && /\bmonthly\b/i.test(`${record.subtype} ${record.label}`)) {
+    return { amount: Math.abs(amount), cadence: "monthly" };
+  }
   const multipliers: Record<string, number> = {
     weekly: 52 / 12,
     fortnightly: 26 / 12,

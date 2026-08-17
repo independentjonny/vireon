@@ -49,6 +49,19 @@ test("normalises supported cadences and excludes one-off or cadence-free amounts
   assert.equal(model.status, "unavailable");
 });
 
+test("uses the declared monthly period when a confirmed question stores amount without a separate cadence", () => {
+  const model = buildMonthlyCashFlowModel([
+    record("household-income", "income", { amount: 12000 }, { subtype: "household-income", label: "What is your usual monthly household income after tax?" }),
+    record("household-expenses", "expense", { amount: 5000 }, { subtype: "household-expenses", label: "What are your usual monthly household expenses?" }),
+  ], userId);
+
+  assert.equal(model.monthlyIncome, 12000);
+  assert.equal(model.monthlyExpenses, 5000);
+  assert.equal(model.monthlySurplus, 7000);
+  assert.equal(model.status, "confirmed");
+  assert.deepEqual(model.missingInputs, []);
+});
+
 test("does not invent a surplus when either recurring side is missing", () => {
   const model = buildMonthlyCashFlowModel([record("salary", "income", { monthlyAmount: 12000 })], userId);
   assert.equal(model.monthlyIncome, 12000);
