@@ -5,6 +5,7 @@ export type FindingTone = "positive" | "attention" | "neutral";
 export type FindingDisplay = {
   tone: FindingTone;
   statusLabel: string;
+  title: string;
   changeLabel: string;
   previousLabel: string;
   currentLabel: string;
@@ -59,6 +60,31 @@ function direction(finding: DailyReviewFinding): "higher" | "lower" | "changed" 
   return "changed";
 }
 
+function movement(finding: DailyReviewFinding): "increased" | "decreased" | "changed" {
+  if (finding.absoluteChange > 0) return "increased";
+  if (finding.absoluteChange < 0) return "decreased";
+  return "changed";
+}
+
+function findingTitle(finding: DailyReviewFinding): string {
+  const amount = formatValue(finding, finding.absoluteChange);
+  const verb = movement(finding);
+  if (finding.category === "borrowing") return `Estimated borrowing capacity ${verb} by ${amount}`;
+  if (finding.category === "cash-flow") return `Annual cash-flow surplus ${verb} by ${amount}`;
+  if (finding.category === "income") return `Verified annual income ${verb} by ${amount}`;
+  if (finding.category === "net-worth") return `Net worth ${verb} by ${amount}`;
+  return finding.title.replace(/by\s+-\$/gi, "by $");
+}
+
+export function findingEvidenceFact(finding: DailyReviewFinding, originalFact: string): string {
+  const previous = formatValue(finding, finding.previousValue);
+  const current = formatValue(finding, finding.currentValue);
+  if (finding.category === "borrowing") return `Estimated borrowing capacity moved from ${previous} to ${current}.`;
+  if (finding.category === "cash-flow") return `Annual income less annualised spending moved from ${previous} to ${current}.`;
+  if (finding.category === "net-worth") return `Assets less liabilities moved from ${previous} to ${current}.`;
+  return originalFact.replace(/by\s+-\$/gi, "by $");
+}
+
 export function buildFindingDisplay(
   finding: DailyReviewFinding,
   comparisonStartDate: string,
@@ -81,6 +107,7 @@ export function buildFindingDisplay(
   return {
     tone,
     statusLabel: positive ? "Positive change" : tone === "attention" ? "Needs attention" : "Review change",
+    title: findingTitle(finding),
     changeLabel: `${formatValue(finding, finding.absoluteChange)} ${direction(finding)}`,
     previousLabel: `Previous · ${start}`,
     currentLabel: `Current · ${end}`,

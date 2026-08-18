@@ -107,6 +107,10 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
   assert.doesNotMatch(dailyReview, /Selected change/);
   assert.match(dailyReview, /Other changes in this review/);
   assert.match(dailyReview, /buildFindingDisplay/);
+  assert.match(dailyReview, /display\.title/);
+  assert.match(dailyReview, /Inputs compared/);
+  assert.match(dailyReview, /Estimate only/);
+  assert.doesNotMatch(dailyReview, />Professional review</);
   assert.doesNotMatch(dailyReview, /sectionMap/);
   assert.doesNotMatch(dailyReview, /min-h-\[calc\(100vh-56px\)\]/);
   assert.doesNotMatch(dailyReview, /FeaturedFinding/);

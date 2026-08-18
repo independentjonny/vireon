@@ -2,7 +2,7 @@ import type { ActionWorkflow } from "./actionWorkflows.ts";
 import type { DailyReviewFinding, DailyReviewHistoryRecord } from "./aiCfoDailyReview.ts";
 import type { AiDecision } from "./aiDecisionCentre.ts";
 import { getReviewDirection, scoreFindingForBriefing, selectFeaturedFinding, selectFinancialWins, selectPriorityActions } from "./dailyReviewPresentation.ts";
-import { buildFindingDisplay, type FindingTone } from "./dailyReviewDisplay.ts";
+import { buildFindingDisplay, findingEvidenceFact, type FindingTone } from "./dailyReviewDisplay.ts";
 
 export type DashboardDirection = "improving" | "stable" | "mixed" | "deteriorating" | "partial";
 
@@ -230,7 +230,6 @@ function attentionItems(record: DailyReviewHistoryRecord): DashboardBriefing["at
       const display = buildFindingDisplay(finding, record.review.comparisonStartDate, record.review.comparisonEndDate);
       return {
       id: finding.id,
-      title: finding.title,
       detail: finding.summary,
       whyItMatters: finding.whyItMatters,
       impact: finding.expectedImpact,
@@ -246,7 +245,7 @@ function attentionItems(record: DailyReviewHistoryRecord): DashboardBriefing["at
       ...display,
       evidence: finding.evidence.map((item) => ({
         sourceTitle: item.sourceTitle,
-        factUsed: item.factUsed,
+        factUsed: findingEvidenceFact(finding, item.factUsed),
         classification: item.classification,
         confidence: item.confidence,
         lastVerifiedAt: item.lastVerifiedAt,

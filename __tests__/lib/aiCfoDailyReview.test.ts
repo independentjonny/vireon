@@ -368,10 +368,28 @@ describe("DashboardPresentation", () => {
     assert.match(cashFlowDisplay.previousValue, /per year/);
     assert.match(cashFlowDisplay.currentValue, /per year/);
     assert.match(cashFlowDisplay.timeBasis, /Annualised recurring amount/);
+    assert.match(cashFlowDisplay.title, /Annual cash-flow surplus decreased by \$450 per year/);
 
     const netWorth = findings.find((finding) => finding.category === "net-worth");
     assert.ok(netWorth);
     assert.equal(buildFindingDisplay(netWorth, record.review.comparisonStartDate, record.review.comparisonEndDate).tone, "positive");
+  });
+
+  it("repairs legacy persisted double-negative copy at the shared display boundary", () => {
+    const record = DailyReviewEngine.run({ inputs: inputs(), mode: "live" });
+    const borrowing = record.review.findings.find((finding) => finding.category === "borrowing");
+    const cashFlow = record.review.findings.find((finding) => finding.category === "cash-flow");
+    assert.ok(borrowing);
+    assert.ok(cashFlow);
+
+    const legacyBorrowing = { ...borrowing, title: "Borrowing capacity declined by -$26,000" };
+    const legacyCashFlow = { ...cashFlow, title: "Cash flow surplus fell by -$450" };
+    const borrowingDisplay = buildFindingDisplay(legacyBorrowing, record.review.comparisonStartDate, record.review.comparisonEndDate);
+    const cashFlowDisplay = buildFindingDisplay(legacyCashFlow, record.review.comparisonStartDate, record.review.comparisonEndDate);
+
+    assert.equal(borrowingDisplay.title, "Estimated borrowing capacity decreased by $26,000");
+    assert.equal(cashFlowDisplay.title, "Annual cash-flow surplus decreased by $450 per year");
+    assert.doesNotMatch(`${borrowingDisplay.title} ${cashFlowDisplay.title}`, /by -\$/);
   });
 
   it("removes a next-best action when it repeats a displayed finding", () => {
