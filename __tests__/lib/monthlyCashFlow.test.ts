@@ -62,6 +62,27 @@ test("uses the declared monthly period when a confirmed question stores amount w
   assert.deepEqual(model.missingInputs, []);
 });
 
+test("uses only the latest current household values and exposes their applicable dates", () => {
+  const model = buildMonthlyCashFlowModel([
+    record("income-june", "income", { amount: 9500 }, { label: "Monthly income", updatedAt: "2026-06-01T00:00:00.000Z" }),
+    record("income-july", "income", { amount: 9500 }, { label: "Monthly income", updatedAt: "2026-07-01T00:00:00.000Z" }),
+    record("income-august", "income", { amount: 9500 }, { label: "Monthly income", updatedAt: "2026-08-01T00:00:00.000Z" }),
+    record("income-current", "income", { amount: 9500 }, { label: "What is your usual monthly household income after tax?", updatedAt: "2026-08-17T00:00:00.000Z" }),
+    record("expense-june", "expense", { amount: 4000 }, { label: "Essential monthly spending", updatedAt: "2026-06-01T00:00:00.000Z" }),
+    record("expense-july", "expense", { amount: 4000 }, { label: "Essential monthly spending", updatedAt: "2026-07-01T00:00:00.000Z" }),
+    record("expense-current", "expense", { amount: 4000 }, { label: "Essential monthly spending", updatedAt: "2026-08-17T00:00:00.000Z" }),
+  ], userId);
+
+  assert.equal(model.monthlyIncome, 9500);
+  assert.equal(model.monthlyExpenses, 4000);
+  assert.equal(model.monthlySurplus, 5500);
+  assert.deepEqual(model.sourceRecordIds.sort(), ["expense-current", "income-current"]);
+  assert.deepEqual(model.excludedRecordIds.sort(), ["expense-july", "expense-june", "income-august", "income-july", "income-june"]);
+  assert.equal(model.incomeLines[0]?.period.basis, "current-recurring");
+  assert.equal(model.incomeLines[0]?.period.asOfDate, "2026-08-17");
+  assert.equal(model.warnings.some((warning) => warning.includes("older overlapping recurring records")), true);
+});
+
 test("does not invent a surplus when either recurring side is missing", () => {
   const model = buildMonthlyCashFlowModel([record("salary", "income", { monthlyAmount: 12000 })], userId);
   assert.equal(model.monthlyIncome, 12000);
@@ -81,6 +102,9 @@ test("uses monthly transaction averages only as an estimated fallback", () => {
   assert.equal(model.monthlyExpenses, 5000);
   assert.equal(model.monthlySurplus, 4000);
   assert.equal(model.status, "estimated");
+  assert.equal(model.incomeLines[0]?.period.basis, "observed-period");
+  assert.equal(model.incomeLines[0]?.period.startDate, "2026-01-03");
+  assert.equal(model.incomeLines[0]?.period.endDate, "2026-02-03");
 });
 
 test("explicit recurring records take precedence over transactions and users remain isolated", () => {

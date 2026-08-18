@@ -32,6 +32,15 @@ function dateLabel(value: string) {
     : new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
+function cashFlowPeriodLabel(line: FinancialPositionReadModel["monthlyCashFlow"]["incomeLines"][number]) {
+  if (line.period.basis === "observed-period") {
+    const start = line.period.startDate ? dateLabel(line.period.startDate) : "unknown start";
+    const end = line.period.endDate ? dateLabel(line.period.endDate) : "current";
+    return `Source period: ${start} – ${end}`;
+  }
+  return `Ongoing recurring amount · current as at ${dateLabel(line.period.asOfDate)}`;
+}
+
 function numericValue(record: CanonicalFinancialRecord, keys: string[]) {
   for (const key of keys) {
     const raw = record.value[key];
@@ -90,7 +99,8 @@ function CashFlowCalculation({ position }: { position: FinancialPositionReadMode
             <div className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${line.kind === "income" ? "bg-emerald-500" : "bg-rose-500"}`} />
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium text-slate-800">{line.label}</div>
-              <div className="mt-0.5 text-xs capitalize text-slate-500">{line.cadence} · {line.approximate ? "Estimated" : "Confirmed"}</div>
+              <div className="mt-0.5 text-xs text-slate-500">{cashFlowPeriodLabel(line)}</div>
+              <div className="mt-0.5 text-xs capitalize text-slate-500">Original cadence: {line.cadence} · monthly equivalent shown · {line.approximate ? "Estimated" : "Confirmed"}</div>
             </div>
             <div className={`shrink-0 text-sm font-semibold ${line.kind === "income" ? "text-emerald-700" : "text-rose-700"}`}>{line.signedAmount >= 0 ? "+" : "−"}{money(Math.abs(line.signedAmount))}</div>
           </div>

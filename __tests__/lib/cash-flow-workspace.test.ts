@@ -11,6 +11,10 @@ test("Cash Flow is authenticated and uses the canonical financial position model
   assert.match(page, /cashFlow\.missingInputs/);
   assert.match(page, /Complete the missing cash-flow details/);
   assert.match(page, /Add details/);
+  assert.match(page, /Source period:/);
+  assert.match(page, /Ongoing recurring amount/);
+  assert.match(page, /original cadence:/);
+  assert.match(page, /monthly equivalent shown/);
   assert.doesNotMatch(page, /\$6,420|\$14,680|\$8,260|1 Jun - 30 Jun 2026|Salary Deposit/);
 });
 
@@ -28,6 +32,8 @@ test("Financial Position consumes the same canonical monthly cash flow", () => {
   assert.match(client, /Total monthly expenses/);
   assert.match(client, /Income less expenses/);
   assert.match(client, /Open full cash-flow workspace/);
+  assert.match(client, /current as at/);
+  assert.match(client, /Original cadence:/);
   assert.match(client, /monthlyCashFlow === null \? "Incomplete"/);
   assert.doesNotMatch(client, /total\(position\.income, \["monthlyAmount", "monthlyIncome", "amount"\]\)/);
 });

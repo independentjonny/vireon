@@ -11,6 +11,12 @@ export type MonthlyCashFlowLine = {
   sourceRecordIds: string[];
   approximate: boolean;
   category: "employment" | "rental" | "investment" | "other-income" | "living-expense" | "mortgage" | "transactions";
+  period: {
+    basis: "current-recurring" | "observed-period";
+    startDate: string | null;
+    endDate: string | null;
+    asOfDate: string;
+  };
 };
 
 export type MonthlyCashFlowModel = {
@@ -36,6 +42,17 @@ export type MonthlyCashFlowMissingInput = {
 };
 
 type NormalisedAmount = { amount: number; cadence: string };
+
+function dateValue(value: unknown): string | null {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null;
+}
+
+function recordPeriod(record: CanonicalFinancialRecord): MonthlyCashFlowLine["period"] {
+  const startDate = dateValue(record.value.periodStart ?? record.value.sourcePeriodStart ?? record.value.startDate);
+  const endDate = dateValue(record.value.periodEnd ?? record.value.sourcePeriodEnd ?? record.value.endDate);
+  const asOfDate = dateValue(record.value.asOfDate ?? record.value.effectiveDate ?? record.value.statementDate ?? record.updatedAt) ?? record.updatedAt;
+  return { basis: startDate || endDate ? "observed-period" : "current-recurring", startDate, endDate, asOfDate };
+}
 
 function finiteNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -114,11 +131,41 @@ function incomeCategory(record: CanonicalFinancialRecord): MonthlyCashFlowLine["
   return "other-income";
 }
 
+function recurringIdentity(record: CanonicalFinancialRecord): string | null {
+  const label = record.label.trim().toLowerCase().replace(/\s+/g, " ");
+  if (record.kind === "income" && (label === "monthly income" || /usual monthly household income after tax/.test(label))) return "income:household-monthly";
+  if (record.kind === "expense" && (label === "essential monthly spending" || /usual monthly household expenses?/.test(label))) return "expense:household-monthly";
+  const explicitIdentity = record.value.cashFlowKey ?? record.value.questionId ?? record.value.entityKey;
+  return typeof explicitIdentity === "string" && explicitIdentity.trim() ? `${record.kind}:${explicitIdentity.trim()}` : null;
+}
+
+function selectCurrentRecurringRecords(records: CanonicalFinancialRecord[]) {
+  const ungrouped: CanonicalFinancialRecord[] = [];
+  const groups = new Map<string, CanonicalFinancialRecord[]>();
+  for (const record of records) {
+    const identity = recurringIdentity(record);
+    if (!identity) {
+      ungrouped.push(record);
+      continue;
+    }
+    groups.set(identity, [...(groups.get(identity) ?? []), record]);
+  }
+  const selected = [...ungrouped];
+  const replacedRecordIds: string[] = [];
+  for (const group of groups.values()) {
+    const ordered = [...group].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+    selected.push(ordered[0]);
+    replacedRecordIds.push(...ordered.slice(1).map((record) => record.id));
+  }
+  return { selected, replacedRecordIds };
+}
+
 function explicitLines(records: CanonicalFinancialRecord[], kind: "income" | "expense") {
   const lines: MonthlyCashFlowLine[] = [];
   const excludedRecordIds: string[] = [];
   const incompleteRecordIds: string[] = [];
-  for (const record of records.filter((item) => item.kind === kind)) {
+  const current = selectCurrentRecurringRecords(records.filter((item) => item.kind === kind));
+  for (const record of current.selected) {
     const normalised = normaliseExplicitRecord(record);
     if (!normalised) {
       excludedRecordIds.push(record.id);
@@ -134,9 +181,10 @@ function explicitLines(records: CanonicalFinancialRecord[], kind: "income" | "ex
       sourceRecordIds: [record.id],
       approximate: record.approximate,
       category: kind === "income" ? incomeCategory(record) : "living-expense",
+      period: recordPeriod(record),
     });
   }
-  return { lines, excludedRecordIds, incompleteRecordIds };
+  return { lines, excludedRecordIds, incompleteRecordIds, replacedRecordIds: current.replacedRecordIds };
 }
 
 function propertyRentalLines(records: CanonicalFinancialRecord[]) {
@@ -152,7 +200,7 @@ function propertyRentalLines(records: CanonicalFinancialRecord[]) {
       excludedRecordIds.push(record.id);
       continue;
     }
-    lines.push({ id: `rental-${record.id}`, label: `Rental income — ${record.label}`, kind: "income", monthlyAmount: normalised.amount, cadence: normalised.cadence, sourceRecordIds: [record.id], approximate: record.approximate, category: "rental" });
+    lines.push({ id: `rental-${record.id}`, label: `Rental income — ${record.label}`, kind: "income", monthlyAmount: normalised.amount, cadence: normalised.cadence, sourceRecordIds: [record.id], approximate: record.approximate, category: "rental", period: recordPeriod(record) });
   }
   return { lines, excludedRecordIds };
 }
@@ -176,7 +224,7 @@ function investmentIncomeLines(records: CanonicalFinancialRecord[]) {
       const key = `${candidate.label}:${normalised.amount}`;
       if (seen.has(key)) return;
       seen.add(key);
-      lines.push({ id: `investment-${record.id}-${index}`, label: `${candidate.label} — ${record.label}`, kind: "income", monthlyAmount: normalised.amount, cadence: normalised.cadence, sourceRecordIds: [record.id], approximate: record.approximate, category: "investment" });
+      lines.push({ id: `investment-${record.id}-${index}`, label: `${candidate.label} — ${record.label}`, kind: "income", monthlyAmount: normalised.amount, cadence: normalised.cadence, sourceRecordIds: [record.id], approximate: record.approximate, category: "investment", period: recordPeriod(record) });
     });
   }
   return lines;
@@ -191,7 +239,7 @@ function mortgageRepaymentLines(records: CanonicalFinancialRecord[]) {
       excludedRecordIds.push(record.id);
       continue;
     }
-    lines.push({ id: `mortgage-${record.id}`, label: `Mortgage repayment — ${record.label}`, kind: "expense", monthlyAmount: normalised.amount, cadence: normalised.cadence, sourceRecordIds: [record.id], approximate: record.approximate, category: "mortgage" });
+    lines.push({ id: `mortgage-${record.id}`, label: `Mortgage repayment — ${record.label}`, kind: "expense", monthlyAmount: normalised.amount, cadence: normalised.cadence, sourceRecordIds: [record.id], approximate: record.approximate, category: "mortgage", period: recordPeriod(record) });
   }
   return { lines, excludedRecordIds };
 }
@@ -237,6 +285,12 @@ function transactionFallback(records: CanonicalFinancialRecord[]) {
       sourceRecordIds: selected.map((item) => item.record.id),
       approximate: true,
       category: "transactions",
+      period: {
+        basis: "observed-period",
+        startDate: selected.map((item) => String(item.record.value.date).slice(0, 10)).sort()[0] ?? null,
+        endDate: selected.map((item) => String(item.record.value.date).slice(0, 10)).sort().at(-1) ?? null,
+        asOfDate: selected.map((item) => item.record.updatedAt).sort().at(-1) ?? new Date().toISOString(),
+      },
     } satisfies MonthlyCashFlowLine];
   };
 
@@ -266,8 +320,10 @@ export function buildMonthlyCashFlowModel(records: CanonicalFinancialRecord[], u
   const approximate = [...incomeLines, ...expenseLines].some((line) => line.approximate);
   const status: MonthlyCashFlowStatus = monthlySurplus === null ? "unavailable" : usedTransactions || approximate ? "estimated" : "confirmed";
   const cadenceExcludedRecordIds = [...income.excludedRecordIds, ...expenses.excludedRecordIds];
-  const excludedRecordIds = [...new Set([...income.excludedRecordIds, ...expenses.excludedRecordIds, ...rental.excludedRecordIds, ...mortgages.excludedRecordIds, ...transactions.excludedRecordIds])];
+  const replacedRecordIds = [...income.replacedRecordIds, ...expenses.replacedRecordIds];
+  const excludedRecordIds = [...new Set([...income.excludedRecordIds, ...expenses.excludedRecordIds, ...replacedRecordIds, ...rental.excludedRecordIds, ...mortgages.excludedRecordIds, ...transactions.excludedRecordIds])];
   const warnings = [
+    ...(replacedRecordIds.length ? [`${replacedRecordIds.length} older overlapping recurring record${replacedRecordIds.length === 1 ? " was" : "s were"} excluded; only the latest current value for each household item is used.`] : []),
     ...(cadenceExcludedRecordIds.length ? [`${cadenceExcludedRecordIds.length} record${cadenceExcludedRecordIds.length === 1 ? " was" : "s were"} excluded because it is one-off or its monthly cadence could not be established.`] : []),
     ...(monthlyIncome === null ? ["Confirmed monthly income is unavailable."] : []),
     ...(monthlyExpenses === null ? ["Confirmed monthly expenses are unavailable."] : []),
@@ -294,9 +350,11 @@ export function buildMonthlyCashFlowModel(records: CanonicalFinancialRecord[], u
   ];
   const sourceRecordIds = [...new Set([...incomeLines, ...expenseLines].flatMap((line) => line.sourceRecordIds))];
   const basis = status === "confirmed"
-    ? "Confirmed recurring income and expense records, normalised to monthly values."
+    ? "Current confirmed recurring income and expenses, converted to monthly equivalents. These are ongoing values, not transactions from one calendar month."
     : status === "estimated"
-      ? `Estimated from confirmed records${usedTransactions ? `, including ${transactions.months} month${transactions.months === 1 ? "" : "s"} of transactions` : ""}.`
+      ? usedTransactions
+        ? `Estimated from confirmed records across ${transactions.months} observed transaction month${transactions.months === 1 ? "" : "s"}.`
+        : "Current recurring values converted to monthly equivalents; at least one source is estimated. These are ongoing values, not one calendar month."
       : "Add confirmed income and expense records with a monthly amount or payment cadence.";
 
   return { monthlyIncome, monthlyExpenses, monthlySurplus, status, basis, incomeLines, expenseLines, sourceRecordIds, excludedRecordIds, warnings, missingInputs };

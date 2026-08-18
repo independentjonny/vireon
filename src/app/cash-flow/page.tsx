@@ -16,6 +16,20 @@ function metric(value: number | null, signed = false) {
   return `${signed && value >= 0 ? "+" : ""}${money(value)}`;
 }
 
+function dateLabel(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Unknown" : new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric" }).format(date);
+}
+
+function periodLabel(line: MonthlyCashFlowLine) {
+  if (line.period.basis === "observed-period") {
+    const start = line.period.startDate ? dateLabel(line.period.startDate) : "Unknown start";
+    const end = line.period.endDate ? dateLabel(line.period.endDate) : "Current";
+    return `Source period: ${start} – ${end}`;
+  }
+  return `Ongoing recurring amount · current as at ${dateLabel(line.period.asOfDate)}`;
+}
+
 function breakdown(lines: MonthlyCashFlowLine[], total: number | null, tone: "income" | "expense") {
   if (!lines.length) {
     return <div className="rounded-lg border border-dashed border-slate-300 p-5 text-sm text-slate-600">No confirmed recurring {tone} records with a usable monthly amount or cadence.</div>;
@@ -27,7 +41,8 @@ function breakdown(lines: MonthlyCashFlowLine[], total: number | null, tone: "in
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-sm font-semibold text-slate-950">{line.label}</div>
-            <div className="mt-1 text-xs capitalize text-slate-500">{line.category.replaceAll("-", " ")} · {line.cadence} · {line.approximate ? "Estimated" : "Confirmed"} · Record {line.sourceRecordIds[0]}</div>
+            <div className="mt-1 text-xs text-slate-500">{periodLabel(line)}</div>
+            <div className="mt-1 text-xs capitalize text-slate-500">{line.category.replaceAll("-", " ")} · original cadence: {line.cadence} · monthly equivalent shown · {line.approximate ? "Estimated" : "Confirmed"} · Record {line.sourceRecordIds[0]}</div>
           </div>
           <div className="text-lg font-semibold text-slate-950">{money(line.monthlyAmount)}</div>
         </div>
