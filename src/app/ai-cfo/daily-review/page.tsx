@@ -5,7 +5,7 @@ import { createCoreDecisioningServiceFromEnv } from "@/server/services/coreDecis
 
 export const dynamic = "force-dynamic";
 
-export default async function DailyReviewPage({ searchParams }: { searchParams: Promise<{ from?: string; reviewId?: string }> }) {
+export default async function DailyReviewPage({ searchParams }: { searchParams: Promise<{ reviewId?: string }> }) {
   const session = await requireServerPageSession();
   const params = await searchParams;
   const service = createCoreDecisioningServiceFromEnv();
@@ -21,7 +21,6 @@ export default async function DailyReviewPage({ searchParams }: { searchParams: 
         record={record}
         settings={state.settings}
         lastSuccessfulReviewAt={state.lastSuccessfulReviewAt}
-        showOverviewChanges={params.from === "overview"}
       />
     </AppShell>
   );

@@ -71,12 +71,19 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
   assert.match(dashboard, /Next best action/i);
   assert.match(dashboard, /What changed/);
   assert.match(dashboard, /pathname: "\/ai-cfo\/daily-review"/);
-  assert.match(dashboard, /from: "overview"/);
   assert.match(dashboard, /reviewId/);
-  assert.match(dashboard, /Review \{attentionItems\.length\} change/);
+  assert.match(dashboard, /hash: `finding-\$\{item\.id\}`/);
+  assert.match(dashboard, /data-testid="dashboard-recent-change"/);
+  assert.match(dashboard, /item\.impact/);
+  assert.match(dashboard, /item\.detail/);
+  assert.match(dashboard, /item\.evidence\[0\]\?\.sourceTitle/);
+  assert.match(dashboard, /item\.evidence\[0\]\.factUsed/);
+  assert.match(dashboard, /formatVerifiedDate\(item\.evidence\[0\]\.lastVerifiedAt\)/);
+  assert.doesNotMatch(dashboard, /overview-review-link/);
+  assert.doesNotMatch(dashboard, /Review \{attentionItems\.length\} change/);
   assert.doesNotMatch(dashboard, /ChevronDown/);
   assert.doesNotMatch(dashboard, /#changes-to-review/);
-  assert.match(dashboard, /Review period:/);
+  assert.match(dashboard, /Compared with your previous confirmed position/);
   assert.match(dashboard, /Explore your finances/);
   assert.match(dashboard, /Financial position/);
   assert.match(dashboard, /Cash flow/);
@@ -91,15 +98,12 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
 
   const dailyReview = source("src/app/components/DailyReviewClient.tsx");
   const dailyReviewPage = source("src/app/ai-cfo/daily-review/page.tsx");
-  assert.match(dailyReview, /Back to overview/);
-  assert.match(dailyReview, /The same changes shown on your overview/);
-  assert.match(dailyReview, /selectDashboardAttentionFindings/);
-  assert.match(dailyReview, /data-testid="overview-review-change"/);
-  assert.match(dailyReview, /finding\.expectedImpact/);
-  assert.match(dailyReview, /evidence\.sourceTitle/);
-  assert.match(dailyReview, /finding\.actionHref/);
+  assert.match(dailyReview, /Back to Dashboard/);
+  assert.match(dailyReview, /id=\{`finding-\$\{finding\.id\}`\}/);
+  assert.doesNotMatch(dailyReview, /overview-review-changes/);
+  assert.doesNotMatch(dailyReview, /The same changes shown on your overview/);
   assert.match(dailyReviewPage, /item\.review\.id === params\.reviewId/);
-  assert.match(dailyReviewPage, /showOverviewChanges=\{params\.from === "overview"\}/);
+  assert.doesNotMatch(dailyReviewPage, /showOverviewChanges/);
 
   assert.doesNotMatch(homePage, /Offset mortgage by \$800\/month/);
   assert.doesNotMatch(homePage, /AI detected \$138\/month/);

@@ -35,6 +35,8 @@ export type DashboardBriefing = {
     whyItMatters: string;
     impact: string;
     confidence: "High" | "Medium" | "Low";
+    priority: "Critical" | "High" | "Medium" | "Low";
+    type: DailyReviewFinding["type"];
     sourceEngine: string;
     calculationSnapshotId: string;
     calculationRule: string;
@@ -202,6 +204,8 @@ function attentionItems(record: DailyReviewHistoryRecord): DashboardBriefing["at
       whyItMatters: finding.whyItMatters,
       impact: finding.expectedImpact,
       confidence: finding.confidence,
+      priority: finding.priority,
+      type: finding.type,
       sourceEngine: finding.sourceEngine,
       calculationSnapshotId: finding.calculationSnapshotId,
       calculationRule: "Current review value minus previous review value equals the displayed change.",

@@ -88,28 +88,13 @@ function actionButtonLabel(action: DashboardAction | null): string {
   return action.actionLabel;
 }
 
-function DashboardBriefingHero({
-  reviewPeriod,
-  attentionItems,
-  reviewId,
-}: {
-  reviewPeriod: string;
-  attentionItems: DashboardBriefing["attentionItems"];
-  reviewId?: string;
-}) {
+function DashboardBriefingHero() {
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+    <section className="rounded-lg border border-slate-200 bg-white px-5 py-4 sm:px-6">
       <div>
         <div className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700"><Sparkles className="h-4 w-4" aria-hidden="true" />Vireon overview</div>
         <h1 className="mt-1 text-2xl font-semibold text-slate-950 sm:text-3xl">Your financial position</h1>
         <p className="mt-1 text-sm text-slate-600">What you own, owe, earn and should do next.</p>
-      </div>
-      <div className="flex flex-col items-start gap-1.5 sm:items-end">
-        <Link data-testid="overview-review-link" href={{ pathname: "/ai-cfo/daily-review", query: { from: "overview", ...(reviewId ? { reviewId } : {}) } }} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-amber-300 bg-amber-100 px-3.5 text-sm font-semibold text-amber-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
-          Review {attentionItems.length} change{attentionItems.length === 1 ? "" : "s"}
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
-        <span className="text-xs text-slate-500">Review period: {reviewPeriod}</span>
       </div>
     </section>
   );
@@ -195,22 +180,60 @@ function PriorityActionPanel({ action }: { action: DashboardAction | null }) {
   );
 }
 
-function RecentChanges({ items }: { items: DashboardBriefing["attentionItems"] }) {
+function formatVerifiedDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-AU", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Australia/Sydney" }).format(date);
+}
+
+function confidenceClass(confidence: "High" | "Medium" | "Low"): string {
+  if (confidence === "High") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (confidence === "Medium") return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-red-200 bg-red-50 text-red-700";
+}
+
+function changeTone(item: DashboardBriefing["attentionItems"][number]): string {
+  if (item.type === "positive-change" || item.type === "goal-improvement") return "border-l-emerald-500";
+  if (item.priority === "Critical") return "border-l-red-500";
+  if (item.priority === "High") return "border-l-amber-500";
+  return "border-l-blue-500";
+}
+
+function RecentChanges({ items, reviewId, reviewPeriod }: { items: DashboardBriefing["attentionItems"]; reviewId?: string; reviewPeriod: string }) {
   return (
-    <section data-testid="dashboard-recent-changes" className="rounded-lg border border-slate-200 bg-white p-5">
-      <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-slate-950">What changed</h2><Link href="/ai-cfo/daily-review" className="text-sm font-semibold text-blue-700">View review</Link></div>
-      <ul className="mt-3 divide-y divide-slate-100">
+    <section data-testid="dashboard-recent-changes">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-950">What changed</h2>
+        <p className="mt-1 text-sm text-slate-500">Compared with your previous confirmed position · {reviewPeriod}</p>
+      </div>
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
         {items.map((item) => (
-          <li key={item.id} data-testid="dashboard-recent-change" className="grid gap-2 py-3 first:pt-0 sm:grid-cols-[1fr_auto] sm:items-center">
-            <div className="min-w-0">
-              <Link href={item.actionHref} className="font-semibold text-slate-950 hover:text-blue-700">{item.title}</Link>
-              <p className="mt-0.5 truncate text-xs text-slate-500">{item.evidence[0]?.sourceTitle ?? item.sourceEngine} · {item.confidence} confidence</p>
+          <article key={item.id} data-testid="dashboard-recent-change" className={`flex flex-col rounded-lg border border-l-4 border-slate-200 bg-white p-4 ${changeTone(item)}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${confidenceClass(item.confidence)}`}>{item.confidence} confidence</span>
+              <span className="text-sm font-semibold tabular-nums text-slate-950">{item.impact}</span>
             </div>
-            <div className="font-semibold tabular-nums text-slate-800">{item.impact}</div>
-          </li>
+            <h3 className="mt-3 text-base font-semibold leading-6 text-slate-950">{item.title}</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>
+            <div className="mt-3 rounded-md bg-slate-50 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Evidence</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">{item.evidence[0]?.sourceTitle ?? item.sourceEngine}</div>
+              {item.evidence[0] && <>
+                <div className="mt-1 text-xs leading-5 text-slate-600">{item.evidence[0].factUsed}</div>
+                <div className="mt-1 text-xs text-slate-500">Verified {formatVerifiedDate(item.evidence[0].lastVerifiedAt)}</div>
+              </>}
+            </div>
+            <Link
+              href={{ pathname: "/ai-cfo/daily-review", query: reviewId ? { reviewId } : {}, hash: `finding-${item.id}` }}
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#10243b] px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              {item.actionLabel}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </article>
         ))}
-        {items.length === 0 && <li className="py-3 text-sm text-slate-600">No material changes in the latest review.</li>}
-      </ul>
+        {items.length === 0 && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 lg:col-span-3">No material changes in the latest review.</div>}
+      </div>
     </section>
   );
 }
@@ -287,7 +310,7 @@ export default function OverviewV3({
 
   return (
     <main id="overview" className="mx-auto max-w-[1180px] space-y-4 pb-24">
-      <DashboardBriefingHero reviewPeriod={briefing.reviewPeriod} attentionItems={briefing.attentionItems} reviewId={dailyReview?.review.id} />
+      <DashboardBriefingHero />
 
       <section aria-label="Current position" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CurrentPositionMetric label="Net worth" value={netWorth} change={netWorthTrend} href="/balance-sheet" confidence="Confirmed" icon={CircleDollarSign}>
@@ -298,10 +321,9 @@ export default function OverviewV3({
         <CurrentPositionMetric label="Borrowing readiness" value={housingSummary ? `${housingSummary.readinessScore}/100` : "Needs data"} change={housingSummary ? housingSummary.readinessBand : "Upload lending inputs"} href="/housing-scenarios" confidence={housingSummary ? "Modelled" : undefined} icon={Home} />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-        <PriorityActionPanel action={topAction} />
-        <RecentChanges items={briefing.attentionItems} />
-      </section>
+      <PriorityActionPanel action={topAction} />
+
+      <RecentChanges items={briefing.attentionItems} reviewId={dailyReview?.review.id} reviewPeriod={briefing.reviewPeriod} />
 
       <ProductMap netWorth={netWorth} cashFlow={cashFlow} housingSummary={housingSummary} vaultSummary={vaultSummary} />
 

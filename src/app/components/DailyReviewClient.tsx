@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, ArrowRight, Bell, CheckCircle2, ChevronDown, Clock3, EyeOff, FileSearch, Settings2, ShieldAlert, SlidersHorizontal, Sparkles, Trophy, TrendingUp } from "lucide-react";
 import type { DailyReviewFinding, DailyReviewHistoryRecord, DailyReviewSettings } from "@/lib/aiCfoDailyReview";
-import { selectDashboardAttentionFindings } from "@/lib/dashboardPresentation";
 import { buildBriefingHeadline, buildExecutiveSummary, buildSystemHealthSummary, getReviewDirection, selectFeaturedFinding, selectFinancialWins, selectPriorityActions } from "@/lib/dailyReviewPresentation";
 
 const sectionMap: Array<{ title: string; test: (finding: DailyReviewFinding) => boolean }> = [
@@ -259,7 +258,7 @@ function FindingCard({ finding }: { finding: DailyReviewFinding }) {
   const [open, setOpen] = useState(false);
   const detailId = `finding-detail-${finding.id}`;
   return (
-    <article className={`rounded-lg border border-l-4 border-slate-200 bg-white p-4 shadow-[0_12px_34px_rgba(15,23,42,0.035)] ${findingBorderClass(finding)}`}>
+    <article id={`finding-${finding.id}`} data-testid="daily-review-finding" className={`scroll-mt-6 rounded-lg border border-l-4 border-slate-200 bg-white p-4 shadow-[0_12px_34px_rgba(15,23,42,0.035)] ${findingBorderClass(finding)}`}>
       <button
         type="button"
         aria-expanded={open}
@@ -339,62 +338,14 @@ function FindingCard({ finding }: { finding: DailyReviewFinding }) {
   );
 }
 
-function OverviewChanges({ findings, reviewPeriod }: { findings: DailyReviewFinding[]; reviewPeriod: string }) {
-  return (
-    <section data-testid="overview-review-changes" className="rounded-lg border border-amber-200 bg-amber-50/40 p-4 sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Link href="/" className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-blue-700">
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Back to overview
-          </Link>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-950">Review {findings.length} changes</h1>
-          <p className="mt-1 text-sm text-slate-600">The same changes shown on your overview · {reviewPeriod}</p>
-        </div>
-      </div>
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        {findings.map((finding) => {
-          const evidence = finding.evidence[0];
-          return (
-            <article key={finding.id} data-testid="overview-review-change" className={`flex flex-col rounded-lg border border-l-4 border-slate-200 bg-white p-4 ${findingBorderClass(finding)}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${confidenceClass(finding.confidence)}`}>{finding.confidence} confidence</span>
-                <span className="text-sm font-semibold tabular-nums text-slate-950">{finding.expectedImpact}</span>
-              </div>
-              <h2 className="mt-3 text-base font-semibold leading-6 text-slate-950">{finding.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{finding.summary}</p>
-              <div className="mt-3 rounded-md bg-slate-50 p-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Evidence</div>
-                {evidence ? (
-                  <>
-                    <div className="mt-1 text-sm font-semibold text-slate-900">{evidence.sourceTitle}</div>
-                    <div className="mt-1 text-xs leading-5 text-slate-600">{evidence.factUsed}</div>
-                    <div className="mt-1 text-xs text-slate-500">Verified {formatDate(evidence.lastVerifiedAt)}</div>
-                  </>
-                ) : <div className="mt-1 text-sm text-slate-600">No source evidence is attached to this finding.</div>}
-              </div>
-              <Link href={finding.actionHref} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#10243b] px-4 text-sm font-semibold text-white">
-                {finding.actionLabel}
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </article>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 export default function DailyReviewClient({
   record,
   settings,
   lastSuccessfulReviewAt,
-  showOverviewChanges = false,
 }: {
   record: DailyReviewHistoryRecord;
   settings: DailyReviewSettings;
   lastSuccessfulReviewAt: string | null;
-  showOverviewChanges?: boolean;
 }) {
   const { review, previousSnapshot, currentSnapshot } = record;
   const [showSettings, setShowSettings] = useState(false);
@@ -406,7 +357,6 @@ export default function DailyReviewClient({
   const featuredFinding = useMemo(() => selectFeaturedFinding(review.findings), [review.findings]);
   const topActions = useMemo(() => selectPriorityActions(review.findings, 3), [review.findings]);
   const wins = useMemo(() => selectFinancialWins(review.findings, review.findings.length), [review.findings]);
-  const overviewChanges = useMemo(() => selectDashboardAttentionFindings(review.findings), [review.findings]);
   const briefingHeadline = buildBriefingHeadline(record);
   const executiveSummary = buildExecutiveSummary(record);
   const direction = getReviewDirection(record);
@@ -415,12 +365,15 @@ export default function DailyReviewClient({
 
   return (
     <div className="mx-auto max-w-[1360px] space-y-6">
-      {showOverviewChanges && <OverviewChanges findings={overviewChanges} reviewPeriod={reviewPeriod} />}
       <ReviewStatusBanner record={record} />
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.045)] sm:p-5 lg:min-h-[calc(100vh-56px)] lg:p-6">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
           <div className="space-y-4">
+            <Link href="/" className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-blue-700">
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to Dashboard
+            </Link>
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
               <span className="inline-flex items-center gap-2 font-semibold text-blue-700">
                 <Sparkles className="h-4 w-4 fill-blue-600 text-blue-600" aria-hidden="true" />
