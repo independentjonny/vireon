@@ -32,7 +32,23 @@ export type DashboardBriefing = {
     id: string;
     title: string;
     detail: string;
+    whyItMatters: string;
     impact: string;
+    confidence: "High" | "Medium" | "Low";
+    sourceEngine: string;
+    calculationSnapshotId: string;
+    calculationRule: string;
+    assumptions: string[];
+    actionLabel: string;
+    actionHref: string;
+    evidence: Array<{
+      sourceTitle: string;
+      factUsed: string;
+      classification: string;
+      confidence: "High" | "Medium" | "Low";
+      lastVerifiedAt: string;
+      sourceLocation: string;
+    }>;
   }>;
   primaryAction: DashboardAction | null;
 };
@@ -129,11 +145,19 @@ function actionFromDecision(decision: AiDecision): DashboardAction {
 function actionFromWorkflow(workflow: ActionWorkflow): DashboardAction {
   const currentStep = workflow.steps.find((step) => step.status === "In Progress" || step.status === "Blocked")
     ?? workflow.steps.find((step) => step.status === "Not Started");
-  const requiredDocuments = currentStep?.requiredDocuments?.filter(Boolean) ?? [];
+  const blockerDocuments = workflow.blockers
+    .filter((blocker) => /document/i.test(blocker))
+    .map((blocker) => blocker.replace(/^missing document:\s*/i, "").trim())
+    .filter(Boolean);
+  const requiredDocuments = [...new Set([
+    ...(currentStep?.requiredDocuments?.filter(Boolean) ?? []),
+    ...blockerDocuments,
+  ])];
+  const workflowLabel = workflow.title.toLowerCase().endsWith("workflow") ? workflow.title : `${workflow.title} workflow`;
   const blockerDetail = workflow.status === "Waiting on Document"
     ? requiredDocuments.length > 0
-      ? `Waiting for ${requiredDocuments.join(", ")}.`
-      : `Waiting for this document action: ${workflow.nextActionLabel}.`
+      ? `The ${workflowLabel} cannot continue until you provide: ${requiredDocuments.join(", ")}.`
+      : `The ${workflowLabel} is marked Waiting on Document, but no required document is persisted. Vireon cannot identify the document safely.`
     : currentStep?.blockedReason || workflow.blockers.find(Boolean) || null;
   return {
     id: workflow.id,
@@ -164,12 +188,31 @@ function reviewPeriod(record: DailyReviewHistoryRecord): string {
 }
 
 function attentionItems(record: DailyReviewHistoryRecord): DashboardBriefing["attentionItems"] {
-  return selectPriorityActions(record.review.findings, 3).map((finding) => ({
-    id: finding.id,
-    title: finding.title,
-    detail: finding.summary,
-    impact: finding.expectedImpact,
-  }));
+  return [...record.review.findings]
+    .sort((a, b) => scoreFindingForBriefing(b) - scoreFindingForBriefing(a) || a.title.localeCompare(b.title))
+    .slice(0, 3)
+    .map((finding) => ({
+      id: finding.id,
+      title: finding.title,
+      detail: finding.summary,
+      whyItMatters: finding.whyItMatters,
+      impact: finding.expectedImpact,
+      confidence: finding.confidence,
+      sourceEngine: finding.sourceEngine,
+      calculationSnapshotId: finding.calculationSnapshotId,
+      calculationRule: "Current review value minus previous review value equals the displayed change.",
+      assumptions: finding.assumptions,
+      actionLabel: finding.actionLabel,
+      actionHref: finding.actionHref,
+      evidence: finding.evidence.map((item) => ({
+        sourceTitle: item.sourceTitle,
+        factUsed: item.factUsed,
+        classification: item.classification,
+        confidence: item.confidence,
+        lastVerifiedAt: item.lastVerifiedAt,
+        sourceLocation: item.sourceLocation,
+      })),
+    }));
 }
 
 export function selectDashboardTopPriority(input: {

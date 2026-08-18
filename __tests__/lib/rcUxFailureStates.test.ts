@@ -66,17 +66,25 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
   assert.match(goals, /No goals have been created yet/);
   assert.match(goals, /No goal actions are ready yet/);
 
-  assert.match(dashboard, /Why it matters:/);
-  assert.match(dashboard, /What is blocking it:/);
-  assert.match(dashboard, /Next step:/);
+  assert.match(dashboard, /Your financial position/);
+  assert.match(dashboard, /What you own, owe, earn and should do next/);
+  assert.match(dashboard, /Next best action/i);
+  assert.match(dashboard, /What changed/);
+  assert.match(dashboard, /Explore your finances/);
+  assert.match(dashboard, /Financial position/);
+  assert.match(dashboard, /Cash flow/);
+  assert.match(dashboard, /Housing/);
+  assert.match(dashboard, /Document Vault/);
+  assert.doesNotMatch(dashboard, /Secondary actions/);
+  assert.doesNotMatch(dashboard, /Goal planning/);
+  assert.doesNotMatch(dashboard, /Deeper analysis/);
+  assert.doesNotMatch(dashboard, /Current priority:/);
   assert.doesNotMatch(dashboard, /Â·/);
-  assert.match(dashboard, /Vireon will not show a progress percentage until a saved goal is available/);
   assert.doesNotMatch(dashboard, /Home deposit is 78% complete/);
-  assert.match(dashboard, /How this is calculated/);
-  assert.match(dashboard, /Missing inputs are not treated as zero/);
 
   assert.doesNotMatch(homePage, /Offset mortgage by \$800\/month/);
   assert.doesNotMatch(homePage, /AI detected \$138\/month/);
+  assert.match(homePage, /netWorthTrend="Confirmed position"/);
   assert.match(homePage, /aiConfidence="Not calculated yet"/);
 
   assert.match(balanceSheet, /Monthly Change", value: "Not calculated yet"/);

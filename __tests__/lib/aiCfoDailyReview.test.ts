@@ -346,19 +346,39 @@ describe("DashboardPresentation", () => {
     assert.ok(briefing.primaryAction);
     assert.ok(briefing.reviewPeriod.includes(" to "));
     assert.ok(briefing.attentionItems.length <= 3);
-    assert.ok(briefing.attentionItems.every((item) => item.title && item.detail && item.impact));
+    assert.ok(briefing.attentionItems.every((item) => item.title && item.detail && item.whyItMatters && item.impact));
+    assert.ok(briefing.attentionItems.every((item) => item.sourceEngine && item.calculationSnapshotId));
+    assert.ok(briefing.attentionItems.every((item) => item.calculationRule));
+    assert.ok(briefing.attentionItems.every((item) => item.actionLabel && item.actionHref));
+    assert.ok(briefing.attentionItems.every((item) => item.evidence.every((evidence) => evidence.sourceTitle && evidence.factUsed && evidence.lastVerifiedAt)));
   });
 
-  it("explains a waiting-on-document workflow with the specific next document action", () => {
+  it("does not invent a document name when a waiting workflow has no persisted requirement", () => {
     const record = DailyReviewEngine.run({ inputs: inputs(), mode: "mortgage-demo" });
     const workflow = { ...activeWorkflow(), status: "Waiting on Document" as const };
     const top = selectDashboardTopPriority({ findings: record.review.findings, decisions: decisions(), workflows: [workflow] });
     assert.ok(top);
     assert.equal(top.status, "Waiting on Document");
-    assert.match(top.blockerDetail ?? "", /Upload latest loan statement/i);
+    assert.match(top.blockerDetail ?? "", /no required document is persisted/i);
+    assert.match(top.blockerDetail ?? "", /cannot identify the document safely/i);
+    assert.equal(top.nextStep, "Upload latest loan statement");
     const briefing = buildDashboardBriefing(record, top);
     assert.doesNotMatch(briefing.headline, /borrowing needs attention/i);
     assert.ok(briefing.summary.length > 20);
+  });
+
+  it("names the exact missing document and affected workflow from persisted blockers", () => {
+    const record = DailyReviewEngine.run({ inputs: inputs(), mode: "mortgage-demo" });
+    const workflow = {
+      ...activeWorkflow(),
+      status: "Waiting on Document" as const,
+      blockers: ["Missing document: Current mortgage statement"],
+    };
+    const top = selectDashboardTopPriority({ findings: record.review.findings, decisions: decisions(), workflows: [workflow] });
+    assert.ok(top);
+    assert.match(top.blockerDetail ?? "", /Mortgage refinance workflow cannot continue/i);
+    assert.match(top.blockerDetail ?? "", /Current mortgage statement/i);
+    assert.equal(top.nextStep, "Upload latest loan statement");
   });
 
   it("routes top priority to an active workflow before duplicate decisions", () => {

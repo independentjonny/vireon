@@ -114,7 +114,7 @@ export default async function HomePage() {
             <OverviewV3
               netWorth={formatAud(balanceSheet.netWorth, true)}
               netWorthValue={balanceSheet.netWorth}
-              netWorthTrend={`${formatAud(balanceSheet.monthlyNetChange)} persisted monthly change`}
+              netWorthTrend="Confirmed position"
               netWorthTrendValue={balanceSheet.monthlyNetChange}
               cashFlow={monthlyCashFlow.monthlySurplus === null ? "Unavailable" : formatAud(monthlyCashFlow.monthlySurplus)}
               savingsRate={savingsRate}
