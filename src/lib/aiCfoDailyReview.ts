@@ -927,7 +927,7 @@ export function validateDailyReviewSummary(draft: string | null | undefined, fin
   const top = findings.slice(0, 5);
   const positive = top.filter((item) => item.type === "positive-change" || item.type === "goal-improvement").length;
   const risks = top.length - positive;
-  const summary = `Three changes need your attention. ${positive} positive change${positive === 1 ? "" : "s"} and ${risks} risk or action item${risks === 1 ? "" : "s"} were detected. Top item: ${top[0].title}.`;
+  const summary = `${top.length} change${top.length === 1 ? "" : "s"} need your attention. ${positive} positive change${positive === 1 ? "" : "s"} and ${risks} risk or action item${risks === 1 ? "" : "s"} were detected. Top item: ${top[0].title}.`;
   if (!draft) return summary;
   const triesToAddFinding = draft.toLowerCase().includes("also") && draft.toLowerCase().includes("detected");
   if (triesToAddFinding) return summary;

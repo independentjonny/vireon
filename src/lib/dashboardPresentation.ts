@@ -19,6 +19,7 @@ export type DashboardAction = {
   href: string;
   actionLabel: string;
   professionalReviewRequired: boolean;
+  blockerDetail: string | null;
 };
 
 export type DashboardBriefing = {
@@ -26,6 +27,13 @@ export type DashboardBriefing = {
   label: string;
   headline: string;
   summary: string;
+  reviewPeriod: string;
+  attentionItems: Array<{
+    id: string;
+    title: string;
+    detail: string;
+    impact: string;
+  }>;
   primaryAction: DashboardAction | null;
 };
 
@@ -95,6 +103,7 @@ function actionFromFinding(finding: DailyReviewFinding): DashboardAction {
     href: finding.actionHref,
     actionLabel: finding.actionLabel,
     professionalReviewRequired: finding.professionalReviewRequired,
+    blockerDetail: null,
   };
 }
 
@@ -113,10 +122,19 @@ function actionFromDecision(decision: AiDecision): DashboardAction {
     href: decision.actionHref,
     actionLabel: decision.actionLabel,
     professionalReviewRequired: decision.source === "Housing Scenarios" || decision.source === "Balance Sheet",
+    blockerDetail: null,
   };
 }
 
 function actionFromWorkflow(workflow: ActionWorkflow): DashboardAction {
+  const currentStep = workflow.steps.find((step) => step.status === "In Progress" || step.status === "Blocked")
+    ?? workflow.steps.find((step) => step.status === "Not Started");
+  const requiredDocuments = currentStep?.requiredDocuments?.filter(Boolean) ?? [];
+  const blockerDetail = workflow.status === "Waiting on Document"
+    ? requiredDocuments.length > 0
+      ? `Waiting for ${requiredDocuments.join(", ")}.`
+      : `Waiting for this document action: ${workflow.nextActionLabel}.`
+    : currentStep?.blockedReason || workflow.blockers.find(Boolean) || null;
   return {
     id: workflow.id,
     source: "workflow",
@@ -131,7 +149,27 @@ function actionFromWorkflow(workflow: ActionWorkflow): DashboardAction {
     href: workflow.nextActionHref || "/action-workflows",
     actionLabel: workflow.nextActionLabel,
     professionalReviewRequired: workflow.professionalReviewRequired,
+    blockerDetail,
   };
+}
+
+function reviewPeriod(record: DailyReviewHistoryRecord): string {
+  const formatDate = (value: string) => {
+    const date = new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
+    return Number.isNaN(date.getTime())
+      ? value
+      : new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
+  };
+  return `${formatDate(record.review.comparisonStartDate)} to ${formatDate(record.review.comparisonEndDate)}`;
+}
+
+function attentionItems(record: DailyReviewHistoryRecord): DashboardBriefing["attentionItems"] {
+  return selectPriorityActions(record.review.findings, 3).map((finding) => ({
+    id: finding.id,
+    title: finding.title,
+    detail: finding.summary,
+    impact: finding.expectedImpact,
+  }));
 }
 
 export function selectDashboardTopPriority(input: {
@@ -210,6 +248,8 @@ export function buildDashboardBriefing(record: DailyReviewHistoryRecord, topActi
       label: "Dashboard partially updated",
       headline: "Your Dashboard is partially updated.",
       summary: "Some calculations were unavailable, so Vireon is showing only verified sections with reduced confidence.",
+      reviewPeriod: reviewPeriod(record),
+      attentionItems: attentionItems(record),
       primaryAction: topAction,
     };
   }
@@ -220,6 +260,8 @@ export function buildDashboardBriefing(record: DailyReviewHistoryRecord, topActi
       label: "Financial command centre",
       headline: "Your financial position is stable.",
       summary: "No material changes need attention since the previous verified review.",
+      reviewPeriod: reviewPeriod(record),
+      attentionItems: [],
       primaryAction: topAction,
     };
   }
@@ -228,8 +270,10 @@ export function buildDashboardBriefing(record: DailyReviewHistoryRecord, topActi
     return {
       direction: "mixed",
       label: "Financial command centre",
-      headline: featured ? `Your position is mixed; ${featured.category.replaceAll("-", " ")} needs attention.` : "Your position is mixed.",
-      summary: record.review.overallSummary.split(".")[0] + ".",
+      headline: featured ? `Your position is mixed: ${featured.title}.` : "Your position is mixed.",
+      summary: featured?.whyItMatters ?? "The latest verified review contains both progress and items that need action.",
+      reviewPeriod: reviewPeriod(record),
+      attentionItems: attentionItems(record),
       primaryAction: topAction,
     };
   }
@@ -238,7 +282,9 @@ export function buildDashboardBriefing(record: DailyReviewHistoryRecord, topActi
     direction: mappedDirection,
     label: "Financial command centre",
     headline: direction === "improved" ? "Your position improved this period." : `${record.review.findings.length} financial item${record.review.findings.length === 1 ? "" : "s"} need attention.`,
-    summary: record.review.overallSummary.split(".")[0] + ".",
+    summary: featured?.whyItMatters ?? record.review.overallSummary.split(".")[0] + ".",
+    reviewPeriod: reviewPeriod(record),
+    attentionItems: attentionItems(record),
     primaryAction: topAction,
   };
 }

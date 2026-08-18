@@ -344,6 +344,21 @@ describe("DashboardPresentation", () => {
     assert.ok(briefing.headline.length > 0);
     assert.notEqual(briefing.headline, buildBriefingHeadline(record));
     assert.ok(briefing.primaryAction);
+    assert.ok(briefing.reviewPeriod.includes(" to "));
+    assert.ok(briefing.attentionItems.length <= 3);
+    assert.ok(briefing.attentionItems.every((item) => item.title && item.detail && item.impact));
+  });
+
+  it("explains a waiting-on-document workflow with the specific next document action", () => {
+    const record = DailyReviewEngine.run({ inputs: inputs(), mode: "mortgage-demo" });
+    const workflow = { ...activeWorkflow(), status: "Waiting on Document" as const };
+    const top = selectDashboardTopPriority({ findings: record.review.findings, decisions: decisions(), workflows: [workflow] });
+    assert.ok(top);
+    assert.equal(top.status, "Waiting on Document");
+    assert.match(top.blockerDetail ?? "", /Upload latest loan statement/i);
+    const briefing = buildDashboardBriefing(record, top);
+    assert.doesNotMatch(briefing.headline, /borrowing needs attention/i);
+    assert.ok(briefing.summary.length > 20);
   });
 
   it("routes top priority to an active workflow before duplicate decisions", () => {

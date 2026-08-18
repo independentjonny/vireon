@@ -102,7 +102,6 @@ function actionButtonLabel(action: DashboardAction | null): string {
 
 function priorityStatusLine(action: DashboardAction | null): string {
   if (!action) return "No urgent action currently requires execution.";
-  if (action.source === "workflow" && /vault|document|information/i.test(action.title)) return `Complete financial profile - ${action.status}`;
   if (action.source === "workflow") return `${action.title} - ${action.status}`;
   return `${action.title} - ${action.impact}`;
 }
@@ -111,11 +110,15 @@ function DashboardBriefingHero({
   label,
   headline,
   summary,
+  reviewPeriod,
+  attentionItems,
   topAction,
 }: {
   label: string;
   headline: string;
   summary: string;
+  reviewPeriod: string;
+  attentionItems: Array<{ id: string; title: string; detail: string; impact: string }>;
   topAction: DashboardAction | null;
 }) {
   return (
@@ -129,10 +132,27 @@ function DashboardBriefingHero({
           {headline}
         </h1>
         <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">{summary}</p>
+        <p className="mt-1 text-sm text-slate-500">Review period: {reviewPeriod}</p>
+        {attentionItems.length > 0 ? (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-950">What needs attention</p>
+            <ul className="mt-2 grid gap-3 lg:grid-cols-3">
+              {attentionItems.map((item) => (
+                <li key={item.id} className="rounded-md border border-slate-200 bg-white p-3">
+                  <p className="text-sm font-semibold text-slate-950">{item.title}</p>
+                  <p className="mt-1 text-sm leading-5 text-slate-600">{item.detail}</p>
+                  <p className="mt-2 text-xs font-semibold text-slate-500">Impact: {item.impact}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="mt-4 flex flex-col">
           <div className="order-2 mt-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm sm:order-1 sm:mt-0">
-            <span className="font-semibold text-slate-500">Current priority: </span>
-            <span className="font-semibold text-slate-950">{priorityStatusLine(topAction)}</span>
+            <p><span className="font-semibold text-slate-500">Current priority: </span><span className="font-semibold text-slate-950">{priorityStatusLine(topAction)}</span></p>
+            {topAction ? <p className="mt-1 text-slate-600">Why it matters: {topAction.whyItMatters}</p> : null}
+            {topAction?.blockerDetail ? <p className="mt-1 font-medium text-amber-800">What is blocking it: {topAction.blockerDetail}</p> : null}
+            {topAction ? <p className="mt-1 text-slate-600">Next step: {topAction.nextStep}</p> : null}
           </div>
           <div className="order-1 flex flex-col gap-2 sm:order-2 sm:mt-5 sm:flex-row">
             <Link href={topAction?.href ?? "/ai-cfo"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#10243b] px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
@@ -419,6 +439,8 @@ export default function OverviewV3({
     label: "Financial command centre",
     headline: "Complete your financial picture to unlock personalised decisions.",
     summary: "Upload the most valuable missing input so Vireon can rank actions by verified financial impact.",
+    reviewPeriod: "Not available until the first verified review",
+    attentionItems: [],
     primaryAction: topAction,
   };
   const secondaryActions = dailyReview ? selectDashboardSecondaryActions({ findings: dailyReview.review.findings, decisions, workflows, topAction, limit: 3 }) : decisions.slice(0, 3).map((decision) => ({
@@ -435,6 +457,7 @@ export default function OverviewV3({
     href: decision.actionHref,
     actionLabel: decision.actionLabel,
     professionalReviewRequired: false,
+    blockerDetail: null,
   }));
   const wins = dailyReview ? selectVerifiedFinancialWins(dailyReview.review.findings, workflows, 3) : [];
   const activeDecisionCount = decisions.filter((decision) => decision.priority !== "Low").length;
@@ -444,7 +467,7 @@ export default function OverviewV3({
 
   return (
     <main id="overview" className="mx-auto max-w-[1180px] space-y-4 pb-24">
-      <DashboardBriefingHero label={briefing.label} headline={briefing.headline} summary={briefing.summary} topAction={topAction} />
+      <DashboardBriefingHero label={briefing.label} headline={briefing.headline} summary={briefing.summary} reviewPeriod={briefing.reviewPeriod} attentionItems={briefing.attentionItems} topAction={topAction} />
 
       <section aria-label="Current position" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CurrentPositionMetric label="Net worth" value={netWorth} change={netWorthTrend} href="/balance-sheet" confidence={dailyReview?.review.findings.some((finding) => finding.category === "net-worth") ? "Verified" : undefined} explanation="Assets minus liabilities from confirmed Financial Vault inputs and persisted financial read-model data." icon={CircleDollarSign}>

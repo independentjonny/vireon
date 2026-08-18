@@ -66,7 +66,9 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
   assert.match(goals, /No goals have been created yet/);
   assert.match(goals, /No goal actions are ready yet/);
 
-  assert.match(dashboard, /Complete financial profile - \$\{action\.status\}/);
+  assert.match(dashboard, /Why it matters:/);
+  assert.match(dashboard, /What is blocking it:/);
+  assert.match(dashboard, /Next step:/);
   assert.doesNotMatch(dashboard, /Â·/);
   assert.match(dashboard, /Vireon will not show a progress percentage until a saved goal is available/);
   assert.doesNotMatch(dashboard, /Home deposit is 78% complete/);
