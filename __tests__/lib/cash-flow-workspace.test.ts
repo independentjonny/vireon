@@ -21,6 +21,13 @@ test("Financial Position consumes the same canonical monthly cash flow", () => {
   assert.match(client, /Add missing details/);
   assert.match(client, /cashFlowMissing\?\.href \?\? "\/cash-flow"/);
   assert.match(client, /"View calculation"/);
+  assert.match(client, /Monthly cash flow calculation/);
+  assert.match(client, /cashFlow\.incomeLines\.map/);
+  assert.match(client, /cashFlow\.expenseLines\.map/);
+  assert.match(client, /Total monthly income/);
+  assert.match(client, /Total monthly expenses/);
+  assert.match(client, /Income less expenses/);
+  assert.match(client, /Open full cash-flow workspace/);
   assert.match(client, /monthlyCashFlow === null \? "Incomplete"/);
   assert.doesNotMatch(client, /total\(position\.income, \["monthlyAmount", "monthlyIncome", "amount"\]\)/);
 });

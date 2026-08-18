@@ -64,6 +64,50 @@ function MetricCard({ label, value, icon: Icon, available, note, href, action }:
   );
 }
 
+function CashFlowCalculation({ position }: { position: FinancialPositionReadModel }) {
+  const cashFlow = position.monthlyCashFlow;
+  const rows = [
+    ...cashFlow.incomeLines.map((line) => ({ ...line, signedAmount: line.monthlyAmount })),
+    ...cashFlow.expenseLines.map((line) => ({ ...line, signedAmount: -line.monthlyAmount })),
+  ];
+
+  return (
+    <article className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)] sm:p-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-slate-950">Monthly cash flow calculation</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">Every recurring value below is normalised to a monthly amount.</p>
+        </div>
+        <div className="text-left sm:text-right">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Monthly cash flow</div>
+          <div className="mt-1 text-xl font-semibold text-slate-950">{cashFlow.monthlySurplus === null ? "Incomplete" : `${cashFlow.monthlySurplus >= 0 ? "+" : ""}${money(cashFlow.monthlySurplus)}`}</div>
+        </div>
+      </div>
+
+      <div className="mt-5 divide-y divide-slate-100 border-y border-slate-100">
+        {rows.map((line) => (
+          <div key={`${line.kind}-${line.id}`} className="flex items-start gap-3 py-3">
+            <div className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${line.kind === "income" ? "bg-emerald-500" : "bg-rose-500"}`} />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-slate-800">{line.label}</div>
+              <div className="mt-0.5 text-xs capitalize text-slate-500">{line.cadence} · {line.approximate ? "Estimated" : "Confirmed"}</div>
+            </div>
+            <div className={`shrink-0 text-sm font-semibold ${line.kind === "income" ? "text-emerald-700" : "text-rose-700"}`}>{line.signedAmount >= 0 ? "+" : "−"}{money(Math.abs(line.signedAmount))}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-3">
+        <div><div className="text-xs text-slate-500">Total monthly income</div><div className="mt-1 font-semibold text-emerald-700">{cashFlow.monthlyIncome === null ? "Incomplete" : `+${money(cashFlow.monthlyIncome)}`}</div></div>
+        <div><div className="text-xs text-slate-500">Total monthly expenses</div><div className="mt-1 font-semibold text-rose-700">{cashFlow.monthlyExpenses === null ? "Incomplete" : `−${money(cashFlow.monthlyExpenses)}`}</div></div>
+        <div><div className="text-xs text-slate-500">Income less expenses</div><div className="mt-1 font-semibold text-slate-950">{cashFlow.monthlySurplus === null ? "Incomplete" : `${cashFlow.monthlySurplus >= 0 ? "+" : ""}${money(cashFlow.monthlySurplus)}`}</div></div>
+      </div>
+
+      <Link href="/cash-flow" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-700">Open full cash-flow workspace<ArrowRight className="h-4 w-4" /></Link>
+    </article>
+  );
+}
+
 type Gap = {
   title: string;
   detail: string;
@@ -162,6 +206,8 @@ export default function FinancialProfileBuilderClient({ position, savedProperty 
           <MetricCard label="Liabilities" value={liabilities === null ? "Unavailable" : money(liabilities)} icon={Landmark} available={liabilities !== null} />
           <MetricCard label="Monthly cash flow" value={monthlyCashFlow === null ? "Incomplete" : `${monthlyCashFlow >= 0 ? "+" : ""}${money(monthlyCashFlow)}`} icon={Banknote} available={monthlyCashFlow !== null} note={cashFlowMissing?.title ?? (position.monthlyCashFlow.status === "confirmed" ? "Confirmed recurring data" : position.monthlyCashFlow.status === "estimated" ? "Estimated from confirmed records" : "Waiting for confirmed income and expenses")} href={cashFlowMissing?.href ?? "/cash-flow"} action={cashFlowMissing ? "Add missing details" : "View calculation"} />
         </div>
+
+        <CashFlowCalculation position={position} />
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
           <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.04)] sm:p-6">
