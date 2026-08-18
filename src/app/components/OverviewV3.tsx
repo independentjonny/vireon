@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { ElementType, ReactNode } from "react";
 import {
   ArrowRight,
-  CheckCircle2,
   CircleDollarSign,
   FileCheck2,
   Home,
@@ -16,6 +15,8 @@ import type { AiDecision } from "@/lib/aiDecisionCentre";
 import type { DailyReviewHistoryRecord } from "@/lib/aiCfoDailyReview";
 import {
   buildDashboardBriefing,
+  excludeDisplayedFindingAction,
+  selectDashboardAttentionFindings,
   selectDashboardTopPriority,
   type DashboardAction,
   type DashboardBriefing,
@@ -155,13 +156,7 @@ function CurrentPositionMetric({
 }
 
 function PriorityActionPanel({ action }: { action: DashboardAction | null }) {
-  if (!action) {
-    return (
-      <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-5">
-        <div className="flex items-center gap-2 font-semibold text-emerald-800"><CheckCircle2 className="h-5 w-5" aria-hidden="true" />No action needed now</div>
-      </section>
-    );
-  }
+  if (!action) return null;
 
   return (
     <section data-testid="dashboard-primary-workflow" className={`rounded-lg border border-l-4 border-slate-200 bg-white p-5 ${toneForAction(action)}`}>
@@ -193,10 +188,15 @@ function confidenceClass(confidence: "High" | "Medium" | "Low"): string {
 }
 
 function changeTone(item: DashboardBriefing["attentionItems"][number]): string {
-  if (item.type === "positive-change" || item.type === "goal-improvement") return "border-l-emerald-500";
-  if (item.priority === "Critical") return "border-l-red-500";
-  if (item.priority === "High") return "border-l-amber-500";
+  if (item.tone === "positive") return "border-l-emerald-500";
+  if (item.tone === "attention") return "border-l-amber-500";
   return "border-l-blue-500";
+}
+
+function changeStatusClass(item: DashboardBriefing["attentionItems"][number]): string {
+  if (item.tone === "positive") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (item.tone === "attention") return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-blue-200 bg-blue-50 text-blue-700";
 }
 
 function RecentChanges({ items, reviewId, reviewPeriod }: { items: DashboardBriefing["attentionItems"]; reviewId?: string; reviewPeriod: string }) {
@@ -210,11 +210,22 @@ function RecentChanges({ items, reviewId, reviewPeriod }: { items: DashboardBrie
         {items.map((item) => (
           <article key={item.id} data-testid="dashboard-recent-change" className={`flex flex-col rounded-lg border border-l-4 border-slate-200 bg-white p-4 ${changeTone(item)}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${changeStatusClass(item)}`}>{item.statusLabel}</span>
               <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${confidenceClass(item.confidence)}`}>{item.confidence} confidence</span>
-              <span className="text-sm font-semibold tabular-nums text-slate-950">{item.impact}</span>
             </div>
             <h3 className="mt-3 text-base font-semibold leading-6 text-slate-950">{item.title}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>
+            <div className="mt-2 text-lg font-semibold tabular-nums text-slate-950">{item.changeLabel}</div>
+            <p className="mt-1 text-xs leading-5 text-slate-500">{item.timeBasis}</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{item.previousLabel}</div>
+                <div className="mt-1 text-sm font-semibold tabular-nums text-slate-950">{item.previousValue}</div>
+              </div>
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{item.currentLabel}</div>
+                <div className="mt-1 text-sm font-semibold tabular-nums text-slate-950">{item.currentValue}</div>
+              </div>
+            </div>
             <div className="mt-3 rounded-md bg-slate-50 p-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Evidence</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">{item.evidence[0]?.sourceTitle ?? item.sourceEngine}</div>
@@ -223,13 +234,15 @@ function RecentChanges({ items, reviewId, reviewPeriod }: { items: DashboardBrie
                 <div className="mt-1 text-xs text-slate-500">Verified {formatVerifiedDate(item.evidence[0].lastVerifiedAt)}</div>
               </>}
             </div>
-            <Link
-              href={{ pathname: "/ai-cfo/daily-review", query: reviewId ? { reviewId } : {}, hash: `finding-${item.id}` }}
-              className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#10243b] px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-            >
-              {item.actionLabel}
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
+            <div className="mt-auto pt-4">
+              <Link
+                href={{ pathname: "/ai-cfo/daily-review", query: { ...(reviewId ? { reviewId } : {}), findingId: item.id } }}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#10243b] px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              >
+                {item.actionLabel}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
           </article>
         ))}
         {items.length === 0 && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 lg:col-span-3">No material changes in the latest review.</div>}
@@ -298,7 +311,9 @@ export default function OverviewV3({
   workflows = [],
   dailyReview,
 }: OverviewV3Props) {
-  const topAction = dailyReview ? selectDashboardTopPriority({ findings: dailyReview.review.findings, decisions, workflows }) : null;
+  const candidateTopAction = dailyReview ? selectDashboardTopPriority({ findings: dailyReview.review.findings, decisions, workflows }) : null;
+  const displayedFindings = dailyReview ? selectDashboardAttentionFindings(dailyReview.review.findings) : [];
+  const topAction = excludeDisplayedFindingAction(candidateTopAction, displayedFindings);
   const briefing = dailyReview ? buildDashboardBriefing(dailyReview, topAction) : {
     label: "Financial command centre",
     headline: "Complete your financial picture to unlock personalised decisions.",

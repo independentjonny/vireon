@@ -2,6 +2,7 @@ import type { ActionWorkflow } from "./actionWorkflows.ts";
 import type { DailyReviewFinding, DailyReviewHistoryRecord } from "./aiCfoDailyReview.ts";
 import type { AiDecision } from "./aiDecisionCentre.ts";
 import { getReviewDirection, scoreFindingForBriefing, selectFeaturedFinding, selectFinancialWins, selectPriorityActions } from "./dailyReviewPresentation.ts";
+import { buildFindingDisplay, type FindingTone } from "./dailyReviewDisplay.ts";
 
 export type DashboardDirection = "improving" | "stable" | "mixed" | "deteriorating" | "partial";
 
@@ -43,6 +44,14 @@ export type DashboardBriefing = {
     assumptions: string[];
     actionLabel: string;
     actionHref: string;
+    tone: FindingTone;
+    statusLabel: string;
+    changeLabel: string;
+    previousLabel: string;
+    previousValue: string;
+    currentLabel: string;
+    currentValue: string;
+    timeBasis: string;
     evidence: Array<{
       sourceTitle: string;
       factUsed: string;
@@ -190,14 +199,36 @@ function reviewPeriod(record: DailyReviewHistoryRecord): string {
 }
 
 export function selectDashboardAttentionFindings(findings: DailyReviewFinding[]): DailyReviewFinding[] {
+  const seen = new Set<string>();
   return [...findings]
     .sort((a, b) => scoreFindingForBriefing(b) - scoreFindingForBriefing(a) || a.title.localeCompare(b.title))
+    .filter((finding) => {
+      const key = finding.deduplicationKey || finding.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .slice(0, 3);
+}
+
+export function excludeDisplayedFindingAction(
+  candidate: DashboardAction | null,
+  displayedFindings: DailyReviewFinding[],
+): DashboardAction | null {
+  if (!candidate) return null;
+  const duplicatesFinding = displayedFindings.some((finding) =>
+    candidate.id === finding.id
+    || candidate.sourceEntityId === finding.deduplicationKey
+    || (candidate.title === finding.title && candidate.href === finding.actionHref)
+  );
+  return duplicatesFinding ? null : candidate;
 }
 
 function attentionItems(record: DailyReviewHistoryRecord): DashboardBriefing["attentionItems"] {
   return selectDashboardAttentionFindings(record.review.findings)
-    .map((finding) => ({
+    .map((finding) => {
+      const display = buildFindingDisplay(finding, record.review.comparisonStartDate, record.review.comparisonEndDate);
+      return {
       id: finding.id,
       title: finding.title,
       detail: finding.summary,
@@ -212,6 +243,7 @@ function attentionItems(record: DailyReviewHistoryRecord): DashboardBriefing["at
       assumptions: finding.assumptions,
       actionLabel: finding.actionLabel,
       actionHref: finding.actionHref,
+      ...display,
       evidence: finding.evidence.map((item) => ({
         sourceTitle: item.sourceTitle,
         factUsed: item.factUsed,
@@ -220,7 +252,8 @@ function attentionItems(record: DailyReviewHistoryRecord): DashboardBriefing["at
         lastVerifiedAt: item.lastVerifiedAt,
         sourceLocation: item.sourceLocation,
       })),
-    }));
+      };
+    });
 }
 
 export function selectDashboardTopPriority(input: {

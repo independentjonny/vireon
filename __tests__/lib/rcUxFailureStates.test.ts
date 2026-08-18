@@ -72,10 +72,12 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
   assert.match(dashboard, /What changed/);
   assert.match(dashboard, /pathname: "\/ai-cfo\/daily-review"/);
   assert.match(dashboard, /reviewId/);
-  assert.match(dashboard, /hash: `finding-\$\{item\.id\}`/);
+  assert.match(dashboard, /findingId: item\.id/);
   assert.match(dashboard, /data-testid="dashboard-recent-change"/);
-  assert.match(dashboard, /item\.impact/);
-  assert.match(dashboard, /item\.detail/);
+  assert.match(dashboard, /item\.changeLabel/);
+  assert.match(dashboard, /item\.timeBasis/);
+  assert.match(dashboard, /item\.previousValue/);
+  assert.match(dashboard, /item\.currentValue/);
   assert.match(dashboard, /item\.evidence\[0\]\?\.sourceTitle/);
   assert.match(dashboard, /item\.evidence\[0\]\.factUsed/);
   assert.match(dashboard, /formatVerifiedDate\(item\.evidence\[0\]\.lastVerifiedAt\)/);
@@ -100,9 +102,19 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
   const dailyReviewPage = source("src/app/ai-cfo/daily-review/page.tsx");
   assert.match(dailyReview, /Back to Dashboard/);
   assert.match(dailyReview, /id=\{`finding-\$\{finding\.id\}`\}/);
+  assert.match(dailyReview, /daily-review-selected-finding/);
+  assert.match(dailyReview, />Daily Review<\/h1>/);
+  assert.doesNotMatch(dailyReview, /Selected change/);
+  assert.match(dailyReview, /Other changes in this review/);
+  assert.match(dailyReview, /buildFindingDisplay/);
+  assert.doesNotMatch(dailyReview, /sectionMap/);
+  assert.doesNotMatch(dailyReview, /min-h-\[calc\(100vh-56px\)\]/);
+  assert.doesNotMatch(dailyReview, /FeaturedFinding/);
+  assert.doesNotMatch(dailyReview, /PriorityActionCard/);
   assert.doesNotMatch(dailyReview, /overview-review-changes/);
   assert.doesNotMatch(dailyReview, /The same changes shown on your overview/);
   assert.match(dailyReviewPage, /item\.review\.id === params\.reviewId/);
+  assert.match(dailyReviewPage, /selectedFindingId=\{params\.findingId\}/);
   assert.doesNotMatch(dailyReviewPage, /showOverviewChanges/);
 
   assert.doesNotMatch(homePage, /Offset mortgage by \$800\/month/);
