@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { ElementType, ReactNode } from "react";
 import {
   ArrowRight,
-  ChevronDown,
   CheckCircle2,
   CircleDollarSign,
   FileCheck2,
@@ -104,9 +103,9 @@ function DashboardBriefingHero({
         <p className="mt-1 text-sm text-slate-600">What you own, owe, earn and should do next.</p>
       </div>
       <div className="flex flex-col items-start gap-1.5 sm:items-end">
-        <Link href="#changes-to-review" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-amber-300 bg-amber-100 px-3.5 text-sm font-semibold text-amber-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
+        <Link href="/ai-cfo/daily-review" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-amber-300 bg-amber-100 px-3.5 text-sm font-semibold text-amber-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
           Review {attentionItems.length} change{attentionItems.length === 1 ? "" : "s"}
-          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
         <span className="text-xs text-slate-500">Review period: {reviewPeriod}</span>
       </div>
@@ -196,7 +195,7 @@ function PriorityActionPanel({ action }: { action: DashboardAction | null }) {
 
 function RecentChanges({ items }: { items: DashboardBriefing["attentionItems"] }) {
   return (
-    <section id="changes-to-review" className="scroll-mt-4 rounded-lg border border-slate-200 bg-white p-5 target:border-amber-400 target:ring-2 target:ring-amber-200">
+    <section className="rounded-lg border border-slate-200 bg-white p-5">
       <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-slate-950">What changed</h2><Link href="/ai-cfo/daily-review" className="text-sm font-semibold text-blue-700">View review</Link></div>
       <ul className="mt-3 divide-y divide-slate-100">
         {items.map((item) => (

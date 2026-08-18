@@ -70,9 +70,10 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
   assert.match(dashboard, /What you own, owe, earn and should do next/);
   assert.match(dashboard, /Next best action/i);
   assert.match(dashboard, /What changed/);
-  assert.match(dashboard, /href="#changes-to-review"/);
-  assert.match(dashboard, /id="changes-to-review"/);
+  assert.match(dashboard, /href="\/ai-cfo\/daily-review"/);
   assert.match(dashboard, /Review \{attentionItems\.length\} change/);
+  assert.doesNotMatch(dashboard, /ChevronDown/);
+  assert.doesNotMatch(dashboard, /#changes-to-review/);
   assert.match(dashboard, /Review period:/);
   assert.match(dashboard, /Explore your finances/);
   assert.match(dashboard, /Financial position/);
