@@ -5,15 +5,24 @@ import { createCoreDecisioningServiceFromEnv } from "@/server/services/coreDecis
 
 export const dynamic = "force-dynamic";
 
-export default async function DailyReviewPage() {
+export default async function DailyReviewPage({ searchParams }: { searchParams: Promise<{ from?: string; reviewId?: string }> }) {
   const session = await requireServerPageSession();
+  const params = await searchParams;
   const service = createCoreDecisioningServiceFromEnv();
   const state = await service.readDailyReviews(session);
-  const record = state.history[0] ?? await service.getLatestDailyReview(session);
+  const requestedRecord = params.reviewId
+    ? state.history.find((item) => item.review.id === params.reviewId)
+    : undefined;
+  const record = requestedRecord ?? state.history[0] ?? await service.getLatestDailyReview(session);
 
   return (
     <AppShell active="ai-cfo">
-      <DailyReviewClient record={record} settings={state.settings} lastSuccessfulReviewAt={state.lastSuccessfulReviewAt} />
+      <DailyReviewClient
+        record={record}
+        settings={state.settings}
+        lastSuccessfulReviewAt={state.lastSuccessfulReviewAt}
+        showOverviewChanges={params.from === "overview"}
+      />
     </AppShell>
   );
 }

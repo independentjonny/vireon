@@ -70,7 +70,9 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
   assert.match(dashboard, /What you own, owe, earn and should do next/);
   assert.match(dashboard, /Next best action/i);
   assert.match(dashboard, /What changed/);
-  assert.match(dashboard, /href="\/ai-cfo\/daily-review"/);
+  assert.match(dashboard, /pathname: "\/ai-cfo\/daily-review"/);
+  assert.match(dashboard, /from: "overview"/);
+  assert.match(dashboard, /reviewId/);
   assert.match(dashboard, /Review \{attentionItems\.length\} change/);
   assert.doesNotMatch(dashboard, /ChevronDown/);
   assert.doesNotMatch(dashboard, /#changes-to-review/);
@@ -86,6 +88,18 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
   assert.doesNotMatch(dashboard, /Current priority:/);
   assert.doesNotMatch(dashboard, /Â·/);
   assert.doesNotMatch(dashboard, /Home deposit is 78% complete/);
+
+  const dailyReview = source("src/app/components/DailyReviewClient.tsx");
+  const dailyReviewPage = source("src/app/ai-cfo/daily-review/page.tsx");
+  assert.match(dailyReview, /Back to overview/);
+  assert.match(dailyReview, /The same changes shown on your overview/);
+  assert.match(dailyReview, /selectDashboardAttentionFindings/);
+  assert.match(dailyReview, /data-testid="overview-review-change"/);
+  assert.match(dailyReview, /finding\.expectedImpact/);
+  assert.match(dailyReview, /evidence\.sourceTitle/);
+  assert.match(dailyReview, /finding\.actionHref/);
+  assert.match(dailyReviewPage, /item\.review\.id === params\.reviewId/);
+  assert.match(dailyReviewPage, /showOverviewChanges=\{params\.from === "overview"\}/);
 
   assert.doesNotMatch(homePage, /Offset mortgage by \$800\/month/);
   assert.doesNotMatch(homePage, /AI detected \$138\/month/);

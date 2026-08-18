@@ -187,10 +187,14 @@ function reviewPeriod(record: DailyReviewHistoryRecord): string {
   return `${formatDate(record.review.comparisonStartDate)} to ${formatDate(record.review.comparisonEndDate)}`;
 }
 
-function attentionItems(record: DailyReviewHistoryRecord): DashboardBriefing["attentionItems"] {
-  return [...record.review.findings]
+export function selectDashboardAttentionFindings(findings: DailyReviewFinding[]): DailyReviewFinding[] {
+  return [...findings]
     .sort((a, b) => scoreFindingForBriefing(b) - scoreFindingForBriefing(a) || a.title.localeCompare(b.title))
-    .slice(0, 3)
+    .slice(0, 3);
+}
+
+function attentionItems(record: DailyReviewHistoryRecord): DashboardBriefing["attentionItems"] {
+  return selectDashboardAttentionFindings(record.review.findings)
     .map((finding) => ({
       id: finding.id,
       title: finding.title,

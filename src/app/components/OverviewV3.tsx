@@ -91,9 +91,11 @@ function actionButtonLabel(action: DashboardAction | null): string {
 function DashboardBriefingHero({
   reviewPeriod,
   attentionItems,
+  reviewId,
 }: {
   reviewPeriod: string;
   attentionItems: DashboardBriefing["attentionItems"];
+  reviewId?: string;
 }) {
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -103,7 +105,7 @@ function DashboardBriefingHero({
         <p className="mt-1 text-sm text-slate-600">What you own, owe, earn and should do next.</p>
       </div>
       <div className="flex flex-col items-start gap-1.5 sm:items-end">
-        <Link href="/ai-cfo/daily-review" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-amber-300 bg-amber-100 px-3.5 text-sm font-semibold text-amber-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
+        <Link data-testid="overview-review-link" href={{ pathname: "/ai-cfo/daily-review", query: { from: "overview", ...(reviewId ? { reviewId } : {}) } }} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-amber-300 bg-amber-100 px-3.5 text-sm font-semibold text-amber-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
           Review {attentionItems.length} change{attentionItems.length === 1 ? "" : "s"}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
@@ -195,11 +197,11 @@ function PriorityActionPanel({ action }: { action: DashboardAction | null }) {
 
 function RecentChanges({ items }: { items: DashboardBriefing["attentionItems"] }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5">
+    <section data-testid="dashboard-recent-changes" className="rounded-lg border border-slate-200 bg-white p-5">
       <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-slate-950">What changed</h2><Link href="/ai-cfo/daily-review" className="text-sm font-semibold text-blue-700">View review</Link></div>
       <ul className="mt-3 divide-y divide-slate-100">
         {items.map((item) => (
-          <li key={item.id} className="grid gap-2 py-3 first:pt-0 sm:grid-cols-[1fr_auto] sm:items-center">
+          <li key={item.id} data-testid="dashboard-recent-change" className="grid gap-2 py-3 first:pt-0 sm:grid-cols-[1fr_auto] sm:items-center">
             <div className="min-w-0">
               <Link href={item.actionHref} className="font-semibold text-slate-950 hover:text-blue-700">{item.title}</Link>
               <p className="mt-0.5 truncate text-xs text-slate-500">{item.evidence[0]?.sourceTitle ?? item.sourceEngine} · {item.confidence} confidence</p>
@@ -285,7 +287,7 @@ export default function OverviewV3({
 
   return (
     <main id="overview" className="mx-auto max-w-[1180px] space-y-4 pb-24">
-      <DashboardBriefingHero reviewPeriod={briefing.reviewPeriod} attentionItems={briefing.attentionItems} />
+      <DashboardBriefingHero reviewPeriod={briefing.reviewPeriod} attentionItems={briefing.attentionItems} reviewId={dailyReview?.review.id} />
 
       <section aria-label="Current position" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CurrentPositionMetric label="Net worth" value={netWorth} change={netWorthTrend} href="/balance-sheet" confidence="Confirmed" icon={CircleDollarSign}>
