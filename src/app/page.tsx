@@ -3,6 +3,7 @@ import OverviewV3 from "./components/OverviewV3";
 import AutonomousTaskComposer from "./components/AutonomousTaskComposer";
 import SupervisorInbox from "./components/SupervisorInbox";
 import DeveloperModeGate from "./components/DeveloperModeGate";
+import EmptyFinancialDashboard from "./components/EmptyFinancialDashboard";
 import { buildFinancialBalanceSheetFromReadModel } from "@/lib/financialBalanceSheet";
 import { buildAiDecisions } from "@/lib/aiDecisionCentre";
 import { requireServerPageSession } from "@/lib/auth/serverPageSession";
@@ -86,6 +87,16 @@ export default async function HomePage() {
     );
   }
   const vault = readModel.vault;
+  const financialPositionIsEmpty = readModel.confirmedFacts.length === 0
+    && readModel.documentImportStatus.documents.length === 0
+    && readModel.documentImportStatus.importCount === 0;
+  if (financialPositionIsEmpty) {
+    return (
+      <AppShell active="dashboard">
+        <EmptyFinancialDashboard />
+      </AppShell>
+    );
+  }
   const core = createCoreDecisioningServiceFromEnv();
   const housing = await core.readHousingAffordability(session);
   const balanceSheet = buildFinancialBalanceSheetFromReadModel(readModel);

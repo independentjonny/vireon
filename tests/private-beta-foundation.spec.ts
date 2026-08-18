@@ -23,18 +23,43 @@ test("private beta onboarding can save and skip progress", async ({ page }) => {
   }
 });
 
-test("private beta export feedback deletion and privacy controls are visible", async ({ page }) => {
+test("private beta financial-data reset requires typed confirmation and shows a completion receipt", async ({ page }) => {
+  await page.route("**/api/private-beta/financial-data-reset", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        result: {
+          completedAt: "2026-08-18T10:00:00.000Z",
+          deleted: { financialRecords: 12, documentsAndEvidence: 7, transactionsAndSubscriptions: 30, calculationsAndReviews: 9, decisionsGoalsAndWorkflows: 5, financialOperations: 2 },
+          cancelledAccountDeletionRequests: 1,
+          retained: ["account", "email and display name", "authentication and access", "onboarding", "preferences", "feedback", "security audit history"],
+        },
+      }),
+    });
+  });
   await page.goto("/beta-onboarding");
-  await expect(page.getByRole("link", { name: "Export" })).toHaveAttribute("href", "/api/private-beta/export");
+  await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Feedback" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Delete" })).toBeVisible();
+  await page.getByRole("button", { name: "Delete financial data" }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete financial data now?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Will be permanently deleted")).toBeVisible();
+  await expect(dialog.getByText("Will be retained")).toBeVisible();
+  const deleteNow = dialog.getByRole("button", { name: "Delete financial data now" });
+  await expect(deleteNow).toBeDisabled();
+  await dialog.getByLabel(/Type DELETE MY FINANCIAL DATA/).fill("DELETE MY FINANCIAL DATA");
+  await expect(deleteNow).toBeEnabled();
+  await deleteNow.click();
+  await expect(page.getByText("Financial-data reset completed")).toBeVisible();
+  await expect(page.getByRole("link", { name: "View empty Dashboard" })).toHaveAttribute("href", "/");
   const feedback = await page.request.post("/api/private-beta/feedback", { data: { type: "general", page: "/beta-onboarding", feature: "playwright" } });
   await expect(feedback).toBeOK();
-  const deletion = await page.request.post("/api/private-beta/deletion", { data: { confirmation: "REQUEST_DELETE" } });
-  await expect(deletion).toBeOK();
   await page.goto("/privacy");
   await expect(page.getByRole("heading", { name: "Privacy controls" })).toBeVisible();
   await expect(page.getByText("User financial data is not sent to external AI providers")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Delete financial data" })).toHaveAttribute("href", "/beta-onboarding#financial-data-controls");
 });
 
 test("private beta mobile workflow renders core controls", async ({ page }) => {
@@ -43,6 +68,11 @@ test("private beta mobile workflow renders core controls", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Guided onboarding" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "First-value summary" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Feedback" })).toBeVisible();
+  await page.getByRole("button", { name: "Delete financial data" }).click();
+  await expect(page.getByRole("dialog", { name: "Delete financial data now?" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("dialog", { name: "Delete financial data now?" })).toBeHidden();
 });
 
 test("private beta hardening gate and analytics safety are visible", async ({ page }) => {

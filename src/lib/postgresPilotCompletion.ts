@@ -15,6 +15,7 @@ export const POSTGRES_PILOT_MIGRATIONS = [
   "migrations/0008_private_beta_access_rls_hardening.sql",
   "migrations/0009_private_beta_activation_lifecycle.sql",
   "migrations/0010_rls_security_findings.sql",
+  "migrations/0011_preview_financial_data_reset.sql",
 ] as const;
 
 export type MigrationManifestItem = {
