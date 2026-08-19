@@ -107,7 +107,7 @@ test("customer-facing reset copy distinguishes deleted financial data from retai
   assert.match(client, /Will be permanently deleted/);
   assert.match(client, /Will be retained/);
   assert.match(client, /Delete financial data now/);
-  assert.match(client, /View empty Dashboard/);
+  assert.match(client, /href="\/beta-onboarding"[\s\S]*Continue setup/);
   assert.match(client, /vireon-add-financial-data-draft-v1/);
   assert.match(privacy, /Delete financial data/);
   assert.doesNotMatch(privacy, /request account deletion/i);

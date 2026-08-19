@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createCoreDecisioningPostgresService } from "../../src/server/services/coreDecisioningPostgresService.ts";
 import { WorkflowExecutionEngine } from "../../src/lib/actionWorkflows.ts";
-import { createDemoFinancialVaultState } from "../../src/lib/financialVaultEmptyState.ts";
+import { createDemoFinancialVaultState, createEmptyFinancialVaultState } from "../../src/lib/financialVaultEmptyState.ts";
 import { buildFinancialPositionReadModel } from "../../src/server/services/financialPositionReadService.ts";
 import type { PostgresPilotClient, QueryResult } from "../../src/lib/postgresPilotPersistence.ts";
 
@@ -540,4 +540,30 @@ test("core decisioning service persists Goals state in user-scoped PostgreSQL ro
   assert.ok(calls.some((call) => call.sql.includes("insert into calculation_snapshots") && call.sql.includes("'Goals'")));
   assert.ok(calls.some((call) => call.sql.includes("idempotency_keys")));
   assert.ok(calls.every((call) => !call.params.includes("goals-user-a")));
+});
+
+test("reading an empty post-reset Goals state does not recreate financial snapshots", async () => {
+  const calls: Call[] = [];
+  const emptyReadModel = {
+    async read() {
+      return buildFinancialPositionReadModel({
+        userId: "60ff2833-26e9-581e-8b32-173e702847ea",
+        vault: createEmptyFinancialVaultState("2026-08-19T00:00:00.000Z"),
+        canonical: [],
+        ingestions: [],
+        freshness: [],
+        correlationId: "corr-empty-goals-test",
+        generatedAt: "2026-08-19T00:00:00.000Z",
+      });
+    },
+  };
+  const service = createCoreDecisioningPostgresService(clientForWorkflowPersistence(calls), { readModel: emptyReadModel });
+
+  const state = await service.readGoalState(
+    { userId: "goals-user-a", expiresAt: "2027-01-01T00:00:00.000Z", requestId: "req-empty-goals-a" },
+  );
+
+  assert.equal(state.goals.length, 0);
+  assert.equal(state.scenarios.length, 0);
+  assert.equal(calls.some((call) => call.sql.includes("insert into calculation_snapshots") && call.sql.includes("'Goals'")), false);
 });

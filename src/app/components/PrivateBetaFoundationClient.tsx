@@ -374,7 +374,7 @@ export default function PrivateBetaFoundationClient({ initialOnboarding, readine
             <div role="status" className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
               <div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4" /> Financial-data reset completed</div>
               <p className="mt-2 leading-6">Deleted {totalFinancialDataDeleted(resetResult).toLocaleString("en-AU")} financial records. Your account, personal details, authentication, onboarding, preferences and security audit history were retained.</p>
-              <Link href="/" className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-[#10243b] px-4 font-semibold text-white">View empty Dashboard</Link>
+              <Link href="/beta-onboarding" className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-[#10243b] px-4 font-semibold text-white">Continue setup</Link>
             </div>
           )}
         </article>
