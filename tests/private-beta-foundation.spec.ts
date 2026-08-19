@@ -53,7 +53,7 @@ test("private beta financial-data reset requires typed confirmation and shows a 
   await expect(deleteNow).toBeEnabled();
   await deleteNow.click();
   await expect(page.getByText("Financial-data reset completed")).toBeVisible();
-  await expect(page.getByRole("link", { name: "View empty Dashboard" })).toHaveAttribute("href", "/");
+  await expect(page.getByRole("link", { name: /View empty Dashboard|Continue setup/ })).toHaveCount(0);
   const feedback = await page.request.post("/api/private-beta/feedback", { data: { type: "general", page: "/beta-onboarding", feature: "playwright" } });
   await expect(feedback).toBeOK();
   await page.goto("/privacy");
