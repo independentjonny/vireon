@@ -148,6 +148,7 @@ test("workflow preserves Vault authority and explicit confirmation semantics", (
     "Choose from Document Vault",
     "Upload supporting evidence files",
     "Stay on this page while the file is stored in Document Vault",
+    "Review &amp; verify",
     "Confirm & save to Financial Position",
     "Save draft in this browser",
     "Your confirmed property and mortgage appear immediately in Financial Position.",
@@ -156,6 +157,8 @@ test("workflow preserves Vault authority and explicit confirmation semantics", (
   assert.match(client, /form\.set\("file", uploadFile\)/);
   assert.match(client, /form\.set\("documentType", uploadType\)/);
   assert.match(client, /fetch\("\/api\/financial-vault", \{ method: "POST", body: form/);
+  assert.match(client, /href="\/financial-vault\/imports"/);
+  assert.match(client, /draft\.selectedDocuments\.length > 0/);
   assert.match(client, /action: "save-property-position"/);
   assert.match(client, /window\.location\.assign\("\/financial-profile\?saved=property"\)/);
   assert.doesNotMatch(client, /Continue to Import Review/);
