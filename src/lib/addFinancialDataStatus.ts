@@ -1,7 +1,7 @@
 import type { FinancialPositionReadModel } from "@/server/services/financialPositionReadService";
 
 export type AddFinancialDataCategoryId = "bank" | "employment" | "property" | "loans" | "tax" | "super" | "other";
-export type AddFinancialDataCategoryStatus = "Confirmed" | "Needs review" | "Missing" | "Not added" | "Optional";
+export type AddFinancialDataCategoryStatus = "Confirmed" | "Needs review" | "In progress" | "Missing" | "Not added" | "Optional";
 
 export type AddFinancialDataSummary = {
   categoryStatuses: Record<AddFinancialDataCategoryId, AddFinancialDataCategoryStatus>;
@@ -95,18 +95,20 @@ export function buildExistingPropertyDraft(position: FinancialPositionReadModel,
   };
 }
 
-function hasDocument(position: FinancialPositionReadModel, documentType: string) {
-  return position.documentImportStatus.documents.some((document) => document.documentType === documentType);
+function documentStatus(position: FinancialPositionReadModel, documentType: string): "Needs review" | "In progress" | null {
+  const documents = position.documentImportStatus.documents.filter((document) => document.documentType === documentType);
+  if (documents.some((document) => document.status === "needs_review")) return "Needs review";
+  return documents.length > 0 ? "In progress" : null;
 }
 
 export function buildAddFinancialDataSummary(position: FinancialPositionReadModel): AddFinancialDataSummary {
   const statuses: AddFinancialDataSummary["categoryStatuses"] = {
-    bank: position.cashPosition.sourceRecordIds.length > 0 ? "Confirmed" : hasDocument(position, "bank_statement") ? "Needs review" : "Missing",
-    employment: position.income.length > 0 ? "Confirmed" : hasDocument(position, "payslip") ? "Needs review" : "Missing",
-    property: position.propertyDetails.length > 0 ? "Confirmed" : hasDocument(position, "mortgage_statement") ? "Needs review" : "Missing",
-    loans: position.liabilities.length > 0 ? "Confirmed" : hasDocument(position, "mortgage_statement") ? "Needs review" : "Missing",
-    tax: hasDocument(position, "tax_return") ? "Needs review" : "Not added",
-    super: position.superannuation.length > 0 ? "Confirmed" : hasDocument(position, "super_statement") ? "Needs review" : "Missing",
+    bank: position.cashPosition.sourceRecordIds.length > 0 ? "Confirmed" : documentStatus(position, "bank_statement") ?? "Missing",
+    employment: position.income.length > 0 ? "Confirmed" : documentStatus(position, "payslip") ?? "Missing",
+    property: position.propertyDetails.length > 0 ? "Confirmed" : documentStatus(position, "mortgage_statement") ?? "Missing",
+    loans: position.liabilities.length > 0 ? "Confirmed" : documentStatus(position, "mortgage_statement") ?? "Missing",
+    tax: documentStatus(position, "tax_return") ?? "Not added",
+    super: position.superannuation.length > 0 ? "Confirmed" : documentStatus(position, "super_statement") ?? "Missing",
     other: "Optional",
   };
   const confirmedSources = position.provenanceSummary.sourceRecordIds.length;

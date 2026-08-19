@@ -53,6 +53,35 @@ test("a persisted property and mortgage are never labelled missing", () => {
   assert.notEqual(summary.recommendedCategory, "property");
 });
 
+test("category status distinguishes documents in progress from documents that genuinely need review", () => {
+  const base = {
+    propertyDetails: [], liabilities: [], income: [], superannuation: [],
+    cashPosition: { sourceRecordIds: [] },
+    confidenceSummary: { lowConfidenceFactCount: 0 },
+    provenanceSummary: { sourceRecordIds: [] },
+  };
+  const processing = buildAddFinancialDataSummary({
+    ...base,
+    documentImportStatus: { documents: [{ id: "bank-1", documentType: "bank_statement", status: "processing" }], unresolvedExtractionReviewCount: 0 },
+  } as unknown as FinancialPositionReadModel);
+  assert.equal(processing.categoryStatuses.bank, "In progress");
+  assert.equal(processing.needsReview, 0);
+
+  const review = buildAddFinancialDataSummary({
+    ...base,
+    documentImportStatus: { documents: [{ id: "bank-1", documentType: "bank_statement", status: "needs_review" }], unresolvedExtractionReviewCount: 1 },
+  } as unknown as FinancialPositionReadModel);
+  assert.equal(review.categoryStatuses.bank, "Needs review");
+  assert.equal(review.needsReview, 1);
+});
+
+test("a genuine needs-review category opens Import Review instead of the add-evidence screen", () => {
+  const client = source("src/app/components/AddFinancialDataClient.tsx");
+  assert.match(client, /selected\.status === "Needs review"/);
+  assert.match(client, /Review \{selected\.title\.toLowerCase\(\)\}/);
+  assert.match(client, /href="\/financial-vault\/imports"/);
+});
+
 test("saved property, mortgage and linked evidence prefill the update workflow", () => {
   const summary = source("src/lib/addFinancialDataStatus.ts");
   const client = source("src/app/components/AddFinancialDataClient.tsx");
