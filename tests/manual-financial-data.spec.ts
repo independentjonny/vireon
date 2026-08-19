@@ -17,6 +17,30 @@ test("first-value onboarding explains manual data path", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Set up Vireon safely" })).toBeVisible();
 });
 
+test("every financial category keeps evidence selection and upload inline", async ({ page }) => {
+  const categories = [
+    ["bank", "Add bank & savings"],
+    ["employment", "Add employment income"],
+    ["property", "Add property details"],
+    ["loans", "Add loans & credit"],
+    ["tax", "Add tax & ato"],
+    ["super", "Add superannuation"],
+    ["other", "Add other document"],
+  ] as const;
+
+  for (const [category, heading] of categories) {
+    await page.goto(`/financial-profile/add-data?category=${category}`);
+    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+    const controls = page.getByTestId("inline-evidence-controls");
+    await expect(controls.getByRole("button", { name: "Choose from Document Vault" })).toBeVisible();
+    const workflowUrl = page.url();
+    await controls.getByRole("button", { name: "Upload supporting evidence files" }).click();
+    await expect(controls.getByLabel("File")).toBeVisible();
+    await expect(page).toHaveURL(workflowUrl);
+    await expect(page.getByText("Continue in the owning Vireon workspace")).toHaveCount(0);
+  }
+});
+
 test("guided financial data workflow reaches property review without changing Vault authority", async ({ page }) => {
   await page.route("**/api/addresses/australian?*", async (route) => {
     await route.fulfill({
