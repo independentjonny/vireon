@@ -146,6 +146,8 @@ test("workflow preserves Vault authority and explicit confirmation semantics", (
     "Add details & evidence",
     "Review & confirm",
     "Choose from Document Vault",
+    "Upload supporting evidence files",
+    "Stay on this page while the file is stored in Document Vault",
     "Confirm & save to Financial Position",
     "Save draft in this browser",
     "Your confirmed property and mortgage appear immediately in Financial Position.",
@@ -157,6 +159,8 @@ test("workflow preserves Vault authority and explicit confirmation semantics", (
   assert.match(client, /action: "save-property-position"/);
   assert.match(client, /window\.location\.assign\("\/financial-profile\?saved=property"\)/);
   assert.doesNotMatch(client, /Continue to Import Review/);
+  assert.doesNotMatch(client, /Continue to Accounts|Continue to Cash Flow|Continue to Balance Sheet/);
+  assert.doesNotMatch(client, />Add supporting evidence<|>Upload new documents</);
 });
 
 test("confirmed saved properties are distinguished from unsaved edit progress", () => {
@@ -214,7 +218,7 @@ test("property workflow captures mortgage details and selects existing Vault evi
     "Current Document Vault",
     "Upload & select",
     "Select every document that supports this property or mortgage.",
-    "A current mortgage statement helps verify the loan balance, interest rate, repayments and offset account.",
+    "Documents remain securely stored in Document Vault and linked to their original source.",
   ]) assert.match(client, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.doesNotMatch(client, /Loan purpose|loanPurpose|loan applications|lender-ready applications/);
   assert.match(client, /fetch\("\/api\/financial-vault"/);
@@ -223,6 +227,25 @@ test("property workflow captures mortgage details and selects existing Vault evi
   assert.doesNotMatch(client, /href="\/financial-vault"[^>]*>Upload new documents/);
   assert.match(client, /selectedDocuments/);
   assert.match(client, /Verify in Import Review/);
+});
+
+test("every finance category uses the shared inline Vault picker and upload flow", () => {
+  const client = source("src/app/components/AddFinancialDataClient.tsx");
+  for (const mapping of [
+    'bank: "bank_statement"',
+    'employment: "payslip"',
+    'property: "mortgage_statement"',
+    'loans: "mortgage_statement"',
+    'tax: "tax_return"',
+    'super: "super_statement"',
+    'other: "bank_statement"',
+  ]) assert.match(client, new RegExp(mapping));
+  assert.match(client, /data-testid="inline-evidence-controls"/);
+  assert.equal(client.match(/\{evidenceControls\}/g)?.length, 2);
+  assert.match(client, /Add evidence without leaving this page/);
+  assert.doesNotMatch(client, /owningWorkflows/);
+  assert.doesNotMatch(client, /Continue in the owning Vireon workspace/);
+  assert.doesNotMatch(client, /border-dashed border-blue-300/);
 });
 
 test("property workflow uses authenticated Australian G-NAF address selection", () => {
