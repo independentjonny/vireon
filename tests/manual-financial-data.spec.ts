@@ -41,6 +41,27 @@ test("every financial category keeps evidence selection and upload inline", asyn
   }
 });
 
+test("selected evidence restores the review and verify action", async ({ page }) => {
+  await page.route("**/api/financial-vault", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        vault: {
+          uploaded_documents: [
+            { id: "bank-1", fileName: "bank-statement-july-2026.pdf", documentType: "bank_statement", uploadedAt: "2026-08-01T00:00:00.000Z", status: "extracted" },
+          ],
+        },
+      }),
+    });
+  });
+  await page.goto("/financial-profile/add-data?category=bank");
+  await expect(page.getByRole("button", { name: "Review & verify" })).toBeDisabled();
+  await page.getByRole("button", { name: "Choose from Document Vault" }).click();
+  await page.getByLabel(/bank-statement-july-2026\.pdf/).check();
+  await expect(page.getByRole("link", { name: "Review & verify (1)" })).toHaveAttribute("href", "/financial-vault/imports");
+});
+
 test("guided financial data workflow reaches property review without changing Vault authority", async ({ page }) => {
   await page.route("**/api/addresses/australian?*", async (route) => {
     await route.fulfill({
