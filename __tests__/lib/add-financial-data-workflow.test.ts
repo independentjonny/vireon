@@ -103,14 +103,23 @@ test("existing category evidence is available and selected without a second Vaul
 test("selected Vault evidence opens a document-specific review instead of the legacy CSV workspace", () => {
   const client = source("src/app/components/AddFinancialDataClient.tsx");
   const importsPage = source("src/app/financial-vault/imports/page.tsx");
+  const documentReview = source("src/app/components/DocumentEvidenceReviewClient.tsx");
   assert.match(client, /imports\?documentId=\$\{encodeURIComponent\(draft\.selectedDocuments\[0\]\.id\)\}/);
   assert.match(client, /View verified document/);
   assert.match(importsPage, /Document evidence review/);
-  assert.match(importsPage, /Values linked to this document/);
+  assert.match(documentReview, /Values linked to this document/);
   assert.match(importsPage, /Extracted source text/);
   assert.match(importsPage, /if \(!documentId\).*ManualImportWorkspaceClient/);
   assert.match(client, /statusClass\(editingExisting && propertyFlow \? "Confirmed" : selected\.status\)/);
   assert.match(client, /bank: \["Account ownership", "Current balances", "Income and spending", "Recurring payments"\]/);
+  assert.match(documentReview, /Account Balance/);
+  assert.match(documentReview, /Estimated annual income after tax/);
+  assert.match(documentReview, /Approve \/ update/);
+  assert.match(documentReview, /Save subscription review/);
+  assert.match(documentReview, /\{item\.approved \? "Remove" : "Approve"\}/);
+  assert.match(importsPage, /detectedSubscriptions/);
+  assert.match(source("src/app/api/financial-vault/imports/route.ts"), /action==="review-document"/);
+  assert.match(source("src/server/services/financialVaultPostgresService.ts"), /async reviewDocument/);
 });
 
 test("saved property, mortgage and linked evidence prefill the update workflow", () => {

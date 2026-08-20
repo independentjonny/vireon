@@ -28,6 +28,7 @@ export type UploadedDocument = {
   extractionMethod?: "pdf-text-layer" | "csv-structured" | "plain-text";
   ingestionWarnings?: string[];
   importedRowCount?: number | null;
+  reviewedSubscriptions?: Array<{ name: string; monthlyAmount: number; approved: boolean }>;
 };
 
 export type ProfileValueKey =

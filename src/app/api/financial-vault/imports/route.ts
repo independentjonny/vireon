@@ -29,6 +29,14 @@ function documentIds(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(0, 20) : [];
 }
 
+function reviewedSubscriptions(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 50).map((item) => {
+    const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    return { name: String(record.name ?? "").trim().slice(0, 120), monthlyAmount: numberValue(record.monthlyAmount), approved: record.approved === true };
+  }).filter((item) => item.name && Number.isFinite(item.monthlyAmount) && item.monthlyAmount >= 0);
+}
+
 export async function GET(request:Request){
   const auth=await requireSession(request);
   if(!auth.ok)return authErrorResponse(auth);
@@ -91,6 +99,11 @@ export async function POST(request:Request){
         documentIds:documentIds(body.documentIds),
         idempotencyKey:key,
       },requestId);
+    }
+    else if(action==="review-document") {
+      const estimatedAnnualIncomeAfterTax = numberValue(body.estimatedAnnualIncomeAfterTax);
+      if (!Number.isFinite(estimatedAnnualIncomeAfterTax) || estimatedAnnualIncomeAfterTax < 0) throw new FinancialVaultPersistenceError("VALIDATION_FAILED","Enter a valid estimated annual income after tax.",422);
+      result=await service.reviewDocument(current,{ documentId:String(body.documentId??""), estimatedAnnualIncomeAfterTax, subscriptions:reviewedSubscriptions(body.subscriptions) },requestId);
     }
     else if(action==="manual")result=await service.manualRecord(current,{kind:String(body.kind) as Exclude<FinancialRecordKind,"transaction"|"document">,subtype:String(body.subtype),label:String(body.label),value:(body.value??{}) as Record<string,unknown>,approximate:Boolean(body.approximate),idempotencyKey:idempotencyKey(request,body)},requestId);
     else throw new Error("UNKNOWN_ACTION");

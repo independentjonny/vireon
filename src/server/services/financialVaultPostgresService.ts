@@ -535,6 +535,39 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
         return rebuildVaultFromDocuments(await documentRows(ctx));
       });
     },
+    async reviewDocument(session: AuthenticatedSession, input: { documentId: string; estimatedAnnualIncomeAfterTax: number; subscriptions: Array<{ name: string; monthlyAmount: number; approved: boolean }> }, correlationId: string = randomUUID()): Promise<FinancialVaultState> {
+      return withScopedTransaction(contextFromSession(session, correlationId), async (ctx) => {
+        const userId = await scope(ctx);
+        const document = await scopedDb(ctx).query<{ id: string }>("select id from documents where id = $1 and user_id = $2", [input.documentId, userId]);
+        if (!document.rows[0]) throw new FinancialVaultPersistenceError("NOT_FOUND", "The selected Vault document was not found.", 404);
+        const extraction = await scopedDb(ctx).query<{ id: string; proposedFacts: DocumentExtractionPayload }>(
+          `select id, proposed_facts as "proposedFacts" from document_extractions where document_id = $1 and user_id = $2 order by created_at desc limit 1`,
+          [input.documentId, userId],
+        );
+        const current = extraction.rows[0];
+        if (!current) throw new FinancialVaultPersistenceError("NOT_FOUND", "No extraction exists for the selected document.", 404);
+        const estimatedGrossAnnualIncome = Math.round((input.estimatedAnnualIncomeAfterTax / 0.73) * 100) / 100;
+        const recurringSubscriptions = Math.round(input.subscriptions.filter((item) => item.approved).reduce((sum, item) => sum + item.monthlyAmount, 0) * 100) / 100;
+        const nextPayload: DocumentExtractionPayload = {
+          ...current.proposedFacts,
+          uploadedDocument: { ...current.proposedFacts.uploadedDocument, status: "extracted", reviewedSubscriptions: input.subscriptions },
+          values: { ...current.proposedFacts.values, incomeAnnual: estimatedGrossAnnualIncome, incomeMonthly: Math.round((estimatedGrossAnnualIncome / 12) * 100) / 100, recurringSubscriptions },
+        };
+        await scopedDb(ctx).query(
+          `update document_extractions set proposed_facts = $1::jsonb, status = 'extracted', updated_at = now() where id = $2 and user_id = $3`,
+          [JSON.stringify(nextPayload), current.id, userId],
+        );
+        await scopedDb(ctx).query("update documents set status = 'extracted', updated_at = now() where id = $1 and user_id = $2", [input.documentId, userId]);
+        for (const [key, value] of Object.entries({ incomeAnnual: estimatedGrossAnnualIncome, incomeMonthly: Math.round((estimatedGrossAnnualIncome / 12) * 100) / 100, recurringSubscriptions })) {
+          await scopedDb(ctx).query(
+            `update financial_facts set fact_value = $1::jsonb, verified = true, version = version + 1, updated_at = now(), correlation_id = $2 where user_id = $3 and source_document_id = $4 and fact_type = $5`,
+            [JSON.stringify({ key, value, documentId: input.documentId }), ctx.correlationId, userId, input.documentId, key],
+          );
+        }
+        await scopedDb(ctx).query("update evidence set verification_status = 'Verified', updated_at = now(), correlation_id = $1 where user_id = $2 and document_id = $3", [ctx.correlationId, userId, input.documentId]);
+        return rebuildVaultFromDocuments(await documentRows(ctx));
+      });
+    },
     async getImports(session: AuthenticatedSession, correlationId: string = randomUUID()) {
       return withScopedTransaction(contextFromSession(session, correlationId), async (ctx) => {
         await initializeProfile(ctx);
