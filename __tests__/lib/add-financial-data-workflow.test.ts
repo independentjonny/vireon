@@ -66,6 +66,7 @@ test("category status distinguishes documents in progress from documents that ge
   } as unknown as FinancialPositionReadModel);
   assert.equal(processing.categoryStatuses.bank, "In progress");
   assert.equal(processing.needsReview, 0);
+  assert.equal(processing.availableDocuments[0]?.id, "bank-1");
 
   const review = buildAddFinancialDataSummary({
     ...base,
@@ -80,6 +81,15 @@ test("a genuine needs-review category opens Import Review instead of the add-evi
   assert.match(client, /selected\.status === "Needs review"/);
   assert.match(client, /Review \{selected\.title\.toLowerCase\(\)\}/);
   assert.match(client, /href="\/financial-vault\/imports"/);
+});
+
+test("existing category evidence is available and selected without a second Vault request", () => {
+  const client = source("src/app/components/AddFinancialDataClient.tsx");
+  assert.match(client, /initialCategoryDocuments = summary\.availableDocuments\.filter/);
+  assert.match(client, /selectedDocuments: initialCategoryDocuments/);
+  assert.match(client, /useState<VaultDocumentSummary\[\]>\(summary\.availableDocuments\)/);
+  assert.match(client, /controller\.abort\(\), 15000/);
+  assert.match(client, /Document Vault took too long to respond\. Try again\./);
 });
 
 test("saved property, mortgage and linked evidence prefill the update workflow", () => {

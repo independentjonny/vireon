@@ -5,6 +5,7 @@ export type AddFinancialDataCategoryStatus = "Confirmed" | "Needs review" | "In 
 
 export type AddFinancialDataSummary = {
   categoryStatuses: Record<AddFinancialDataCategoryId, AddFinancialDataCategoryStatus>;
+  availableDocuments: FinancialPositionReadModel["documentImportStatus"]["documents"];
   confirmedSources: number;
   needsReview: number;
   reviewedPercent: number;
@@ -126,6 +127,7 @@ export function buildAddFinancialDataSummary(position: FinancialPositionReadMode
 
   return {
     categoryStatuses: statuses,
+    availableDocuments: position.documentImportStatus.documents,
     confirmedSources,
     needsReview,
     reviewedPercent,

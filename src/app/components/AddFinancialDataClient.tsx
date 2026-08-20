@@ -197,13 +197,14 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
   const requestedCategory = searchParams.get("category") as CategoryId | null;
   const categories = categoryDefinitions.map((item) => ({ ...item, status: summary.categoryStatuses[item.id] }));
   const initialCategory = requestedCategory && categoryDefinitions.some((item) => item.id === requestedCategory) ? requestedCategory : summary.recommendedCategory;
+  const initialCategoryDocuments = summary.availableDocuments.filter((document) => document.documentType === defaultDocumentType[initialCategory]);
   const [step, setStep] = useState<Step>(requestedCategory && categoryDefinitions.some((item) => item.id === requestedCategory) ? 2 : 1);
   const [category, setCategory] = useState<CategoryId>(initialCategory);
-  const [draft, setDraft] = useState<PropertyDraft>(() => existingProperty ? { ...initialDraft, ...existingProperty } : initialDraft);
+  const [draft, setDraft] = useState<PropertyDraft>(() => existingProperty ? { ...initialDraft, ...existingProperty } : { ...initialDraft, selectedDocuments: initialCategoryDocuments });
   const [editingExisting, setEditingExisting] = useState(Boolean(existingProperty));
   const [saved, setSaved] = useState(false);
   const [vaultOpen, setVaultOpen] = useState(false);
-  const [vaultDocuments, setVaultDocuments] = useState<VaultDocumentSummary[]>([]);
+  const [vaultDocuments, setVaultDocuments] = useState<VaultDocumentSummary[]>(summary.availableDocuments);
   const [vaultLoading, setVaultLoading] = useState(false);
   const [vaultError, setVaultError] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -217,6 +218,7 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
 
   function selectCategory(nextCategory: CategoryId) {
     setCategory(nextCategory);
+    if (!editingExisting) setDraft((current) => ({ ...current, selectedDocuments: summary.availableDocuments.filter((document) => document.documentType === defaultDocumentType[nextCategory]) }));
     setUploadType(defaultDocumentType[nextCategory]);
     setVaultOpen(false);
     setUploadOpen(false);
@@ -301,14 +303,17 @@ export default function AddFinancialDataClient({ summary, existingProperty, save
     if (vaultLoading) return;
     setVaultLoading(true);
     setVaultError("");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch("/api/financial-vault", { cache: "no-store", credentials: "same-origin" });
+      const response = await fetch("/api/financial-vault", { cache: "no-store", credentials: "same-origin", signal: controller.signal });
       const payload = await response.json() as { ok?: boolean; error?: string; vault?: { uploaded_documents?: VaultDocumentSummary[] } };
       if (!response.ok || !payload.ok) throw new Error(payload.error || "Document Vault could not be loaded.");
       setVaultDocuments(payload.vault?.uploaded_documents ?? []);
     } catch (error) {
-      setVaultError(error instanceof Error ? error.message : "Document Vault could not be loaded.");
+      setVaultError(error instanceof DOMException && error.name === "AbortError" ? "Document Vault took too long to respond. Try again." : error instanceof Error ? error.message : "Document Vault could not be loaded.");
     } finally {
+      window.clearTimeout(timeout);
       setVaultLoading(false);
     }
   }
