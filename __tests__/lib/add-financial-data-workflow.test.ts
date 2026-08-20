@@ -74,6 +74,14 @@ test("category status distinguishes documents in progress from documents that ge
   } as unknown as FinancialPositionReadModel);
   assert.equal(review.categoryStatuses.bank, "Needs review");
   assert.equal(review.needsReview, 1);
+
+  const extracted = buildAddFinancialDataSummary({
+    ...base,
+    documentImportStatus: { documents: [{ id: "bank-1", documentType: "bank_statement", status: "extracted" }], unresolvedExtractionReviewCount: 0 },
+  } as unknown as FinancialPositionReadModel);
+  assert.equal(extracted.categoryStatuses.bank, "Confirmed");
+  assert.equal(extracted.confirmedSources, 1);
+  assert.equal(extracted.reviewedPercent, 100);
 });
 
 test("a genuine needs-review category opens Import Review instead of the add-evidence screen", () => {
@@ -90,6 +98,17 @@ test("existing category evidence is available and selected without a second Vaul
   assert.match(client, /useState<VaultDocumentSummary\[\]>\(summary\.availableDocuments\)/);
   assert.match(client, /controller\.abort\(\), 15000/);
   assert.match(client, /Document Vault took too long to respond\. Try again\./);
+});
+
+test("selected Vault evidence opens a document-specific review instead of the legacy CSV workspace", () => {
+  const client = source("src/app/components/AddFinancialDataClient.tsx");
+  const importsPage = source("src/app/financial-vault/imports/page.tsx");
+  assert.match(client, /imports\?documentId=\$\{encodeURIComponent\(draft\.selectedDocuments\[0\]\.id\)\}/);
+  assert.match(client, /View verified document/);
+  assert.match(importsPage, /Document evidence review/);
+  assert.match(importsPage, /Values linked to this document/);
+  assert.match(importsPage, /Extracted source text/);
+  assert.match(importsPage, /if \(!documentId\).*ManualImportWorkspaceClient/);
 });
 
 test("saved property, mortgage and linked evidence prefill the update workflow", () => {

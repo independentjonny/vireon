@@ -96,9 +96,10 @@ export function buildExistingPropertyDraft(position: FinancialPositionReadModel,
   };
 }
 
-function documentStatus(position: FinancialPositionReadModel, documentType: string): "Needs review" | "In progress" | null {
+function documentStatus(position: FinancialPositionReadModel, documentType: string): "Confirmed" | "Needs review" | "In progress" | null {
   const documents = position.documentImportStatus.documents.filter((document) => document.documentType === documentType);
   if (documents.some((document) => document.status === "needs_review")) return "Needs review";
+  if (documents.some((document) => document.status === "extracted")) return "Confirmed";
   return documents.length > 0 ? "In progress" : null;
 }
 
@@ -112,7 +113,10 @@ export function buildAddFinancialDataSummary(position: FinancialPositionReadMode
     super: position.superannuation.length > 0 ? "Confirmed" : documentStatus(position, "super_statement") ?? "Missing",
     other: "Optional",
   };
-  const confirmedSources = position.provenanceSummary.sourceRecordIds.length;
+  const confirmedSources = new Set([
+    ...position.provenanceSummary.sourceRecordIds,
+    ...position.documentImportStatus.documents.filter((document) => document.status === "extracted").map((document) => document.id),
+  ]).size;
   const needsReview = position.documentImportStatus.unresolvedExtractionReviewCount + position.confidenceSummary.lowConfidenceFactCount;
   const total = confirmedSources + needsReview;
   const reviewedPercent = total === 0 ? 0 : Math.round((confirmedSources / total) * 100);
