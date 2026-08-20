@@ -109,6 +109,8 @@ test("selected Vault evidence opens a document-specific review instead of the le
   assert.match(importsPage, /Values linked to this document/);
   assert.match(importsPage, /Extracted source text/);
   assert.match(importsPage, /if \(!documentId\).*ManualImportWorkspaceClient/);
+  assert.match(client, /statusClass\(editingExisting && propertyFlow \? "Confirmed" : selected\.status\)/);
+  assert.match(client, /bank: \["Account ownership", "Current balances", "Income and spending", "Recurring payments"\]/);
 });
 
 test("saved property, mortgage and linked evidence prefill the update workflow", () => {
