@@ -65,7 +65,7 @@ function EventRow({ event }: { event: ForecastEvent }) {
   );
 }
 
-export default function ForecastTimelineClient({ initialBaseline }: { initialBaseline: ForecastSnapshot }) {
+export default function ForecastTimelineClient({ initialBaseline, embedded = false }: { initialBaseline: ForecastSnapshot; embedded?: boolean }) {
   const [baseline] = useState(initialBaseline);
   const [scenario, setScenario] = useState<ForecastSnapshot | null>(null);
   const [comparison, setComparison] = useState<ForecastComparison | null>(null);
@@ -103,9 +103,10 @@ export default function ForecastTimelineClient({ initialBaseline }: { initialBas
     }
   }
 
+  const Wrapper = embedded ? "section" : "main";
   return (
-    <main className="mx-auto max-w-7xl space-y-6">
-      <header className="rounded-lg border border-slate-200 bg-white p-6">
+    <Wrapper className="mx-auto max-w-7xl space-y-6">
+      {!embedded && <header className="rounded-lg border border-slate-200 bg-white p-6">
         <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
           <CalendarClock className="h-3.5 w-3.5" />
           Financial Timeline & Forecasting v1
@@ -115,7 +116,9 @@ export default function ForecastTimelineClient({ initialBaseline }: { initialBas
           Vireon projects cash, debt and net worth from confirmed Financial Vault records and explicit assumptions. These are estimates, not guarantees or regulated advice.
         </p>
         <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">{message}</div>
-      </header>
+      </header>}
+
+      {embedded && <header className="rounded-2xl border border-slate-200 bg-white p-5"><div className="text-xs text-slate-500">Forecast Timeline</div><div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-xl font-medium text-[#10243b]">How this decision changes your future</h2><p className="mt-1 text-sm text-slate-600">Compare the selected Digital Twin scenario with your confirmed baseline.</p></div><div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900">{message}</div></div></header>}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Metric label="Projected cash" value={money(final.cashBalance)} tone={final.cashBalance < 0 ? "risk" : "good"} />
@@ -234,6 +237,6 @@ export default function ForecastTimelineClient({ initialBaseline }: { initialBas
       <section className="rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
         Forecasts are projected and assumption-driven. They are not guaranteed returns, tax outcomes, approved borrowing, guaranteed refinancing or personal regulated financial advice.
       </section>
-    </main>
+    </Wrapper>
   );
 }

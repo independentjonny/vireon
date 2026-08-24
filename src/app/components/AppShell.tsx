@@ -3,26 +3,22 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import MobileNav from "./MobileNav";
 import {
   BarChart3,
   Bell,
-  BookOpenCheck,
   Bot,
   BrainCircuit,
   Building2,
-  CalendarClock,
   ChartNoAxesCombined,
-  CircleDollarSign,
   ClipboardCheck,
   Code2,
   FileCheck2,
-  FileText,
   Gauge,
   Goal,
   HousePlus,
   Landmark,
-  ListChecks,
   LayoutDashboard,
   Lock,
   Network,
@@ -30,10 +26,7 @@ import {
   Repeat2,
   Scale,
   Search,
-  Settings,
   ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
   TerminalSquare,
   UploadCloud,
   WalletCards,
@@ -43,7 +36,7 @@ type ActiveSection = "dashboard" | "financial-position" | "financial-data" | "fi
 
 const navGroups = [
   {
-    label: "Dashboard",
+    label: "Overview",
     items: [["Dashboard", "/", LayoutDashboard]],
   },
   {
@@ -54,45 +47,39 @@ const navGroups = [
     ],
   },
   {
-    label: "Financial",
+    label: "Daily Money",
     items: [
-      ["Accounts", "/accounts", WalletCards],
-      ["Transactions", "/transactions", SlidersHorizontal],
+      ["Bank Accounts", "/accounts", WalletCards],
       ["Cash Flow", "/cash-flow", ChartNoAxesCombined],
-      ["Investments", "/investments", Gauge],
-      ["Balance Sheet", "/balance-sheet", CircleDollarSign],
       ["Subscriptions", "/subscriptions", Repeat2],
-      ["Reports", "/reports", FileText],
     ],
+  },
+  {
+    label: "Wealth",
+    items: [["Investments", "/investments", Gauge]],
   },
   {
     label: "Planning",
     items: [
-      ["Housing", "/housing-scenarios", HousePlus],
-      ["Structure Optimiser", "/structure-optimiser", Network],
       ["Goals", "/goals", Goal],
       ["Budgets", "/budgets", ReceiptText],
+      ["Housing", "/housing-scenarios", HousePlus],
+      ["Structure Optimiser", "/structure-optimiser", Network],
     ],
   },
   {
-    label: "Financial Vault",
-    items: [["Document Vault", "/financial-vault", ShieldCheck], ["Import Review", "/financial-vault/imports", UploadCloud]],
-  },
-  {
-    label: "AI",
+    label: "Intelligence",
     items: [
       ["AI CFO", "/ai-cfo", Bot],
       ["Digital Twin", "/digital-twin", BrainCircuit],
-      ["Forecast Timeline", "/digital-twin/timeline", CalendarClock],
-      ["Adviser Workspace", "/adviser-workspace", Building2],
-      ["Action Workflows", "/action-workflows", ListChecks],
-      ["Insights", "/insights", Sparkles],
-      ["Timeline", "/timeline", BookOpenCheck],
     ],
   },
   {
-    label: "Settings",
-    items: [["Beta Onboarding", "/beta-onboarding", ShieldCheck], ["Privacy", "/privacy", Lock], ["Settings", "/settings", Settings]],
+    label: "Vault & Control",
+    items: [
+      ["Document Vault", "/financial-vault", ShieldCheck],
+      ["Privacy & settings", "/privacy", Lock],
+    ],
   },
 ] as const;
 
@@ -142,7 +129,8 @@ function RuntimeBanner() {
   );
 }
 
-function isSelected(active: ActiveSection, label: string) {
+function isSelected(active: ActiveSection, label: string, href: string, pathname: string) {
+  if (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)) return true;
   return (
     (active === "dashboard" && label === "Dashboard") ||
     (active === "financial-position" && label === "Financial Position") ||
@@ -159,10 +147,12 @@ function Sidebar({
   active,
   developerMode,
   setDeveloperMode,
+  pathname,
 }: {
   active: ActiveSection;
   developerMode: boolean;
   setDeveloperMode: (enabled: boolean) => void;
+  pathname: string;
 }) {
   return (
     <aside className="hidden w-[268px] shrink-0 bg-[#10243b] px-5 py-7 text-white lg:fixed lg:left-0 lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto">
@@ -184,7 +174,7 @@ function Sidebar({
                   href={href}
                   className={
                     "flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 " +
-                    (isSelected(active, label)
+                    (isSelected(active, label, href, pathname)
                       ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                       : "text-slate-300 hover:bg-white/[0.07] hover:text-white")
                   }
@@ -264,6 +254,7 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const developerMode = useSyncExternalStore(subscribeDeveloperMode, readDeveloperMode, () => false);
+  const pathname = usePathname();
 
   function setDeveloperMode(enabled: boolean) {
     window.localStorage.setItem(developerModeStorageKey, enabled ? "true" : "false");
@@ -287,7 +278,7 @@ export default function AppShell({
       <RuntimeBanner />
 
       <div className="min-h-screen lg:pl-[268px]">
-        <Sidebar active={active} developerMode={developerMode} setDeveloperMode={setDeveloperMode} />
+        <Sidebar active={active} developerMode={developerMode} setDeveloperMode={setDeveloperMode} pathname={pathname} />
         <section className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <div className="w-full space-y-8">{children}</div>
         </section>
