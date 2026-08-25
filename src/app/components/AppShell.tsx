@@ -61,7 +61,7 @@ const navGroups = [
   {
     label: "Planning",
     items: [
-      ["Goals", "/goals", Goal],
+      ["Integrated Goals", "/goals", Goal],
       ["Budgets", "/budgets", ReceiptText],
       ["Housing", "/housing-scenarios", HousePlus],
       ["Structure Optimiser", "/structure-optimiser", Network],

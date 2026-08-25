@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, CircleDollarSign, FileCheck2, Home, WalletCards } from "lucide-react";
+import type { GoalPlanningSnapshot } from "@/lib/goalPlanning";
+import IntegratedGoalsWidget from "./IntegratedGoalsWidget";
 
 const emptyMetrics = [
   { label: "Net worth", icon: CircleDollarSign },
@@ -8,7 +10,7 @@ const emptyMetrics = [
   { label: "Financial documents", icon: FileCheck2 },
 ];
 
-export default function EmptyFinancialDashboard() {
+export default function EmptyFinancialDashboard({ goalsSnapshot }: { goalsSnapshot: GoalPlanningSnapshot }) {
   return (
     <main className="mx-auto max-w-[1180px] space-y-4 pb-24">
       <section className="rounded-lg border border-slate-200 bg-white px-5 py-4 sm:px-6">
@@ -31,6 +33,8 @@ export default function EmptyFinancialDashboard() {
           </article>
         ))}
       </section>
+
+      <IntegratedGoalsWidget snapshot={goalsSnapshot} />
 
       <section className="rounded-lg border border-blue-100 bg-white p-6 sm:p-8">
         <div className="max-w-2xl">

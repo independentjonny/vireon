@@ -13,6 +13,8 @@ import {
 import type { ActionWorkflow, ActionWorkflowSummary } from "@/lib/actionWorkflows";
 import type { AiDecision } from "@/lib/aiDecisionCentre";
 import type { DailyReviewHistoryRecord } from "@/lib/aiCfoDailyReview";
+import type { GoalPlanningSnapshot } from "@/lib/goalPlanning";
+import IntegratedGoalsWidget from "./IntegratedGoalsWidget";
 import {
   buildDashboardBriefing,
   excludeDisplayedFindingAction,
@@ -56,6 +58,7 @@ interface OverviewV3Props {
   workflows?: ActionWorkflow[];
   workflowSummary?: ActionWorkflowSummary;
   dailyReview?: DailyReviewHistoryRecord;
+  goalsSnapshot: GoalPlanningSnapshot;
 }
 
 const netWorthSeries = [
@@ -310,6 +313,7 @@ export default function OverviewV3({
   decisions,
   workflows = [],
   dailyReview,
+  goalsSnapshot,
 }: OverviewV3Props) {
   const candidateTopAction = dailyReview ? selectDashboardTopPriority({ findings: dailyReview.review.findings, decisions, workflows }) : null;
   const displayedFindings = dailyReview ? selectDashboardAttentionFindings(dailyReview.review.findings) : [];
@@ -335,6 +339,8 @@ export default function OverviewV3({
         <CurrentPositionMetric label="Emergency runway" value={runway} change="At current monthly expenses" href="/financial-vault" icon={PiggyBank} />
         <CurrentPositionMetric label="Borrowing readiness" value={housingSummary ? `${housingSummary.readinessScore}/100` : "Needs data"} change={housingSummary ? housingSummary.readinessBand : "Upload lending inputs"} href="/housing-scenarios" confidence={housingSummary ? "Modelled" : undefined} icon={Home} />
       </section>
+
+      <IntegratedGoalsWidget snapshot={goalsSnapshot} />
 
       <PriorityActionPanel action={topAction} />
 

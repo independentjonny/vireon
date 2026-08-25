@@ -18,6 +18,7 @@ const typeOptions: Array<{ value: GoalType; label: string }> = [
   { value: "DEBT_REPAYMENT", label: "Debt repayment" },
   { value: "RETIREMENT", label: "Retirement" },
   { value: "VEHICLE_PURCHASE", label: "Vehicle" },
+  { value: "TRAVEL", label: "Holiday or travel" },
   { value: "SAVINGS", label: "Savings" },
   { value: "CUSTOM", label: "Custom" },
 ];
@@ -104,6 +105,9 @@ export default function GoalsPlanningClient({ initialSnapshot, initialGoals, ini
     if (next === "EMERGENCY_FUND") { setTitle("Emergency fund"); setTargetAmount(30000); setCurrentAmount(5000); setContributionAmount(1000); }
     if (next === "HOME_PURCHASE") { setTitle("Home deposit"); setTargetAmount(260000); setCurrentAmount(80000); setContributionAmount(3500); }
     if (next === "DEBT_REPAYMENT") { setTitle("Debt payoff"); setTargetAmount(18000); setCurrentAmount(2500); setContributionAmount(900); }
+    if (next === "RETIREMENT") { setTitle("Retire early"); setTargetAmount(1000000); setCurrentAmount(0); setContributionAmount(1500); }
+    if (next === "VEHICLE_PURCHASE") { setTitle("Vehicle purchase"); setTargetAmount(50000); setCurrentAmount(0); setContributionAmount(1000); }
+    if (next === "TRAVEL") { setTitle("Holiday"); setTargetAmount(15000); setCurrentAmount(0); setContributionAmount(750); }
   }
 
   return (
@@ -111,11 +115,11 @@ export default function GoalsPlanningClient({ initialSnapshot, initialGoals, ini
       <section className="rounded-lg border border-slate-200 bg-white p-6">
         <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
           <Target className="h-3.5 w-3.5" />
-          Goals & Scenario Planning v1
+          Integrated Goals
         </div>
-        <h1 className="mt-4 text-3xl font-semibold text-slate-950">Goal planning</h1>
+        <h1 className="mt-4 text-3xl font-semibold text-slate-950">Integrated Goals</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Define a target, compare deterministic paths, and see the contribution, milestone and cash-flow implications before changing real commitments.
+          Plan every goal against the same financial position. Vireon shows how funding one goal changes the timing and feasibility of the others.
         </p>
         <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">{message}</div>
       </section>
@@ -131,11 +135,11 @@ export default function GoalsPlanningClient({ initialSnapshot, initialGoals, ini
         <article className="rounded-lg border border-slate-200 bg-white p-5">
           <div className="flex items-center gap-2">
             <PiggyBank className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-slate-950">Create goal</h2>
+            <h2 className="text-lg font-semibold text-slate-950">Add another goal</h2>
           </div>
           <div className="mt-4 grid gap-3">
             <div className="grid grid-cols-3 gap-2">
-              {(["EMERGENCY_FUND", "HOME_PURCHASE", "DEBT_REPAYMENT"] as GoalType[]).map((item) => (
+              {(["RETIREMENT", "VEHICLE_PURCHASE", "TRAVEL"] as GoalType[]).map((item) => (
                 <button key={item} type="button" onClick={() => applyTemplate(item)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
                   {typeOptions.find((option) => option.value === item)?.label}
                 </button>
@@ -174,7 +178,7 @@ export default function GoalsPlanningClient({ initialSnapshot, initialGoals, ini
         <article className="rounded-lg border border-slate-200 bg-white p-5">
           <div className="flex items-center gap-2">
             <Flag className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-slate-950">Goal overview</h2>
+            <h2 className="text-lg font-semibold text-slate-950">Your integrated goals</h2>
           </div>
           <div className="mt-4 space-y-3">
             {snapshot.activeGoals.map((evaluation) => (
@@ -200,16 +204,16 @@ export default function GoalsPlanningClient({ initialSnapshot, initialGoals, ini
                     Indicative loan {money(evaluation.homePurchase.indicativeLoanAmount)}; indicative repayment {money(evaluation.homePurchase.indicativeMonthlyRepayment)} per month. This is not borrowing approval or credit advice.
                   </div>
                 )}
-                <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <div className={`mt-4 grid gap-2 ${evaluation.goal.provenance.source === "system-default" ? "sm:grid-cols-1" : "sm:grid-cols-3"}`}>
                   <button disabled={busy} onClick={() => void mutate({ action: "save-scenario", scenario: { goalId: evaluation.goal.id, name: "accelerated", contributionAmount: scenarioContribution } }, "Accelerated scenario compared.")} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">
                     Compare accelerated
                   </button>
-                  <button disabled={busy} onClick={() => void mutate({ action: "pause-goal", goalId: evaluation.goal.id }, "Goal paused.")} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">
+                  {evaluation.goal.provenance.source !== "system-default" && <button disabled={busy} onClick={() => void mutate({ action: "pause-goal", goalId: evaluation.goal.id }, "Goal paused.")} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">
                     <Pause className="h-4 w-4" /> Pause goal
-                  </button>
-                  <button disabled={busy} onClick={() => void mutate({ action: "archive-goal", goalId: evaluation.goal.id }, "Goal archived.")} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">
+                  </button>}
+                  {evaluation.goal.provenance.source !== "system-default" && <button disabled={busy} onClick={() => void mutate({ action: "archive-goal", goalId: evaluation.goal.id }, "Goal archived.")} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">
                     <Archive className="h-4 w-4" /> Archive goal
-                  </button>
+                  </button>}
                 </div>
               </div>
             ))}

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { CanonicalFinancialRecord } from "@/lib/manualFinancialDataPlatform";
 import { FinancialForecastingEngine } from "@/lib/financialForecasting";
-import { GoalPlanningEngine, createGoal, defaultGoalState, type FinancialGoal, type GoalScenarioVariant } from "@/lib/goalPlanning";
+import { DEFAULT_RETIREMENT_GOAL_ID, GoalPlanningEngine, createDefaultRetirementGoal, createGoal, defaultGoalState, type FinancialGoal, type GoalScenarioVariant } from "@/lib/goalPlanning";
 
 const userId = "goal-test-user";
 const startDate = "2026-08-01";
@@ -110,6 +110,23 @@ test("27 stale-data warnings", () => assert.ok(snapshot([goal()], [baseRecords()
 test("28 archived goals excluded", () => assert.equal(snapshot([{ ...goal(), status: "ARCHIVED" }]).activeGoals.length, 0));
 test("29 no Open Banking dependency", () => assert.doesNotThrow(() => snapshot()));
 test("30 no live AI dependency", () => assert.ok(!JSON.stringify(snapshot()).toLowerCase().includes("openai")));
+
+test("31 default retirement goal is a stable integrated baseline at age 60", () => {
+  const retirement = createDefaultRetirementGoal(userId, "2026-08-24T00:00:00.000Z");
+  assert.equal(retirement.id, DEFAULT_RETIREMENT_GOAL_ID);
+  assert.equal(retirement.title, "Retire at 60");
+  assert.equal(retirement.type, "RETIREMENT");
+  assert.equal(retirement.priority, "critical");
+  assert.equal(retirement.provenance.source, "system-default");
+  assert.equal(retirement.assumptions.find((item) => item.id === "retirement-age")?.value, 60);
+});
+
+test("32 default retirement goal honestly requests setup before inventing a target", () => {
+  const evaluation = GoalPlanningEngine.evaluateGoal(createDefaultRetirementGoal(userId, "2026-08-24T00:00:00.000Z"), forecast());
+  assert.equal(evaluation.feasibility, "INSUFFICIENT_DATA");
+  assert.equal(evaluation.goal.targetAmount, 0);
+  assert.equal(evaluation.goal.targetDate, null);
+});
 
 test("goal state can reset to default", () => {
   const state = defaultGoalState();
