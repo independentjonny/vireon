@@ -4,7 +4,7 @@ import test from "node:test";
 
 test("dashboard gives Integrated Goals decision-level prominence", () => {
   const widget = readFileSync("src/app/components/IntegratedGoalsWidget.tsx", "utf8");
-  const dashboard = readFileSync("src/app/components/BaselineDashboard.tsx", "utf8");
+  const dashboard = readFileSync("src/app/components/OverviewV3.tsx", "utf8");
   const emptyDashboard = readFileSync("src/app/components/EmptyFinancialDashboard.tsx", "utf8");
 
   assert.match(widget, /Integrated Goals/);
