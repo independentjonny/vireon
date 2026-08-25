@@ -64,15 +64,6 @@ function ScreenshotPanel() {
   );
 }
 
-function formatAud(value: number, compact = false) {
-  return new Intl.NumberFormat("en-AU", {
-    style: "currency",
-    currency: "AUD",
-    maximumFractionDigits: compact ? 2 : 0,
-    notation: compact ? "compact" : "standard",
-  }).format(value);
-}
-
 export default async function HomePage() {
   const session = await requireServerPageSession("/");
   let readModel;

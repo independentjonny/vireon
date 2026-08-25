@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ArrowRight, CircleDollarSign, FileCheck2, Home, WalletCards } from "lucide-react";
 import type { GoalPlanningSnapshot } from "@/lib/goalPlanning";
+import type { FinancialHealthSnapshot } from "@/lib/financialHealthEngine";
 import IntegratedGoalsWidget from "./IntegratedGoalsWidget";
+import FinancialHealthIndicatorsWidget from "./FinancialHealthIndicatorsWidget";
 
 const emptyMetrics = [
   { label: "Net worth", icon: CircleDollarSign },
@@ -10,7 +12,7 @@ const emptyMetrics = [
   { label: "Financial documents", icon: FileCheck2 },
 ];
 
-export default function EmptyFinancialDashboard({ goalsSnapshot }: { goalsSnapshot: GoalPlanningSnapshot }) {
+export default function EmptyFinancialDashboard({ goalsSnapshot, financialHealth }: { goalsSnapshot: GoalPlanningSnapshot; financialHealth: FinancialHealthSnapshot }) {
   return (
     <main className="mx-auto max-w-[1180px] space-y-4 pb-24">
       <section className="rounded-lg border border-slate-200 bg-white px-5 py-4 sm:px-6">
@@ -35,6 +37,8 @@ export default function EmptyFinancialDashboard({ goalsSnapshot }: { goalsSnapsh
       </section>
 
       <IntegratedGoalsWidget snapshot={goalsSnapshot} />
+
+      <FinancialHealthIndicatorsWidget health={financialHealth} goals={goalsSnapshot} />
 
       <section className="rounded-lg border border-blue-100 bg-white p-6 sm:p-8">
         <div className="max-w-2xl">

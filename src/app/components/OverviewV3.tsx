@@ -14,7 +14,9 @@ import type { ActionWorkflow, ActionWorkflowSummary } from "@/lib/actionWorkflow
 import type { AiDecision } from "@/lib/aiDecisionCentre";
 import type { DailyReviewHistoryRecord } from "@/lib/aiCfoDailyReview";
 import type { GoalPlanningSnapshot } from "@/lib/goalPlanning";
+import type { FinancialHealthSnapshot } from "@/lib/financialHealthEngine";
 import IntegratedGoalsWidget from "./IntegratedGoalsWidget";
+import FinancialHealthIndicatorsWidget from "./FinancialHealthIndicatorsWidget";
 import {
   buildDashboardBriefing,
   excludeDisplayedFindingAction,
@@ -59,6 +61,7 @@ interface OverviewV3Props {
   workflowSummary?: ActionWorkflowSummary;
   dailyReview?: DailyReviewHistoryRecord;
   goalsSnapshot: GoalPlanningSnapshot;
+  financialHealth: FinancialHealthSnapshot;
 }
 
 const netWorthSeries = [
@@ -314,6 +317,7 @@ export default function OverviewV3({
   workflows = [],
   dailyReview,
   goalsSnapshot,
+  financialHealth,
 }: OverviewV3Props) {
   const candidateTopAction = dailyReview ? selectDashboardTopPriority({ findings: dailyReview.review.findings, decisions, workflows }) : null;
   const displayedFindings = dailyReview ? selectDashboardAttentionFindings(dailyReview.review.findings) : [];
@@ -341,6 +345,8 @@ export default function OverviewV3({
       </section>
 
       <IntegratedGoalsWidget snapshot={goalsSnapshot} />
+
+      <FinancialHealthIndicatorsWidget health={financialHealth} goals={goalsSnapshot} />
 
       <PriorityActionPanel action={topAction} />
 
