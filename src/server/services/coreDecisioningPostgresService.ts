@@ -26,7 +26,6 @@ import {
   type TwinTimelineEvent,
 } from "@/lib/financialDigitalTwin";
 import {
-  DEFAULT_RETIREMENT_GOAL_ID,
   GoalPlanningEngine,
   type FinancialGoal,
   type GoalPlanningSnapshot,
@@ -1302,18 +1301,6 @@ export function createCoreDecisioningPostgresService(client: PostgresPilotClient
         return { snapshot, goals: persistedGoals, scenarios };
       });
     },
-    async ensureDefaultRetirementGoal(session: AuthenticatedSession): Promise<void> {
-      await withScopedTransaction(ctxFromSession(session), async (ctx) => {
-        const userId = await scope(ctx);
-        const goal = GoalPlanningEngine.createDefaultRetirementGoal(userId, nowIso());
-        await scopedDb(ctx).query(
-          `insert into goals(user_id, app_id, title, goal_type, status, target_value, current_value, target_date, priority, payload, source, correlation_id)
-           values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9, $10::jsonb, $11, $12)
-           on conflict (user_id, app_id) do nothing`,
-          [userId, goal.id, goal.title, goal.type, goal.status, goal.targetAmount, goal.currentAmount, goal.targetDate, goal.priority, JSON.stringify(goal), ctx.source, ctx.correlationId],
-        );
-      });
-    },
     async createGoal(session: AuthenticatedSession, input: { type: GoalType; title: string; description?: string; targetAmount: number; currentAmount?: number; targetDate?: string | null; priority?: GoalPriority; contributionAmount?: number; contributionFrequency?: FinancialGoal["contributionFrequency"]; idempotencyKey?: string }): Promise<{ snapshot: GoalPlanningSnapshot; goals: FinancialGoal[]; scenarios: GoalScenarioVariant[] }> {
       await withScopedTransaction(ctxFromSession(session), async (ctx) => {
         const userId = await scope(ctx);
@@ -1341,9 +1328,6 @@ export function createCoreDecisioningPostgresService(client: PostgresPilotClient
       return this.readGoalState(session, "12m", true);
     },
     async updateGoalStatus(session: AuthenticatedSession, goalId: string, status: GoalStatus): Promise<{ snapshot: GoalPlanningSnapshot; goals: FinancialGoal[]; scenarios: GoalScenarioVariant[] }> {
-      if (goalId === DEFAULT_RETIREMENT_GOAL_ID && ["PAUSED", "ARCHIVED"].includes(status)) {
-        throw new CoreDecisioningPersistenceError("VALIDATION_FAILED", "The default retirement goal remains active. Update its assumptions instead.", 422);
-      }
       await withScopedTransaction(ctxFromSession(session), async (ctx) => {
         const userId = await scope(ctx);
         const current = await scopedDb(ctx).query<{ payload: FinancialGoal }>(`select payload from goals where user_id = $1 and app_id = $2`, [userId, goalId]);

@@ -542,37 +542,6 @@ test("core decisioning service persists Goals state in user-scoped PostgreSQL ro
   assert.ok(calls.every((call) => !call.params.includes("goals-user-a")));
 });
 
-test("default retirement goal is durably bootstrapped with an idempotent PostgreSQL insert", async () => {
-  const calls: Call[] = [];
-  const service = createCoreDecisioningPostgresService(clientForWorkflowPersistence(calls), { readModel });
-
-  await service.ensureDefaultRetirementGoal(
-    { userId: "goals-user-a", expiresAt: "2027-01-01T00:00:00.000Z", requestId: "req-default-goal-a" },
-  );
-
-  const insert = calls.find((call) => call.sql.includes("insert into goals"));
-  assert.ok(insert);
-  assert.ok(insert.sql.includes("on conflict (user_id, app_id) do nothing"));
-  assert.ok(insert.params.includes("goal-default-retirement-60"));
-  assert.ok(insert.params.includes("Retire at 60"));
-  assert.ok(insert.params.some((value) => typeof value === "string" && value.includes('"source":"system-default"')));
-  assert.ok(calls.every((call) => !call.params.includes("goals-user-a")));
-});
-
-test("default retirement goal cannot be paused or archived", async () => {
-  const calls: Call[] = [];
-  const service = createCoreDecisioningPostgresService(clientForWorkflowPersistence(calls), { readModel });
-  await assert.rejects(
-    () => service.updateGoalStatus(
-      { userId: "goals-user-a", expiresAt: "2027-01-01T00:00:00.000Z", requestId: "req-default-goal-status" },
-      "goal-default-retirement-60",
-      "ARCHIVED",
-    ),
-    /default retirement goal remains active/i,
-  );
-  assert.equal(calls.length, 0);
-});
-
 test("reading an empty post-reset Goals state does not recreate financial snapshots", async () => {
   const calls: Call[] = [];
   const emptyReadModel = {

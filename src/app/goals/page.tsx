@@ -7,9 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function GoalsPage() {
   const session = await requireServerPageSession();
-  const service = createCoreDecisioningServiceFromEnv();
-  await service.ensureDefaultRetirementGoal(session);
-  const state = await service.readGoalState(session);
+  const state = await createCoreDecisioningServiceFromEnv().readGoalState(session);
 
   return (
     <AppShell active="workspace">

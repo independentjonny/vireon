@@ -3,7 +3,6 @@ import type { CanonicalFinancialRecord } from "@/lib/manualFinancialDataPlatform
 import type { ForecastEvent, ForecastQuality, ForecastSnapshot } from "@/lib/financialForecasting";
 
 export const GOAL_PLANNING_VERSION = "goals-scenario-planning-v1";
-export const DEFAULT_RETIREMENT_GOAL_ID = "goal-default-retirement-60";
 
 export type GoalType =
   | "EMERGENCY_FUND"
@@ -51,7 +50,7 @@ export type FinancialGoal = {
   contributionAmount: number;
   contributionFrequency: "weekly" | "fortnightly" | "monthly" | "one-off";
   assumptions: GoalAssumption[];
-  provenance: { source: "manual" | "confirmed-record" | "system-default"; sourceRecordIds: string[]; confidence: number };
+  provenance: { source: "manual" | "confirmed-record"; sourceRecordIds: string[]; confidence: number };
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
@@ -263,36 +262,6 @@ export function createGoal(input: {
     contributionFrequency: input.contributionFrequency ?? "monthly",
     assumptions: input.assumptions ?? defaultGoalAssumptions(input.type, at.slice(0, 10)),
     provenance: { source: "manual", sourceRecordIds: [], confidence: 1 },
-    createdAt: at,
-    updatedAt: at,
-    archivedAt: null,
-  };
-}
-
-export function createDefaultRetirementGoal(userId: string, at = now()): FinancialGoal {
-  const effectiveDate = at.slice(0, 10);
-  return {
-    id: DEFAULT_RETIREMENT_GOAL_ID,
-    userId,
-    type: "RETIREMENT",
-    title: "Retire at 60",
-    description: "Vireon’s default long-term goal. It is integrated with every other goal and your overall financial position.",
-    targetAmount: 0,
-    currentAmount: 0,
-    targetDate: null,
-    priority: "critical",
-    status: "ACTIVE",
-    linkedAccounts: [],
-    linkedAssets: [],
-    linkedLiabilities: [],
-    linkedScenario: null,
-    contributionAmount: 0,
-    contributionFrequency: "monthly",
-    assumptions: [
-      assumption("retirement-age", "Retirement age", 60, "years", "default", effectiveDate),
-      ...defaultGoalAssumptions("RETIREMENT", effectiveDate),
-    ],
-    provenance: { source: "system-default", sourceRecordIds: [], confidence: 1 },
     createdAt: at,
     updatedAt: at,
     archivedAt: null,
@@ -563,7 +532,6 @@ export function defaultGoalState(): GoalPlanningState {
 
 export const GoalPlanningEngine = {
   createGoal,
-  createDefaultRetirementGoal,
   goalFromRecord,
   evaluateGoal,
   buildSnapshot: buildGoalSnapshot,

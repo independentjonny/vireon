@@ -3,8 +3,7 @@ import { expect, test } from "@playwright/test";
 test("goals planning creates and compares deterministic goals", async ({ page }) => {
   await page.goto("/goals");
   await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("heading", { name: "Integrated Goals" })).toBeVisible();
-  await expect(page.getByText("Retire at 60").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Goal planning" })).toBeVisible();
 
   await page.getByLabel("Title").fill(`Emergency fund ${Date.now()}`);
   await page.getByLabel("Target amount").fill("30000");
@@ -36,7 +35,7 @@ test("goals planning creates and compares deterministic goals", async ({ page })
 test("goals planning mobile workflow", async ({ page }) => {
   await page.goto("/goals");
   await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("heading", { name: "Integrated Goals" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Goal planning" })).toBeVisible();
   await expect(page.getByText("Scenario comparison")).toBeVisible();
   await expect(page.getByText("AI CFO goal context")).toBeVisible();
 });

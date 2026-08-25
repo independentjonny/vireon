@@ -1,8 +1,15 @@
 import Link from "next/link";
-import type { GoalPlanningSnapshot } from "@/lib/goalPlanning";
-import type { FinancialHealthSnapshot } from "@/lib/financialHealthEngine";
-import IntegratedGoalsWidget from "./IntegratedGoalsWidget";
-import FinancialHealthIndicatorsWidget from "./FinancialHealthIndicatorsWidget";
+
+type GoalSummary = {
+  id: string;
+  title: string;
+  current: number;
+  target: number;
+  targetDate: string | null;
+  status: string;
+  risk: string;
+  opportunity: string;
+};
 
 type AssetSummary = { label: string; value: number; color: string };
 type AttentionSummary = { title: string; detail: string; href: string; action: string };
@@ -16,8 +23,7 @@ type Props = {
   monthlyIncome: number | null;
   monthlyExpenses: number | null;
   runwayMonths: number | null;
-  goalsSnapshot: GoalPlanningSnapshot;
-  financialHealth: FinancialHealthSnapshot;
+  goals: GoalSummary[];
   assetGroups: AssetSummary[];
   attention: AttentionSummary[];
   updatedAt: string;
@@ -26,7 +32,18 @@ type Props = {
 const money = (value: number) => new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(value);
 const shortMoney = (value: number) => new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", notation: "compact", maximumFractionDigits: 0 }).format(value);
 
+function progress(current: number, target: number) {
+  return target > 0 ? Math.max(0, Math.min(100, Math.round((current / target) * 100))) : 0;
+}
+
+function dateLabel(value: string | null) {
+  if (!value) return "No target date";
+  const date = new Date(`${value.slice(0, 10)}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-AU", { month: "short", year: "numeric" }).format(date);
+}
+
 export default function BaselineDashboard(props: Props) {
+  const goals = props.goals.slice(0, 2);
   const assetTotal = Math.max(1, props.assetGroups.reduce((sum, item) => sum + item.value, 0));
   const surplus = props.monthlySurplus ?? 0;
   const income = props.monthlyIncome ?? 0;
@@ -47,9 +64,13 @@ export default function BaselineDashboard(props: Props) {
         <div className="text-xs text-slate-500">Updated {new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(props.updatedAt))} · confirmed data</div>
       </header>
 
-      <IntegratedGoalsWidget snapshot={props.goalsSnapshot} />
-
-      <FinancialHealthIndicatorsWidget health={props.financialHealth} goals={props.goalsSnapshot} />
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.04)]">
+        <div className="flex items-center justify-between gap-4"><div><div className="text-xs text-slate-500">Goals</div><h2 className="mt-0.5 text-lg font-medium text-[#10243b]">Your goals, risks and opportunities</h2></div><Link href="/goals" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-blue-700">View all goals</Link></div>
+        <div className="mt-3 grid border-t border-slate-200 lg:grid-cols-2">
+          {goals.map((goal, index) => { const pct = progress(goal.current, goal.target); return <article key={goal.id} className={`py-3 ${index ? "lg:border-l lg:border-slate-200 lg:pl-5" : "lg:pr-5"}`}><div className="flex items-start justify-between gap-3"><div><h3 className="font-medium text-[#10243b]">{goal.title}</h3><p className="mt-0.5 text-xs text-slate-500">{money(goal.current)} of {money(goal.target)} · target {dateLabel(goal.targetDate)}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${goal.status.includes("RISK") || goal.status.includes("ATTENTION") ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>{goal.status.replaceAll("_", " ").toLowerCase()}</span></div><div className="mt-3 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#6479ef]" style={{ width: `${pct}%` }} /></div><strong className="text-sm font-medium text-[#10243b]">{pct}%</strong></div><div className="mt-3 grid gap-2 sm:grid-cols-2"><p className="text-xs leading-5 text-slate-600"><span className="mr-2 rounded-full bg-amber-50 px-2 py-1 text-amber-800">Risk</span>{goal.risk}</p><p className="text-xs leading-5 text-slate-600"><span className="mr-2 rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">Opportunity</span>{goal.opportunity}</p></div></article>; })}
+          {!goals.length && <div className="py-5 text-sm text-slate-600">No active goals yet. <Link href="/goals" className="font-medium text-blue-700">Create a goal</Link></div>}
+        </div>
+      </section>
 
       <section className="grid gap-3 md:grid-cols-3">
         <article className="rounded-2xl border border-slate-200 bg-white px-4 py-3"><div className="text-xs text-slate-500">Net worth</div><div className="mt-1 flex items-baseline justify-between gap-3"><strong className="text-2xl font-medium text-[#10243b]">{money(props.netWorth)}</strong><span className="text-sm text-emerald-700">{props.monthlyChange >= 0 ? "↑" : "↓"} {money(Math.abs(props.monthlyChange))}</span></div></article>

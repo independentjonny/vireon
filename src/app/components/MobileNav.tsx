@@ -36,7 +36,7 @@ const USER_SECTIONS = [
     items: [
       ["Housing", "/housing-scenarios"],
       ["Structure Optimiser", "/structure-optimiser"],
-      ["Integrated Goals", "/goals"],
+      ["Goals", "/goals"],
       ["Budgets", "/budgets"],
     ],
   },

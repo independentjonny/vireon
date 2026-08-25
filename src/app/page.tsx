@@ -6,7 +6,6 @@ import DeveloperModeGate from "./components/DeveloperModeGate";
 import EmptyFinancialDashboard from "./components/EmptyFinancialDashboard";
 import { buildFinancialBalanceSheetFromReadModel } from "@/lib/financialBalanceSheet";
 import { buildAiDecisions } from "@/lib/aiDecisionCentre";
-import { buildFinancialHealthSnapshot } from "@/lib/financialHealthEngine";
 import { requireServerPageSession } from "@/lib/auth/serverPageSession";
 import { createFinancialPositionReadServiceFromEnv } from "@/server/services/financialPositionReadService";
 import { createCoreDecisioningServiceFromEnv } from "@/server/services/coreDecisioningPostgresService";
@@ -88,23 +87,21 @@ export default async function HomePage() {
     );
   }
   const vault = readModel.vault;
-  const core = createCoreDecisioningServiceFromEnv();
-  await core.ensureDefaultRetirementGoal(session);
-  const goalState = await core.readGoalState(session);
-  const financialHealth = buildFinancialHealthSnapshot({ userId: readModel.userId, records: readModel.confirmedFacts, asOf: readModel.generatedAt });
   const financialPositionIsEmpty = readModel.confirmedFacts.length === 0
     && readModel.documentImportStatus.documents.length === 0
     && readModel.documentImportStatus.importCount === 0;
   if (financialPositionIsEmpty) {
     return (
       <AppShell active="dashboard">
-        <EmptyFinancialDashboard goalsSnapshot={goalState.snapshot} financialHealth={financialHealth} />
+        <EmptyFinancialDashboard />
       </AppShell>
     );
   }
+  const core = createCoreDecisioningServiceFromEnv();
   const housing = await core.readHousingAffordability(session);
   const balanceSheet = buildFinancialBalanceSheetFromReadModel(readModel);
   const decisions = buildAiDecisions({ vault, housing, balanceSheet });
+  const goalState = await core.readGoalState(session);
   const monthlyCashFlow = readModel.monthlyCashFlow;
   const runwayMonths = readModel.cashPosition.sourceRecordIds.length && monthlyCashFlow.monthlyExpenses !== null && monthlyCashFlow.monthlyExpenses > 0
     ? readModel.cashPosition.confirmedCash / monthlyCashFlow.monthlyExpenses
@@ -122,8 +119,16 @@ export default async function HomePage() {
               monthlyExpenses={monthlyCashFlow.monthlyExpenses}
               runwayMonths={runwayMonths}
               updatedAt={readModel.generatedAt}
-              goalsSnapshot={goalState.snapshot}
-              financialHealth={financialHealth}
+              goals={goalState.snapshot.activeGoals.map((evaluation) => ({
+                id: evaluation.goal.id,
+                title: evaluation.goal.title,
+                current: evaluation.goal.currentAmount,
+                target: evaluation.goal.targetAmount,
+                targetDate: evaluation.goal.targetDate,
+                status: evaluation.goal.status,
+                risk: evaluation.competingGoalConflicts[0] ?? (evaluation.fundingGap > 0 ? `${formatAud(evaluation.fundingGap)} remains to be funded.` : "No material risk identified."),
+                opportunity: evaluation.decisions[0]?.nextAction ?? (evaluation.requiredMonthlyContribution > 0 ? `Contribute ${formatAud(evaluation.requiredMonthlyContribution)} each month.` : "Maintain the current contribution."),
+              }))}
               assetGroups={[
                 { label: "Property", value: balanceSheet.assets.find((item) => item.id === "property")?.value ?? 0, color: "#3894c2" },
                 { label: "Investments & super", value: balanceSheet.assets.filter((item) => item.id === "investments" || item.id === "superannuation").reduce((sum, item) => sum + item.value, 0), color: "#7185df" },
