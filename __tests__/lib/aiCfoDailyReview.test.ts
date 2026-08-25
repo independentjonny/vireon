@@ -17,7 +17,8 @@ import { gatherAICfoInputs } from "../../src/lib/aiCfoRuntime.ts";
 import type { AICfoInputs } from "../../src/lib/aiCfo.ts";
 import { StructureComparisonEngine, TAX_RULE_REFERENCES } from "../../src/lib/structureComparisonEngine.ts";
 import { buildBriefingHeadline, buildExecutiveSummary, buildSystemHealthSummary, getReviewDirection, selectFeaturedFinding, selectFinancialWins, selectPriorityActions } from "../../src/lib/dailyReviewPresentation.ts";
-import { buildDashboardBriefing, dashboardActionSourceKey, selectDashboardSecondaryActions, selectDashboardTopPriority, selectVerifiedFinancialWins } from "../../src/lib/dashboardPresentation.ts";
+import { buildDashboardBriefing, dashboardActionSourceKey, excludeDisplayedFindingAction, selectDashboardAttentionFindings, selectDashboardSecondaryActions, selectDashboardTopPriority, selectVerifiedFinancialWins } from "../../src/lib/dashboardPresentation.ts";
+import { buildFindingDisplay } from "../../src/lib/dailyReviewDisplay.ts";
 import { buildAiDecisions } from "../../src/lib/aiDecisionCentre.ts";
 import type { ActionWorkflow } from "../../src/lib/actionWorkflows.ts";
 
@@ -344,6 +345,91 @@ describe("DashboardPresentation", () => {
     assert.ok(briefing.headline.length > 0);
     assert.notEqual(briefing.headline, buildBriefingHeadline(record));
     assert.ok(briefing.primaryAction);
+    assert.ok(briefing.reviewPeriod.includes(" to "));
+    assert.ok(briefing.attentionItems.length <= 3);
+    assert.ok(briefing.attentionItems.every((item) => item.title && item.detail && item.whyItMatters && item.impact));
+    assert.ok(briefing.attentionItems.every((item) => item.sourceEngine && item.calculationSnapshotId));
+    assert.ok(briefing.attentionItems.every((item) => item.calculationRule));
+    assert.ok(briefing.attentionItems.every((item) => item.actionLabel && item.actionHref));
+    assert.ok(briefing.attentionItems.every((item) => item.evidence.every((evidence) => evidence.sourceTitle && evidence.factUsed && evidence.lastVerifiedAt)));
+  });
+
+  it("shows three distinct changes with explicit units, periods and directional wording", () => {
+    const record = DailyReviewEngine.run({ inputs: inputs(), mode: "live" });
+    const findings = selectDashboardAttentionFindings(record.review.findings);
+    assert.equal(findings.length, 3);
+    assert.equal(new Set(findings.map((finding) => finding.deduplicationKey)).size, 3);
+    assert.ok(findings.every((finding) => !/by -\$/.test(finding.title)));
+
+    const cashFlow = findings.find((finding) => finding.category === "cash-flow");
+    assert.ok(cashFlow);
+    assert.match(cashFlow.title, /Annual cash-flow surplus decreased by \$450/);
+    const cashFlowDisplay = buildFindingDisplay(cashFlow, record.review.comparisonStartDate, record.review.comparisonEndDate);
+    assert.match(cashFlowDisplay.previousValue, /per year/);
+    assert.match(cashFlowDisplay.currentValue, /per year/);
+    assert.match(cashFlowDisplay.timeBasis, /Annualised recurring amount/);
+    assert.match(cashFlowDisplay.title, /Annual cash-flow surplus decreased by \$450 per year/);
+
+    const netWorth = findings.find((finding) => finding.category === "net-worth");
+    assert.ok(netWorth);
+    assert.equal(buildFindingDisplay(netWorth, record.review.comparisonStartDate, record.review.comparisonEndDate).tone, "positive");
+  });
+
+  it("repairs legacy persisted double-negative copy at the shared display boundary", () => {
+    const record = DailyReviewEngine.run({ inputs: inputs(), mode: "live" });
+    const borrowing = record.review.findings.find((finding) => finding.category === "borrowing");
+    const cashFlow = record.review.findings.find((finding) => finding.category === "cash-flow");
+    assert.ok(borrowing);
+    assert.ok(cashFlow);
+
+    const legacyBorrowing = { ...borrowing, title: "Borrowing capacity declined by -$26,000" };
+    const legacyCashFlow = { ...cashFlow, title: "Cash flow surplus fell by -$450" };
+    const borrowingDisplay = buildFindingDisplay(legacyBorrowing, record.review.comparisonStartDate, record.review.comparisonEndDate);
+    const cashFlowDisplay = buildFindingDisplay(legacyCashFlow, record.review.comparisonStartDate, record.review.comparisonEndDate);
+
+    assert.equal(borrowingDisplay.title, "Estimated borrowing capacity decreased by $26,000");
+    assert.equal(cashFlowDisplay.title, "Annual cash-flow surplus decreased by $450 per year");
+    assert.doesNotMatch(`${borrowingDisplay.title} ${cashFlowDisplay.title}`, /by -\$/);
+  });
+
+  it("removes a next-best action when it repeats a displayed finding", () => {
+    const record = DailyReviewEngine.run({ inputs: inputs(), mode: "live" });
+    const displayed = selectDashboardAttentionFindings(record.review.findings);
+    const findingAction = selectDashboardTopPriority({ findings: record.review.findings, decisions: [], workflows: [] });
+    assert.ok(findingAction);
+    assert.equal(excludeDisplayedFindingAction(findingAction, displayed), null);
+
+    const workflowAction = selectDashboardTopPriority({ findings: record.review.findings, decisions: [], workflows: [activeWorkflow()] });
+    assert.ok(workflowAction);
+    assert.equal(excludeDisplayedFindingAction(workflowAction, displayed)?.source, "workflow");
+  });
+
+  it("does not invent a document name when a waiting workflow has no persisted requirement", () => {
+    const record = DailyReviewEngine.run({ inputs: inputs(), mode: "mortgage-demo" });
+    const workflow = { ...activeWorkflow(), status: "Waiting on Document" as const };
+    const top = selectDashboardTopPriority({ findings: record.review.findings, decisions: decisions(), workflows: [workflow] });
+    assert.ok(top);
+    assert.equal(top.status, "Waiting on Document");
+    assert.match(top.blockerDetail ?? "", /no required document is persisted/i);
+    assert.match(top.blockerDetail ?? "", /cannot identify the document safely/i);
+    assert.equal(top.nextStep, "Upload latest loan statement");
+    const briefing = buildDashboardBriefing(record, top);
+    assert.doesNotMatch(briefing.headline, /borrowing needs attention/i);
+    assert.ok(briefing.summary.length > 20);
+  });
+
+  it("names the exact missing document and affected workflow from persisted blockers", () => {
+    const record = DailyReviewEngine.run({ inputs: inputs(), mode: "mortgage-demo" });
+    const workflow = {
+      ...activeWorkflow(),
+      status: "Waiting on Document" as const,
+      blockers: ["Missing document: Current mortgage statement"],
+    };
+    const top = selectDashboardTopPriority({ findings: record.review.findings, decisions: decisions(), workflows: [workflow] });
+    assert.ok(top);
+    assert.match(top.blockerDetail ?? "", /Mortgage refinance workflow cannot continue/i);
+    assert.match(top.blockerDetail ?? "", /Current mortgage statement/i);
+    assert.equal(top.nextStep, "Upload latest loan statement");
   });
 
   it("routes top priority to an active workflow before duplicate decisions", () => {

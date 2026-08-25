@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { AuthenticatedSession } from "@/lib/productionDataIntegrity";
 import type { CanonicalFinancialRecord, FinancialRecordKind } from "@/lib/manualFinancialDataPlatform";
+import { buildMonthlyCashFlowModel, type MonthlyCashFlowModel } from "@/lib/monthlyCashFlow";
 import type { FinancialVaultState, ProfileValueKey, UploadedDocument } from "@/lib/financialVaultTypes";
 import { createFinancialVaultServiceFromEnv, FinancialVaultPersistenceError, uuidFromTrustedUserId } from "@/server/services/financialVaultPostgresService";
 
@@ -35,6 +36,7 @@ export type FinancialPositionReadModel = {
   income: CanonicalFinancialRecord[];
   expenses: CanonicalFinancialRecord[];
   transactions: CanonicalFinancialRecord[];
+  monthlyCashFlow: MonthlyCashFlowModel;
   propertyDetails: CanonicalFinancialRecord[];
   mortgageDetails: CanonicalFinancialRecord[];
   superannuation: CanonicalFinancialRecord[];
@@ -152,6 +154,7 @@ export function buildFinancialPositionReadModel(input: {
     income,
     expenses,
     transactions,
+    monthlyCashFlow: buildMonthlyCashFlowModel(confirmedFacts, input.userId),
     propertyDetails,
     mortgageDetails,
     superannuation,

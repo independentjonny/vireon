@@ -199,6 +199,7 @@ export function classifyDatabaseError(error: unknown): DatabaseErrorClass {
     text.includes("authentication failed") ||
     text.includes("could not translate host") ||
     text.includes("enotfound") ||
+    text.includes("eai_again") ||
     text.includes("econnrefused") ||
     text.includes("econnreset") ||
     text.includes("etimedout") ||

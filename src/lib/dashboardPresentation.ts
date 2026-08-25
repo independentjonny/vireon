@@ -2,6 +2,7 @@ import type { ActionWorkflow } from "./actionWorkflows.ts";
 import type { DailyReviewFinding, DailyReviewHistoryRecord } from "./aiCfoDailyReview.ts";
 import type { AiDecision } from "./aiDecisionCentre.ts";
 import { getReviewDirection, scoreFindingForBriefing, selectFeaturedFinding, selectFinancialWins, selectPriorityActions } from "./dailyReviewPresentation.ts";
+import { buildFindingDisplay, findingEvidenceFact, type FindingTone } from "./dailyReviewDisplay.ts";
 
 export type DashboardDirection = "improving" | "stable" | "mixed" | "deteriorating" | "partial";
 
@@ -19,6 +20,7 @@ export type DashboardAction = {
   href: string;
   actionLabel: string;
   professionalReviewRequired: boolean;
+  blockerDetail: string | null;
 };
 
 export type DashboardBriefing = {
@@ -26,6 +28,39 @@ export type DashboardBriefing = {
   label: string;
   headline: string;
   summary: string;
+  reviewPeriod: string;
+  attentionItems: Array<{
+    id: string;
+    title: string;
+    detail: string;
+    whyItMatters: string;
+    impact: string;
+    confidence: "High" | "Medium" | "Low";
+    priority: "Critical" | "High" | "Medium" | "Low";
+    type: DailyReviewFinding["type"];
+    sourceEngine: string;
+    calculationSnapshotId: string;
+    calculationRule: string;
+    assumptions: string[];
+    actionLabel: string;
+    actionHref: string;
+    tone: FindingTone;
+    statusLabel: string;
+    changeLabel: string;
+    previousLabel: string;
+    previousValue: string;
+    currentLabel: string;
+    currentValue: string;
+    timeBasis: string;
+    evidence: Array<{
+      sourceTitle: string;
+      factUsed: string;
+      classification: string;
+      confidence: "High" | "Medium" | "Low";
+      lastVerifiedAt: string;
+      sourceLocation: string;
+    }>;
+  }>;
   primaryAction: DashboardAction | null;
 };
 
@@ -95,6 +130,7 @@ function actionFromFinding(finding: DailyReviewFinding): DashboardAction {
     href: finding.actionHref,
     actionLabel: finding.actionLabel,
     professionalReviewRequired: finding.professionalReviewRequired,
+    blockerDetail: null,
   };
 }
 
@@ -113,10 +149,27 @@ function actionFromDecision(decision: AiDecision): DashboardAction {
     href: decision.actionHref,
     actionLabel: decision.actionLabel,
     professionalReviewRequired: decision.source === "Housing Scenarios" || decision.source === "Balance Sheet",
+    blockerDetail: null,
   };
 }
 
 function actionFromWorkflow(workflow: ActionWorkflow): DashboardAction {
+  const currentStep = workflow.steps.find((step) => step.status === "In Progress" || step.status === "Blocked")
+    ?? workflow.steps.find((step) => step.status === "Not Started");
+  const blockerDocuments = workflow.blockers
+    .filter((blocker) => /document/i.test(blocker))
+    .map((blocker) => blocker.replace(/^missing document:\s*/i, "").trim())
+    .filter(Boolean);
+  const requiredDocuments = [...new Set([
+    ...(currentStep?.requiredDocuments?.filter(Boolean) ?? []),
+    ...blockerDocuments,
+  ])];
+  const workflowLabel = workflow.title.toLowerCase().endsWith("workflow") ? workflow.title : `${workflow.title} workflow`;
+  const blockerDetail = workflow.status === "Waiting on Document"
+    ? requiredDocuments.length > 0
+      ? `The ${workflowLabel} cannot continue until you provide: ${requiredDocuments.join(", ")}.`
+      : `The ${workflowLabel} is marked Waiting on Document, but no required document is persisted. Vireon cannot identify the document safely.`
+    : currentStep?.blockedReason || workflow.blockers.find(Boolean) || null;
   return {
     id: workflow.id,
     source: "workflow",
@@ -131,7 +184,75 @@ function actionFromWorkflow(workflow: ActionWorkflow): DashboardAction {
     href: workflow.nextActionHref || "/action-workflows",
     actionLabel: workflow.nextActionLabel,
     professionalReviewRequired: workflow.professionalReviewRequired,
+    blockerDetail,
   };
+}
+
+function reviewPeriod(record: DailyReviewHistoryRecord): string {
+  const formatDate = (value: string) => {
+    const date = new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
+    return Number.isNaN(date.getTime())
+      ? value
+      : new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
+  };
+  return `${formatDate(record.review.comparisonStartDate)} to ${formatDate(record.review.comparisonEndDate)}`;
+}
+
+export function selectDashboardAttentionFindings(findings: DailyReviewFinding[]): DailyReviewFinding[] {
+  const seen = new Set<string>();
+  return [...findings]
+    .sort((a, b) => scoreFindingForBriefing(b) - scoreFindingForBriefing(a) || a.title.localeCompare(b.title))
+    .filter((finding) => {
+      const key = finding.deduplicationKey || finding.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 3);
+}
+
+export function excludeDisplayedFindingAction(
+  candidate: DashboardAction | null,
+  displayedFindings: DailyReviewFinding[],
+): DashboardAction | null {
+  if (!candidate) return null;
+  const duplicatesFinding = displayedFindings.some((finding) =>
+    candidate.id === finding.id
+    || candidate.sourceEntityId === finding.deduplicationKey
+    || (candidate.title === finding.title && candidate.href === finding.actionHref)
+  );
+  return duplicatesFinding ? null : candidate;
+}
+
+function attentionItems(record: DailyReviewHistoryRecord): DashboardBriefing["attentionItems"] {
+  return selectDashboardAttentionFindings(record.review.findings)
+    .map((finding) => {
+      const display = buildFindingDisplay(finding, record.review.comparisonStartDate, record.review.comparisonEndDate);
+      return {
+      id: finding.id,
+      detail: finding.summary,
+      whyItMatters: finding.whyItMatters,
+      impact: finding.expectedImpact,
+      confidence: finding.confidence,
+      priority: finding.priority,
+      type: finding.type,
+      sourceEngine: finding.sourceEngine,
+      calculationSnapshotId: finding.calculationSnapshotId,
+      calculationRule: "Current review value minus previous review value equals the displayed change.",
+      assumptions: finding.assumptions,
+      actionLabel: finding.actionLabel,
+      actionHref: finding.actionHref,
+      ...display,
+      evidence: finding.evidence.map((item) => ({
+        sourceTitle: item.sourceTitle,
+        factUsed: findingEvidenceFact(finding, item.factUsed),
+        classification: item.classification,
+        confidence: item.confidence,
+        lastVerifiedAt: item.lastVerifiedAt,
+        sourceLocation: item.sourceLocation,
+      })),
+      };
+    });
 }
 
 export function selectDashboardTopPriority(input: {
@@ -210,6 +331,8 @@ export function buildDashboardBriefing(record: DailyReviewHistoryRecord, topActi
       label: "Dashboard partially updated",
       headline: "Your Dashboard is partially updated.",
       summary: "Some calculations were unavailable, so Vireon is showing only verified sections with reduced confidence.",
+      reviewPeriod: reviewPeriod(record),
+      attentionItems: attentionItems(record),
       primaryAction: topAction,
     };
   }
@@ -220,6 +343,8 @@ export function buildDashboardBriefing(record: DailyReviewHistoryRecord, topActi
       label: "Financial command centre",
       headline: "Your financial position is stable.",
       summary: "No material changes need attention since the previous verified review.",
+      reviewPeriod: reviewPeriod(record),
+      attentionItems: [],
       primaryAction: topAction,
     };
   }
@@ -228,8 +353,10 @@ export function buildDashboardBriefing(record: DailyReviewHistoryRecord, topActi
     return {
       direction: "mixed",
       label: "Financial command centre",
-      headline: featured ? `Your position is mixed; ${featured.category.replaceAll("-", " ")} needs attention.` : "Your position is mixed.",
-      summary: record.review.overallSummary.split(".")[0] + ".",
+      headline: featured ? `Your position is mixed: ${featured.title}.` : "Your position is mixed.",
+      summary: featured?.whyItMatters ?? "The latest verified review contains both progress and items that need action.",
+      reviewPeriod: reviewPeriod(record),
+      attentionItems: attentionItems(record),
       primaryAction: topAction,
     };
   }
@@ -238,7 +365,9 @@ export function buildDashboardBriefing(record: DailyReviewHistoryRecord, topActi
     direction: mappedDirection,
     label: "Financial command centre",
     headline: direction === "improved" ? "Your position improved this period." : `${record.review.findings.length} financial item${record.review.findings.length === 1 ? "" : "s"} need attention.`,
-    summary: record.review.overallSummary.split(".")[0] + ".",
+    summary: featured?.whyItMatters ?? record.review.overallSummary.split(".")[0] + ".",
+    reviewPeriod: reviewPeriod(record),
+    attentionItems: attentionItems(record),
     primaryAction: topAction,
   };
 }

@@ -29,7 +29,7 @@ test("financial read model maps confirmed persisted facts by user and category",
     canonical: [
       record({ id: "cash-a", userId, kind: "account", label: "Offset account", value: { balance: 25000 } }),
       record({ id: "property-a", userId, kind: "asset", subtype: "property", label: "Home", value: { marketValue: 900000 } }),
-      record({ id: "mortgage-a", userId, kind: "liability", subtype: "mortgage", label: "Home loan", value: { balance: 450000 } }),
+      record({ id: "mortgage-a", userId, kind: "liability", subtype: "mortgage", label: "Home loan", value: { balance: 450000, repaymentAmount: 1000, repaymentFrequency: "Monthly" } }),
       record({ id: "income-a", userId, kind: "income", label: "Salary", value: { monthlyAmount: 12000 } }),
       record({ id: "expense-a", userId, kind: "expense", label: "Living costs", value: { monthlyAmount: 5000 } }),
       record({ id: "other-user", userId: otherUserId, kind: "asset", label: "Other user asset", value: { value: 999999 } }),
@@ -45,6 +45,10 @@ test("financial read model maps confirmed persisted facts by user and category",
   assert.equal(model.netWorthInputs.assets, 925000);
   assert.equal(model.netWorthInputs.liabilities, 450000);
   assert.equal(model.netWorthInputs.netWorth, 475000);
+  assert.equal(model.monthlyCashFlow.monthlyIncome, 12000);
+  assert.equal(model.monthlyCashFlow.monthlyExpenses, 6000);
+  assert.equal(model.monthlyCashFlow.monthlySurplus, 6000);
+  assert.equal(model.monthlyCashFlow.status, "confirmed");
   assert.deepEqual(model.staleDataSummary.staleRecordIds, ["cash-a"]);
   assert.equal(model.documentImportStatus.activeImportCount, 1);
   assert.equal(model.confirmedFacts.some((item) => item.id === "other-user"), false);
@@ -64,4 +68,6 @@ test("financial read model distinguishes missing data from zero-valued persisted
   assert.equal(model.profileSummary.completenessScore, 0);
   assert.equal(model.documentImportStatus.unresolvedExtractionReviewCount, 0);
   assert.equal(model.confidenceSummary.averageFactConfidence, 0);
+  assert.equal(model.monthlyCashFlow.monthlySurplus, null);
+  assert.equal(model.monthlyCashFlow.status, "unavailable");
 });

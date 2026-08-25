@@ -422,6 +422,7 @@ describe("sensitive route guards", () => {
     assert.equal(permissionForPath("/api/production-readiness", "GET"), "manage:workspace");
     assert.equal(permissionForPath("/api/private-beta/deletion", "GET"), "read:transactions");
     assert.equal(permissionForPath("/api/private-beta/deletion", "POST"), "manage:workspace");
+    assert.equal(permissionForPath("/api/private-beta/financial-data-reset", "POST"), "manage:workspace");
     assert.equal(permissionForPath("/api/private-beta/export", "POST"), "manage:workspace");
     assert.equal(permissionForPath("/api/private-beta/support", "POST"), "manage:workspace");
   });
@@ -614,7 +615,7 @@ describe("sensitive route guards", () => {
       "/api/workflow-status",
     ]);
     const routes = routeFiles(join(process.cwd(), "src", "app", "api"));
-    assert.equal(routes.length, 120);
+    assert.equal(routes.length, 122);
     const uncovered = routes
       .map((file) => ({ file, routePath: apiPathForRouteFile(file) }))
       .filter(({ file, routePath }) => !publicRoutes.has(routePath) && !handlerHasGuard(file) && !matcherCovers(routePath))

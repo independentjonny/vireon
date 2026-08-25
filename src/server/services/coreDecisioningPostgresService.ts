@@ -1268,7 +1268,7 @@ export function createCoreDecisioningPostgresService(client: PostgresPilotClient
       if (state.history[0]) return state.history[0];
       return (await this.runAndPersistDailyReview(session, { mode: "live" })).record;
     },
-    async readGoalState(session: AuthenticatedSession, horizon: ForecastHorizon = "12m"): Promise<{ snapshot: GoalPlanningSnapshot; goals: FinancialGoal[]; scenarios: GoalScenarioVariant[] }> {
+    async readGoalState(session: AuthenticatedSession, horizon: ForecastHorizon = "12m", persistSnapshot = false): Promise<{ snapshot: GoalPlanningSnapshot; goals: FinancialGoal[]; scenarios: GoalScenarioVariant[] }> {
       const model = await readModel(session);
       return withScopedTransaction(ctxFromSession(session), async (ctx) => {
         const userId = await scope(ctx);
@@ -1289,11 +1289,15 @@ export function createCoreDecisioningPostgresService(client: PostgresPilotClient
         );
         const scenarios = scenarioRows.rows.map((row) => row.payload);
         const snapshot = GoalPlanningEngine.buildSnapshot({ userId: model.userId, goals, scenarios, forecast });
-        await scopedDb(ctx).query(
-          `insert into calculation_snapshots(user_id, engine_name, engine_version, input_fact_versions, rule_versions, assumptions, output_hash, source, correlation_id)
-           values ($1, 'Goals', $2, $3::jsonb, '[]'::jsonb, $4::jsonb, $5, $6, $7)`,
-          [userId, snapshot.version, JSON.stringify([]), JSON.stringify({ snapshot }), snapshot.hash, ctx.source, ctx.correlationId],
-        );
+        // Read-only requests must not create financial records. Goal mutations
+        // explicitly opt in so their resulting calculation remains reproducible.
+        if (persistSnapshot) {
+          await scopedDb(ctx).query(
+            `insert into calculation_snapshots(user_id, engine_name, engine_version, input_fact_versions, rule_versions, assumptions, output_hash, source, correlation_id)
+             values ($1, 'Goals', $2, $3::jsonb, '[]'::jsonb, $4::jsonb, $5, $6, $7)`,
+            [userId, snapshot.version, JSON.stringify([]), JSON.stringify({ snapshot }), snapshot.hash, ctx.source, ctx.correlationId],
+          );
+        }
         return { snapshot, goals: persistedGoals, scenarios };
       });
     },
@@ -1309,7 +1313,7 @@ export function createCoreDecisioningPostgresService(client: PostgresPilotClient
           [userId, goal.id, goal.title, goal.type, goal.status, goal.targetAmount, goal.currentAmount, goal.targetDate, goal.priority, JSON.stringify(goal), ctx.source, ctx.correlationId],
         );
       });
-      return this.readGoalState(session);
+      return this.readGoalState(session, "12m", true);
     },
     async saveGoalScenario(session: AuthenticatedSession, scenario: GoalScenarioVariant): Promise<{ snapshot: GoalPlanningSnapshot; goals: FinancialGoal[]; scenarios: GoalScenarioVariant[] }> {
       await withScopedTransaction(ctxFromSession(session), async (ctx) => {
@@ -1321,7 +1325,7 @@ export function createCoreDecisioningPostgresService(client: PostgresPilotClient
           [userId, scenario.id, scenario.name, JSON.stringify(scenario), ctx.source, ctx.correlationId],
         );
       });
-      return this.readGoalState(session);
+      return this.readGoalState(session, "12m", true);
     },
     async updateGoalStatus(session: AuthenticatedSession, goalId: string, status: GoalStatus): Promise<{ snapshot: GoalPlanningSnapshot; goals: FinancialGoal[]; scenarios: GoalScenarioVariant[] }> {
       await withScopedTransaction(ctxFromSession(session), async (ctx) => {
@@ -1335,7 +1339,7 @@ export function createCoreDecisioningPostgresService(client: PostgresPilotClient
           [status, JSON.stringify(goal), status === "ARCHIVED" ? at : null, ctx.source, ctx.correlationId, userId, goalId],
         );
       });
-      return this.readGoalState(session);
+      return this.readGoalState(session, "12m", true);
     },
   };
 }

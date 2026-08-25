@@ -1,23 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Bell, CheckCircle2, ChevronDown, Clock3, EyeOff, FileSearch, Settings2, ShieldAlert, SlidersHorizontal, Sparkles, Trophy, TrendingUp } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, Clock3, Settings2, ShieldAlert, SlidersHorizontal, Sparkles, TrendingUp } from "lucide-react";
 import type { DailyReviewFinding, DailyReviewHistoryRecord, DailyReviewSettings } from "@/lib/aiCfoDailyReview";
-import { buildBriefingHeadline, buildExecutiveSummary, buildSystemHealthSummary, getReviewDirection, selectFeaturedFinding, selectFinancialWins, selectPriorityActions } from "@/lib/dailyReviewPresentation";
-
-const sectionMap: Array<{ title: string; test: (finding: DailyReviewFinding) => boolean }> = [
-  { title: "Needs attention", test: (finding) => ["Critical", "High"].includes(finding.priority) && !["positive-change", "goal-improvement"].includes(finding.type) },
-  { title: "Opportunities", test: (finding) => finding.type === "opportunity" },
-  { title: "Positive progress", test: (finding) => finding.type === "positive-change" || finding.type === "goal-improvement" },
-  { title: "Upcoming deadlines", test: (finding) => Boolean(finding.deadline) },
-  { title: "Missing or stale information", test: (finding) => finding.type === "missing-data" || finding.type === "stale-data" },
-];
-
-function money(value: number): string {
-  const sign = value < 0 ? "-" : "+";
-  return `${sign}$${Math.abs(Math.round(value)).toLocaleString()}`;
-}
+import { buildSystemHealthSummary } from "@/lib/dailyReviewPresentation";
+import { buildFindingDisplay, findingEvidenceFact, findingIsPositive } from "@/lib/dailyReviewDisplay";
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -53,36 +41,28 @@ function confidenceClass(label: string): string {
   return "border-red-200 bg-red-50 text-red-700";
 }
 
-function priorityClass(label: string): string {
-  if (label === "Critical") return "border-red-200 bg-red-50 text-red-700";
-  if (label === "High") return "border-orange-200 bg-orange-50 text-orange-700";
-  if (label === "Medium") return "border-blue-200 bg-blue-50 text-blue-700";
-  return "border-slate-200 bg-slate-50 text-slate-700";
-}
-
 function findingBorderClass(finding: DailyReviewFinding): string {
+  if (findingIsPositive(finding)) return "border-l-emerald-500";
   if (finding.priority === "Critical") return "border-l-red-500";
   if (finding.priority === "High") return "border-l-amber-500";
-  if (finding.type === "positive-change" || finding.type === "goal-improvement") return "border-l-emerald-500";
   if (finding.type === "opportunity") return "border-l-blue-500";
   return "border-l-slate-300";
 }
 
-function daypart(timestamp: string) {
-  const date = new Date(timestamp);
-  const hour = Number(new Intl.DateTimeFormat("en-AU", {
-    timeZone: "Australia/Sydney",
-    hour: "2-digit",
-    hourCycle: "h23",
-  }).format(date));
-
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+function findingStatusClass(finding: DailyReviewFinding): string {
+  if (findingIsPositive(finding)) return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (finding.type === "risk" || finding.type === "negative-change" || finding.type === "missing-data" || finding.type === "stale-data") return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-blue-200 bg-blue-50 text-blue-700";
 }
 
-function ConfidenceIndicator({ confidence }: { confidence: DailyReviewFinding["confidence"] }) {
-  return <span className={`inline-flex min-h-7 items-center rounded-full border px-2.5 text-xs font-semibold ${confidenceClass(confidence)}`}>{confidence} confidence</span>;
+function attributionChange(label: string, value: number): string {
+  const direction = value < 0 ? "lower" : value > 0 ? "higher" : "unchanged";
+  const magnitude = Math.abs(value);
+  if (/rate/i.test(label)) return `${magnitude.toFixed(2)} percentage points ${direction}`;
+  if (/coverage|score|progress/i.test(label)) return `${Math.round(magnitude).toLocaleString("en-AU")} points ${direction}`;
+  const amount = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 }).format(magnitude);
+  const cadence = /cash flow|income|spending/i.test(label) ? " per year" : "";
+  return `${amount}${cadence} ${direction}`;
 }
 
 function ReviewStatusBanner({ record }: { record: DailyReviewHistoryRecord }) {
@@ -101,88 +81,6 @@ function ReviewStatusBanner({ record }: { record: DailyReviewHistoryRecord }) {
           </div>
         </div>
       </div>
-    </section>
-  );
-}
-
-function FeaturedFinding({ finding }: { finding: DailyReviewFinding | null }) {
-  if (!finding) {
-    return (
-      <div className="rounded-lg border border-l-4 border-emerald-200 border-l-emerald-500 bg-white p-4">
-        <div className="text-sm font-semibold text-emerald-800">Stable</div>
-        <h2 className="mt-1 text-lg font-semibold text-slate-950">No action needs attention.</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">No deterministic finding crossed the configured materiality threshold.</p>
-      </div>
-    );
-  }
-
-  return (
-    <article className={`rounded-lg border border-l-4 border-slate-200 bg-white p-4 ${findingBorderClass(finding)}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-slate-500">{finding.category.replaceAll("-", " ")}</div>
-          <h2 className="mt-1 text-lg font-semibold text-slate-950">{finding.title}</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{finding.whyItMatters}</p>
-        </div>
-        <ConfidenceIndicator confidence={finding.confidence} />
-      </div>
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="text-sm text-slate-500">Financial impact</div>
-          <div className="mt-1 text-2xl font-semibold tracking-normal text-slate-950 tabular-nums">{finding.expectedImpact}</div>
-        </div>
-        <Link href={finding.actionHref} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#10243b] px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-          {finding.actionLabel}
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
-      </div>
-    </article>
-  );
-}
-
-function PriorityActionCard({ finding }: { finding: DailyReviewFinding }) {
-  return (
-    <article className={`flex min-h-[178px] flex-col rounded-lg border border-l-4 border-slate-200 bg-white p-4 transition duration-150 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_16px_32px_rgba(15,23,42,0.08)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${findingBorderClass(finding)}`}>
-      <div className="flex items-start justify-between gap-3">
-        <span className={`inline-flex min-h-7 items-center rounded-full border px-2.5 text-xs font-semibold ${priorityClass(finding.priority)}`}>{finding.priority}</span>
-        <ConfidenceIndicator confidence={finding.confidence} />
-      </div>
-      <h3 className="mt-3 text-base font-semibold leading-6 text-slate-950">{finding.title}</h3>
-      <div className="mt-3 grid gap-2 text-sm">
-        <div>
-          <div className="text-slate-500">Potential effect</div>
-          <div className="font-semibold text-slate-950 tabular-nums">{finding.expectedImpact}</div>
-        </div>
-        <div className="text-slate-600">{finding.deadline ? `Deadline ${finding.deadline}` : "Estimated effort 10 minutes"}</div>
-      </div>
-      <Link href={finding.actionHref} className="mt-auto inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#10243b] px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-        {finding.actionLabel}
-        <ArrowRight className="h-4 w-4" aria-hidden="true" />
-      </Link>
-    </article>
-  );
-}
-
-function FinancialWinsList({ wins }: { wins: DailyReviewFinding[] }) {
-  if (wins.length === 0) return null;
-
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-slate-950">
-          <Trophy className="h-4 w-4 text-emerald-700" aria-hidden="true" />
-          Financial wins
-        </h2>
-        {wins.length > 3 && <Link href="#positive-progress" className="text-sm font-semibold text-blue-700">View all progress</Link>}
-      </div>
-      <ul className="mt-3 grid gap-2 text-sm leading-6 text-slate-700 md:grid-cols-3">
-        {wins.slice(0, 3).map((win) => (
-          <li key={win.id} className="flex items-start gap-2">
-            <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
-            <span><span className="font-semibold text-slate-950">{win.title}</span> <span className="text-slate-500">{win.expectedImpact}</span></span>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }
@@ -254,11 +152,22 @@ function SystemHealthDisclosure({
   );
 }
 
-function FindingCard({ finding }: { finding: DailyReviewFinding }) {
-  const [open, setOpen] = useState(false);
+function FindingCard({
+  finding,
+  comparisonStartDate,
+  comparisonEndDate,
+  selected = false,
+}: {
+  finding: DailyReviewFinding;
+  comparisonStartDate: string;
+  comparisonEndDate: string;
+  selected?: boolean;
+}) {
+  const [open, setOpen] = useState(selected);
   const detailId = `finding-detail-${finding.id}`;
+  const display = buildFindingDisplay(finding, comparisonStartDate, comparisonEndDate);
   return (
-    <article className={`rounded-lg border border-l-4 border-slate-200 bg-white p-4 shadow-[0_12px_34px_rgba(15,23,42,0.035)] ${findingBorderClass(finding)}`}>
+    <article id={`finding-${finding.id}`} data-testid={selected ? "daily-review-selected-finding" : "daily-review-finding"} className={`scroll-mt-6 rounded-lg border border-l-4 bg-white p-4 ${selected ? "border-blue-300 shadow-[0_16px_40px_rgba(37,99,235,0.10)]" : "border-slate-200 shadow-[0_12px_34px_rgba(15,23,42,0.035)]"} ${findingBorderClass(finding)}`}>
       <button
         type="button"
         aria-expanded={open}
@@ -269,13 +178,13 @@ function FindingCard({ finding }: { finding: DailyReviewFinding }) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap gap-2">
-              <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${priorityClass(finding.priority)}`}>{finding.priority}</span>
+              <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${findingStatusClass(finding)}`}>{display.statusLabel}</span>
               <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${confidenceClass(finding.confidence)}`}>{finding.confidence}</span>
-              {finding.professionalReviewRequired && <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Professional review</span>}
+              {finding.professionalReviewRequired && <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">Estimate only</span>}
             </div>
             <div className="mt-3 text-xs font-semibold uppercase text-slate-500">{finding.category.replaceAll("-", " ")} - {finding.type.replaceAll("-", " ")}</div>
-            <h3 className="mt-1 text-base font-semibold text-slate-950">{finding.title}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{finding.summary}</p>
+            <h3 className="mt-1 text-base font-semibold text-slate-950">{display.title}</h3>
+            <p className="mt-2 text-xs leading-5 text-slate-500">{display.timeBasis}</p>
           </div>
           <ChevronDown className={`h-5 w-5 shrink-0 text-slate-400 transition duration-150 motion-reduce:transition-none ${open ? "rotate-180" : ""}`} aria-hidden="true" />
         </div>
@@ -283,9 +192,9 @@ function FindingCard({ finding }: { finding: DailyReviewFinding }) {
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         {[
-          ["Impact", finding.expectedImpact],
-          ["Previous", finding.previousValue.toLocaleString()],
-          ["Current", finding.currentValue.toLocaleString()],
+          ["Change", display.changeLabel],
+          [display.previousLabel, display.previousValue],
+          [display.currentLabel, display.currentValue],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <div className="text-[11px] font-semibold uppercase text-slate-500">{label}</div>
@@ -307,12 +216,15 @@ function FindingCard({ finding }: { finding: DailyReviewFinding }) {
           <section className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="text-sm font-semibold text-slate-950">Why it matters</div>
             <p className="mt-2 text-sm leading-6 text-slate-600">{finding.whyItMatters}</p>
-            <div className="mt-4 text-sm font-semibold text-slate-950">Attribution</div>
+            <div className="mt-4 text-sm font-semibold text-slate-950">Inputs compared</div>
+            {finding.category === "borrowing" && (
+              <p className="mt-1 text-xs leading-5 text-slate-500">These recorded inputs were compared by the affordability engine. The result is an estimate, not a lender decision.</p>
+            )}
             <div className="mt-2 space-y-2">
               {finding.attribution.map((item) => (
                 <div key={item.label} className="flex items-center justify-between gap-3 rounded-md bg-white px-3 py-2 text-sm">
                   <span className="font-medium text-slate-700">{item.label}</span>
-                  <span className="font-semibold text-slate-950">{money(item.change)}</span>
+                  <span className="font-semibold text-slate-950">{attributionChange(item.label, item.change)}</span>
                 </div>
               ))}
             </div>
@@ -323,7 +235,7 @@ function FindingCard({ finding }: { finding: DailyReviewFinding }) {
               {finding.evidence.map((item) => (
                 <div key={`${item.sourceId}-${item.factUsed}`} className="rounded-md bg-white p-3">
                   <div className="text-sm font-semibold text-slate-950">{item.sourceTitle}</div>
-                  <div className="mt-1 text-xs leading-5 text-slate-600">{item.factUsed}</div>
+                  <div className="mt-1 text-xs leading-5 text-slate-600">{findingEvidenceFact(finding, item.factUsed)}</div>
                   <div className="mt-2 text-[11px] font-semibold uppercase text-slate-500">{item.classification} - verified {formatDate(item.lastVerifiedAt)}</div>
                 </div>
               ))}
@@ -342,69 +254,42 @@ export default function DailyReviewClient({
   record,
   settings,
   lastSuccessfulReviewAt,
+  selectedFindingId,
 }: {
   record: DailyReviewHistoryRecord;
   settings: DailyReviewSettings;
   lastSuccessfulReviewAt: string | null;
+  selectedFindingId?: string;
 }) {
   const { review, previousSnapshot, currentSnapshot } = record;
   const [showSettings, setShowSettings] = useState(false);
   const isDemo = currentSnapshot.sourceMode === "demo";
-  const sections = useMemo(() => sectionMap.map((section) => ({ ...section, findings: review.findings.filter(section.test) })), [review.findings]);
+  const selectedFinding = review.findings.find((finding) => finding.id === selectedFindingId) ?? null;
+  const visibleFindings = selectedFinding ? review.findings.filter((finding) => finding.id !== selectedFinding.id) : review.findings;
   const categoriesEnabled = settings.enabledCategories.length;
   const lowConfidenceInputs = review.findings.filter((finding) => finding.confidence === "Low").length;
   const professionalItems = review.findings.filter((finding) => finding.professionalReviewRequired).length;
-  const featuredFinding = useMemo(() => selectFeaturedFinding(review.findings), [review.findings]);
-  const topActions = useMemo(() => selectPriorityActions(review.findings, 3), [review.findings]);
-  const wins = useMemo(() => selectFinancialWins(review.findings, review.findings.length), [review.findings]);
-  const briefingHeadline = buildBriefingHeadline(record);
-  const executiveSummary = buildExecutiveSummary(record);
-  const direction = getReviewDirection(record);
-  const directionText = direction === "partial" ? "Partial review" : direction === "stable" ? "Stable" : direction === "improved" ? "Improved" : direction === "deteriorated" ? "Deteriorated" : "Mixed";
+  const positiveCount = review.findings.filter((finding) => finding.type === "positive-change" || finding.type === "goal-improvement").length;
+  const attentionCount = review.findings.length - positiveCount;
   const reviewPeriod = `${review.comparisonStartDate} to ${review.comparisonEndDate}`;
 
   return (
     <div className="mx-auto max-w-[1360px] space-y-6">
       <ReviewStatusBanner record={record} />
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.045)] sm:p-5 lg:min-h-[calc(100vh-56px)] lg:p-6">
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-              <span className="inline-flex items-center gap-2 font-semibold text-blue-700">
-                <Sparkles className="h-4 w-4 fill-blue-600 text-blue-600" aria-hidden="true" />
-                Daily Financial Brief
-              </span>
-              <span aria-hidden="true">/</span>
-              <span>{reviewPeriod}</span>
-              <span aria-hidden="true">/</span>
-              <span>Fresh {formatDateTime(currentSnapshot.capturedAt)}</span>
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-slate-600">{daypart(currentSnapshot.capturedAt)}, Alex - {directionText}</div>
-              <h1 className="mt-2 max-w-3xl text-2xl font-semibold leading-8 tracking-normal text-slate-950 sm:text-3xl">{briefingHeadline}</h1>
-              <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">{executiveSummary}</p>
-              {isDemo && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">Demo review data. These findings are not live Financial Vault findings.</div>}
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Link href="#full-findings" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#10243b] px-4 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-                Review all changes
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-              <Link href="#evidence" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-                View full evidence
-              </Link>
-            </div>
-          </div>
-
-          <FeaturedFinding finding={featuredFinding} />
+      <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6">
+        <Link href="/" className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-blue-700">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to Dashboard
+        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+          <span className="inline-flex items-center gap-2 font-semibold text-blue-700"><Sparkles className="h-4 w-4" aria-hidden="true" />Daily Review</span>
+          <span aria-hidden="true">·</span>
+          <span>{reviewPeriod}</span>
         </div>
-
-        {topActions.length > 0 && (
-          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {topActions.map((finding) => <PriorityActionCard key={finding.id} finding={finding} />)}
-          </div>
-        )}
+        <h1 className="mt-3 text-2xl font-semibold text-slate-950 sm:text-3xl">Daily Review</h1>
+        <p className="mt-2 text-sm text-slate-600">{review.findings.length} distinct changes · {attentionCount} need attention · {positiveCount} positive · Updated {formatDateTime(currentSnapshot.capturedAt)}</p>
+        {isDemo && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">Demo review data. These findings are not live Financial Vault findings.</div>}
       </section>
 
       {review.findings.length === 0 && review.failures.length === 0 && (
@@ -419,58 +304,22 @@ export default function DailyReviewClient({
         </section>
       )}
 
-      <FinancialWinsList wins={wins} />
+      {selectedFinding && (
+        <section aria-label="Selected finding">
+          <FindingCard finding={selectedFinding} comparisonStartDate={review.comparisonStartDate} comparisonEndDate={review.comparisonEndDate} selected />
+        </section>
+      )}
+
+      {visibleFindings.length > 0 && (
+        <section id="full-findings" className="space-y-3">
+          <h2 className="text-xl font-semibold text-slate-950">{selectedFinding ? "Other changes in this review" : "Changes in this review"}</h2>
+          {visibleFindings.map((finding) => (
+            <FindingCard key={finding.id} finding={finding} comparisonStartDate={review.comparisonStartDate} comparisonEndDate={review.comparisonEndDate} />
+          ))}
+        </section>
+      )}
 
       <SystemHealthDisclosure record={record} categoriesEnabled={categoriesEnabled} lowConfidenceInputs={lowConfidenceInputs} professionalItems={professionalItems} lastSuccessfulReviewAt={lastSuccessfulReviewAt} />
-
-      <div id="full-findings" className="space-y-6">
-      {sections.map((section) => section.findings.length > 0 && (
-        <section key={section.title} id={section.title === "Positive progress" ? "positive-progress" : undefined} className="space-y-3">
-          <h2 className="text-xl font-semibold text-slate-950">{section.title}</h2>
-          {section.findings.map((finding) => <FindingCard key={finding.id} finding={finding} />)}
-        </section>
-      ))}
-      </div>
-
-      <section id="evidence" className="grid gap-5 xl:grid-cols-2">
-        <article className="rounded-lg border border-slate-200 bg-white p-5">
-          <div className="flex items-center gap-2 text-lg font-semibold text-slate-950">
-            <FileSearch className="h-5 w-5 text-blue-600" />
-            Evidence
-          </div>
-          <div className="mt-4 space-y-3">
-            {review.findings.flatMap((finding) => finding.evidence.map((item) => ({ finding, item }))).slice(0, 10).map(({ finding, item }) => (
-              <div key={`${finding.id}-${item.sourceId}`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="text-sm font-semibold text-slate-950">{item.sourceTitle}</div>
-                <div className="mt-1 text-xs leading-5 text-slate-600">{item.factUsed}</div>
-                <div className="mt-2 text-[11px] font-semibold uppercase text-slate-500">Affects {finding.title} - {item.classification} - {item.confidence}</div>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="rounded-lg border border-slate-200 bg-white p-5">
-          <div className="flex items-center gap-2 text-lg font-semibold text-slate-950">
-            <Bell className="h-5 w-5 text-blue-600" />
-            Suppressed changes
-          </div>
-          {review.suppressedFindings.length === 0 ? (
-            <div className="mt-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              <EyeOff className="mt-0.5 h-4 w-4 shrink-0" />
-              No duplicate, snoozed, expected, muted or low-evidence findings were suppressed in this run.
-            </div>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {review.suppressedFindings.map((finding) => (
-                <div key={finding.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <div className="text-sm font-semibold text-slate-950">{finding.title}</div>
-                  <div className="mt-1 text-xs text-slate-500">{finding.suppressionReason}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </article>
-      </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-5">
         <div className="flex items-center gap-2 text-lg font-semibold text-slate-950">

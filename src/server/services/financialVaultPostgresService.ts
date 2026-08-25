@@ -22,6 +22,34 @@ if (typeof window !== "undefined") {
 
 export type FinancialVaultService = ReturnType<typeof createFinancialVaultPostgresService>;
 
+export type PropertyPositionInput = {
+  address: string;
+  addressId?: string;
+  addressLocality?: string;
+  addressState?: string;
+  addressPostcode?: string;
+  addressSource: "manual" | "geoscape-gnaf";
+  propertyType: string;
+  ownership: string;
+  primaryUse: string;
+  estimatedValue: number;
+  purchaseDate?: string;
+  rentalIncome: boolean;
+  rentalIncomeAmount?: number;
+  rentalIncomeFrequency?: string;
+  hasMortgage: boolean;
+  lender?: string;
+  loanBalance?: number;
+  interestRate?: number;
+  repaymentAmount?: number;
+  repaymentFrequency?: string;
+  repaymentType?: string;
+  rateType?: string;
+  offsetBalance?: number;
+  documentIds: string[];
+  idempotencyKey: string;
+};
+
 type VaultImportEnvelope = {
   ingestion: IngestionRecord;
   preview: ImportPreview | null;
@@ -303,6 +331,126 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
     );
   }
 
+  async function manualFact(ctx: ScopedRepositoryContext, kind: "asset" | "liability", entityKey: string) {
+    const userId = await scope(ctx);
+    const result = await scopedDb(ctx).query<{ id: string; version: number; record: CanonicalFinancialRecord }>(
+      `select id, version, fact_value as record
+       from financial_facts
+       where user_id = $1
+         and fact_type = $2
+         and source = 'financial-vault-manual'
+         and fact_value->'value'->>'entityKey' = $3
+       order by updated_at desc
+       limit 1
+       for update`,
+      [userId, kind, entityKey],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async function verifiedDocumentIds(ctx: ScopedRepositoryContext, documentIds: string[]): Promise<string[]> {
+    const requested = [...new Set(documentIds)].slice(0, 20);
+    if (!requested.length) return [];
+    if (requested.some((id) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))) {
+      throw new FinancialVaultPersistenceError("VALIDATION_FAILED", "One or more supporting documents are invalid.", 422);
+    }
+    const userId = await scope(ctx);
+    const result = await scopedDb(ctx).query<{ id: string }>(
+      `select id from documents where user_id = $1 and id = any($2::uuid[])`,
+      [userId, requested],
+    );
+    const owned = new Set(result.rows.map((row) => row.id));
+    if (requested.some((id) => !owned.has(id))) {
+      throw new FinancialVaultPersistenceError("NOT_FOUND", "A selected supporting document is no longer available.", 404);
+    }
+    return requested;
+  }
+
+  async function linkManualEvidence(ctx: ScopedRepositoryContext, factId: string, entityKey: string, documentIds: string[]): Promise<string[]> {
+    const userId = await scope(ctx);
+    const evidenceIds: string[] = [];
+    for (const documentId of documentIds) {
+      const result = await scopedDb(ctx).query<{ id: string }>(
+        `insert into evidence(user_id, evidence_type, source_ref, document_id, fact_id, verification_status, confidence, immutable, source, correlation_id)
+         values ($1, 'manual-profile-support', $2, $3, $4, 'UserLinked', 1, true, 'financial-vault-manual', $5)
+         returning id`,
+        [userId, `${entityKey}:${documentId}`, documentId, factId, ctx.correlationId],
+      );
+      if (result.rows[0]) evidenceIds.push(result.rows[0].id);
+    }
+    return evidenceIds;
+  }
+
+  async function upsertManualFact(ctx: ScopedRepositoryContext, input: {
+    kind: "asset" | "liability";
+    subtype: string;
+    label: string;
+    entityKey: string;
+    value: Record<string, unknown>;
+    documentIds: string[];
+  }): Promise<CanonicalFinancialRecord> {
+    const existing = await manualFact(ctx, input.kind, input.entityKey);
+    const userId = await scope(ctx);
+    const generated = new ManualFinancialDataPlatform().manualRecord(userId, {
+      kind: input.kind,
+      subtype: input.subtype,
+      label: input.label,
+      value: { ...input.value, entityKey: input.entityKey, sourceDocumentIds: input.documentIds },
+      approximate: false,
+    });
+    const at = new Date().toISOString();
+    const record: CanonicalFinancialRecord = existing
+      ? {
+          ...generated,
+          id: existing.record.id,
+          createdAt: existing.record.createdAt,
+          updatedAt: at,
+          history: [...existing.record.history, { at, action: "edited", before: existing.record.value, after: generated.value }],
+        }
+      : generated;
+    const fact = existing
+      ? await scopedDb(ctx).query<{ id: string; version: number }>(
+          `update financial_facts
+           set fact_value = $1::jsonb, confidence = $2, verified = true, source_document_id = $3,
+               version = version + 1, updated_at = now(), source = 'financial-vault-manual', correlation_id = $4
+           where id = $5 and user_id = $6 and version = $7
+           returning id, version`,
+          [JSON.stringify(record), record.provenance.confidence, input.documentIds[0] ?? null, ctx.correlationId, existing.id, userId, existing.version],
+        )
+      : await scopedDb(ctx).query<{ id: string; version: number }>(
+          `insert into financial_facts(user_id, fact_type, fact_value, confidence, verified, sensitivity, source_document_id, source, correlation_id)
+           values ($1, $2, $3::jsonb, $4, true, 'asset-debt', $5, 'financial-vault-manual', $6)
+           returning id, version`,
+          [userId, input.kind, JSON.stringify(record), record.provenance.confidence, input.documentIds[0] ?? null, ctx.correlationId],
+        );
+    if (!fact.rows[0]) throw new FinancialVaultPersistenceError("CONFLICT", "This financial record changed in another session. Review it and try again.", 409, true);
+    const evidenceIds = await linkManualEvidence(ctx, fact.rows[0].id, input.entityKey, input.documentIds);
+    await insertFactVersion(ctx, fact.rows[0].id, fact.rows[0].version, record, record.provenance.confidence, true, existing ? "Current financial position updated by the user." : "Current financial position confirmed by the user.", evidenceIds);
+    return record;
+  }
+
+  async function retireManualFact(ctx: ScopedRepositoryContext, kind: "asset" | "liability", entityKey: string): Promise<void> {
+    const existing = await manualFact(ctx, kind, entityKey);
+    if (!existing || existing.record.superseded) return;
+    const userId = await scope(ctx);
+    const at = new Date().toISOString();
+    const record: CanonicalFinancialRecord = {
+      ...existing.record,
+      updatedAt: at,
+      superseded: true,
+      history: [...existing.record.history, { at, action: "superseded", before: existing.record.value, after: null }],
+    };
+    const result = await scopedDb(ctx).query<{ id: string; version: number }>(
+      `update financial_facts
+       set fact_value = $1::jsonb, version = version + 1, updated_at = now(), correlation_id = $2
+       where id = $3 and user_id = $4 and version = $5
+       returning id, version`,
+      [JSON.stringify(record), ctx.correlationId, existing.id, userId, existing.version],
+    );
+    if (!result.rows[0]) throw new FinancialVaultPersistenceError("CONFLICT", "This financial record changed in another session. Review it and try again.", 409, true);
+    await insertFactVersion(ctx, result.rows[0].id, result.rows[0].version, record, record.provenance.confidence, true, "Mortgage removed from the current financial position.");
+  }
+
   return {
     contextFromSession,
     toSafeError: toFinancialVaultSafeError,
@@ -384,6 +532,39 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
             await insertFactVersion(ctx, fact.rows[0].id, fact.rows[0].version, { key, value, documentId: doc.id }, analysis.confidence, true, "Document extraction approved into Financial Vault.");
           }
         }
+        return rebuildVaultFromDocuments(await documentRows(ctx));
+      });
+    },
+    async reviewDocument(session: AuthenticatedSession, input: { documentId: string; estimatedAnnualIncomeAfterTax: number; subscriptions: Array<{ name: string; monthlyAmount: number; approved: boolean }> }, correlationId: string = randomUUID()): Promise<FinancialVaultState> {
+      return withScopedTransaction(contextFromSession(session, correlationId), async (ctx) => {
+        const userId = await scope(ctx);
+        const document = await scopedDb(ctx).query<{ id: string }>("select id from documents where id = $1 and user_id = $2", [input.documentId, userId]);
+        if (!document.rows[0]) throw new FinancialVaultPersistenceError("NOT_FOUND", "The selected Vault document was not found.", 404);
+        const extraction = await scopedDb(ctx).query<{ id: string; proposedFacts: DocumentExtractionPayload }>(
+          `select id, proposed_facts as "proposedFacts" from document_extractions where document_id = $1 and user_id = $2 order by created_at desc limit 1`,
+          [input.documentId, userId],
+        );
+        const current = extraction.rows[0];
+        if (!current) throw new FinancialVaultPersistenceError("NOT_FOUND", "No extraction exists for the selected document.", 404);
+        const estimatedGrossAnnualIncome = Math.round((input.estimatedAnnualIncomeAfterTax / 0.73) * 100) / 100;
+        const recurringSubscriptions = Math.round(input.subscriptions.filter((item) => item.approved).reduce((sum, item) => sum + item.monthlyAmount, 0) * 100) / 100;
+        const nextPayload: DocumentExtractionPayload = {
+          ...current.proposedFacts,
+          uploadedDocument: { ...current.proposedFacts.uploadedDocument, status: "extracted", reviewedSubscriptions: input.subscriptions },
+          values: { ...current.proposedFacts.values, incomeAnnual: estimatedGrossAnnualIncome, incomeMonthly: Math.round((estimatedGrossAnnualIncome / 12) * 100) / 100, recurringSubscriptions },
+        };
+        await scopedDb(ctx).query(
+          `update document_extractions set proposed_facts = $1::jsonb, status = 'extracted', updated_at = now() where id = $2 and user_id = $3`,
+          [JSON.stringify(nextPayload), current.id, userId],
+        );
+        await scopedDb(ctx).query("update documents set status = 'extracted', updated_at = now() where id = $1 and user_id = $2", [input.documentId, userId]);
+        for (const [key, value] of Object.entries({ incomeAnnual: estimatedGrossAnnualIncome, incomeMonthly: Math.round((estimatedGrossAnnualIncome / 12) * 100) / 100, recurringSubscriptions })) {
+          await scopedDb(ctx).query(
+            `update financial_facts set fact_value = $1::jsonb, verified = true, version = version + 1, updated_at = now(), correlation_id = $2 where user_id = $3 and source_document_id = $4 and fact_type = $5`,
+            [JSON.stringify({ key, value, documentId: input.documentId }), ctx.correlationId, userId, input.documentId, key],
+          );
+        }
+        await scopedDb(ctx).query("update evidence set verification_status = 'Verified', updated_at = now(), correlation_id = $1 where user_id = $2 and document_id = $3", [ctx.correlationId, userId, input.documentId]);
         return rebuildVaultFromDocuments(await documentRows(ctx));
       });
     },
@@ -533,6 +714,84 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
         );
         if (fact.rows[0]) await insertFactVersion(ctx, fact.rows[0].id, fact.rows[0].version, record, record.provenance.confidence, true, "Manual Financial Vault fact created.");
         return record;
+      });
+    },
+    async savePropertyPosition(session: AuthenticatedSession, input: PropertyPositionInput, correlationId: string = randomUUID()): Promise<{ property: CanonicalFinancialRecord; mortgage: CanonicalFinancialRecord | null }> {
+      return withScopedTransaction(contextFromSession(session, correlationId), async (ctx) => {
+        await initializeProfile(ctx);
+        if (!input.idempotencyKey.trim()) {
+          throw new FinancialVaultPersistenceError("VALIDATION_FAILED", "A save request key is required.", 422);
+        }
+        const address = input.address.trim();
+        if (!address || !Number.isFinite(input.estimatedValue) || input.estimatedValue <= 0) {
+          throw new FinancialVaultPersistenceError("VALIDATION_FAILED", "Property address and a positive estimated value are required.", 422);
+        }
+        if (input.hasMortgage && (!input.lender?.trim() || !Number.isFinite(input.loanBalance) || Number(input.loanBalance) < 0)) {
+          throw new FinancialVaultPersistenceError("VALIDATION_FAILED", "Mortgage lender and a valid outstanding balance are required.", 422);
+        }
+        if (input.rentalIncome && (!Number.isFinite(input.rentalIncomeAmount) || Number(input.rentalIncomeAmount) <= 0 || !input.rentalIncomeFrequency?.trim())) {
+          throw new FinancialVaultPersistenceError("VALIDATION_FAILED", "A positive rent amount and payment frequency are required when this property earns rental income.", 422);
+        }
+        const replay = await assertIdempotency(ctx, "financial-vault.property-position.save", input.idempotencyKey, { ...input, idempotencyKey: undefined });
+        const entityKey = `property:${input.addressId?.trim() || createHash("sha256").update(address.toLowerCase()).digest("hex").slice(0, 24)}`;
+        const mortgageKey = `mortgage:${entityKey}`;
+        await scopedDb(ctx).query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [`${ctx.session.userId}:${entityKey}`]);
+        if (replay === "replay") {
+          const property = await manualFact(ctx, "asset", entityKey);
+          const mortgage = await manualFact(ctx, "liability", mortgageKey);
+          if (!property) throw new FinancialVaultPersistenceError("NOT_FOUND", "The saved property could not be found.", 404);
+          return { property: property.record, mortgage: mortgage?.record.superseded ? null : mortgage?.record ?? null };
+        }
+        const documentIds = await verifiedDocumentIds(ctx, input.documentIds);
+        const property = await upsertManualFact(ctx, {
+          kind: "asset",
+          subtype: "property",
+          label: address,
+          entityKey,
+          documentIds,
+          value: {
+            address,
+            addressId: input.addressId ?? "",
+            locality: input.addressLocality ?? "",
+            state: input.addressState ?? "",
+            postcode: input.addressPostcode ?? "",
+            addressSource: input.addressSource,
+            propertyType: input.propertyType,
+            ownership: input.ownership,
+            primaryUse: input.primaryUse,
+            marketValue: input.estimatedValue,
+            purchaseDate: input.purchaseDate ?? "",
+            rentalIncome: input.rentalIncome,
+            rentalIncomeAmount: input.rentalIncome ? Number(input.rentalIncomeAmount) : 0,
+            rentalIncomeFrequency: input.rentalIncome ? input.rentalIncomeFrequency : "",
+            currency: "AUD",
+          },
+        });
+        let mortgage: CanonicalFinancialRecord | null = null;
+        if (input.hasMortgage) {
+          mortgage = await upsertManualFact(ctx, {
+            kind: "liability",
+            subtype: "mortgage",
+            label: `${input.lender!.trim()} mortgage – ${address}`,
+            entityKey: mortgageKey,
+            documentIds,
+            value: {
+              propertyEntityKey: entityKey,
+              lender: input.lender!.trim(),
+              balance: Number(input.loanBalance),
+              interestRate: Number(input.interestRate ?? 0),
+              repaymentAmount: Number(input.repaymentAmount ?? 0),
+              repaymentFrequency: input.repaymentFrequency ?? "Monthly",
+              repaymentType: input.repaymentType ?? "Principal and interest",
+              rateType: input.rateType ?? "Variable",
+              offsetBalance: Number(input.offsetBalance ?? 0),
+              currency: "AUD",
+            },
+          });
+        } else {
+          await retireManualFact(ctx, "liability", mortgageKey);
+        }
+        return { property, mortgage };
       });
     },
   };

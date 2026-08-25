@@ -295,6 +295,10 @@ function money(value: number): string {
   return `${sign}$${Math.abs(Math.round(value)).toLocaleString()}`;
 }
 
+function moneyMagnitude(value: number): string {
+  return `$${Math.abs(Math.round(value)).toLocaleString()}`;
+}
+
 function pct(previousValue: number, currentValue: number): number {
   if (previousValue === 0) return currentValue === 0 ? 0 : 100;
   return ((currentValue - previousValue) / Math.abs(previousValue)) * 100;
@@ -502,7 +506,7 @@ export function compareDailySnapshots(previous: DailyReviewSnapshot, current: Da
       type: netWorthChange >= 0 ? "positive-change" : "negative-change",
       severity: severityFromChange(netWorthChange, 15_000, 50_000),
       priority: priorityFromScore(priorityScore({ impact: netWorthChange, urgency: 2, riskReduction: netWorthChange >= 0 ? 2 : 5, confidence: "High", reversibility: 4, timeSensitivity: 2, goalRelevance: 5, effortRequired: 2, professionalReviewRequired: false })),
-      title: `Net worth ${netWorthChange >= 0 ? "increased" : "decreased"} by ${money(netWorthChange)}`,
+      title: `Net worth ${netWorthChange >= 0 ? "increased" : "decreased"} by ${moneyMagnitude(netWorthChange)}`,
       summary: `Net worth moved from ${money(previous.netWorth)} to ${money(current.netWorth)}.`,
       whyItMatters: "Net worth movement affects balance-sheet trajectory, goal confidence and borrowing flexibility.",
       previousValue: previous.netWorth,
@@ -532,7 +536,7 @@ export function compareDailySnapshots(previous: DailyReviewSnapshot, current: Da
       type: current.income <= 0 ? "missing-data" : incomeChange >= 0 ? "positive-change" : "negative-change",
       severity: current.income <= 0 ? "Critical" : severityFromChange(incomeChange, 10_000, 35_000),
       priority: priorityFromScore(priorityScore({ impact: incomeChange, urgency: current.income <= 0 ? 9 : 6, riskReduction: current.income <= 0 || incomeChange < 0 ? 8 : 3, confidence: "High", reversibility: 6, timeSensitivity: 8, goalRelevance: 8, effortRequired: 3, professionalReviewRequired: false })),
-      title: current.income <= 0 ? "Verified salary is missing" : `Verified income ${incomeChange >= 0 ? "increased" : "fell"} by ${money(incomeChange)}`,
+      title: current.income <= 0 ? "Verified salary is missing" : `Verified annual income ${incomeChange >= 0 ? "increased" : "decreased"} by ${moneyMagnitude(incomeChange)}`,
       summary: current.income <= 0 ? "The current snapshot has no verified salary value." : `Income moved from ${money(previous.income)} to ${money(current.income)}.`,
       whyItMatters: "Income changes feed cash flow, tax assumptions, borrowing capacity, retirement projections and goal timing.",
       previousValue: previous.income,
@@ -562,16 +566,16 @@ export function compareDailySnapshots(previous: DailyReviewSnapshot, current: Da
       type: current.cashFlowSurplus < 0 ? "risk" : cashFlowChange >= 0 ? "positive-change" : "negative-change",
       severity: severityFromChange(cashFlowChange, 1_000, 4_000),
       priority: priorityFromScore(priorityScore({ impact: cashFlowChange, urgency: current.cashFlowSurplus < 0 ? 8 : 4, riskReduction: current.cashFlowSurplus < 0 ? 8 : 3, confidence: "High", reversibility: 8, timeSensitivity: 6, goalRelevance: 7, effortRequired: 3, professionalReviewRequired: false })),
-      title: `Cash flow surplus ${cashFlowChange >= 0 ? "improved" : "fell"} by ${money(cashFlowChange)}`,
-      summary: `Surplus changed from ${money(previous.cashFlowSurplus)} to ${money(current.cashFlowSurplus)}.`,
+      title: `Annual cash-flow surplus ${cashFlowChange >= 0 ? "increased" : "decreased"} by ${moneyMagnitude(cashFlowChange)}`,
+      summary: `Annualised surplus changed from ${money(previous.cashFlowSurplus)} per year to ${money(current.cashFlowSurplus)} per year.`,
       whyItMatters: "Cash flow is the funding source for debt reduction, investing, goals and emergency buffers.",
       previousValue: previous.cashFlowSurplus,
       currentValue: current.cashFlowSurplus,
       absoluteChange: cashFlowChange,
-      expectedImpact: `${money(cashFlowChange)} annualised scenario change`,
+      expectedImpact: `${moneyMagnitude(cashFlowChange)} per year ${cashFlowChange >= 0 ? "increase" : "decrease"}`,
       confidence: "High",
-      evidence: [evidence("financial-vault", "Financial Vault cash flow", `Income less annual spending changed by ${money(cashFlowChange)}`, "High", "/financial-vault")],
-      assumptions: ["Cash flow uses verified income and monthly spending from Vault profile"],
+      evidence: [evidence("financial-vault", "Financial Vault cash flow", `Annual income less annualised spending ${cashFlowChange >= 0 ? "increased" : "decreased"} by ${moneyMagnitude(cashFlowChange)}`, "High", "/financial-vault")],
+      assumptions: ["Cash flow uses verified annual income and monthly spending normalised to an annual amount"],
       attribution: [
         { label: "Income", previousValue: previous.income, currentValue: current.income, change: current.income - previous.income },
         { label: "Essential spending", previousValue: previous.essentialSpending, currentValue: current.essentialSpending, change: previous.essentialSpending - current.essentialSpending },
@@ -596,7 +600,7 @@ export function compareDailySnapshots(previous: DailyReviewSnapshot, current: Da
       type: borrowingChange >= 0 ? "opportunity" : "risk",
       severity: severityFromChange(borrowingChange, 50_000, 150_000),
       priority: priorityFromScore(priorityScore({ impact: borrowingChange, urgency: 5, riskReduction: borrowingChange < 0 ? 7 : 4, confidence: "Medium", reversibility: 5, timeSensitivity: 5, goalRelevance: 8, effortRequired: 4, professionalReviewRequired: true })),
-      title: `Borrowing capacity ${borrowingChange >= 0 ? "improved" : "declined"} by ${money(borrowingChange)}`,
+      title: `Borrowing capacity ${borrowingChange >= 0 ? "increased" : "decreased"} by ${moneyMagnitude(borrowingChange)}`,
       summary: `Capacity moved from ${money(previous.borrowingCapacity)} to ${money(current.borrowingCapacity)}.`,
       whyItMatters: "Borrowing changes affect housing readiness, refinance strategy and scenario timing.",
       previousValue: previous.borrowingCapacity,
@@ -604,7 +608,7 @@ export function compareDailySnapshots(previous: DailyReviewSnapshot, current: Da
       absoluteChange: borrowingChange,
       expectedImpact: money(borrowingChange),
       confidence: "Medium",
-      evidence: [evidence("housing", "Housing affordability engine", `Borrowing capacity changed by ${money(borrowingChange)}`, "Medium", "/housing-scenarios")],
+      evidence: [evidence("housing", "Housing affordability engine", `Estimated borrowing capacity ${borrowingChange >= 0 ? "increased" : "decreased"} by ${moneyMagnitude(borrowingChange)}`, "Medium", "/housing-scenarios")],
       assumptions: ["Borrowing capacity is a deterministic serviceability estimate, not lender approval"],
       attribution: [
         { label: "Cash flow", previousValue: previous.cashFlowSurplus, currentValue: current.cashFlowSurplus, change: current.cashFlowSurplus - previous.cashFlowSurplus },
@@ -927,7 +931,7 @@ export function validateDailyReviewSummary(draft: string | null | undefined, fin
   const top = findings.slice(0, 5);
   const positive = top.filter((item) => item.type === "positive-change" || item.type === "goal-improvement").length;
   const risks = top.length - positive;
-  const summary = `Three changes need your attention. ${positive} positive change${positive === 1 ? "" : "s"} and ${risks} risk or action item${risks === 1 ? "" : "s"} were detected. Top item: ${top[0].title}.`;
+  const summary = `${top.length} change${top.length === 1 ? "" : "s"} need your attention. ${positive} positive change${positive === 1 ? "" : "s"} and ${risks} risk or action item${risks === 1 ? "" : "s"} were detected. Top item: ${top[0].title}.`;
   if (!draft) return summary;
   const triesToAddFinding = draft.toLowerCase().includes("also") && draft.toLowerCase().includes("detected");
   if (triesToAddFinding) return summary;

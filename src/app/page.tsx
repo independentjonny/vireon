@@ -1,8 +1,9 @@
 import AppShell from "./components/AppShell";
-import OverviewV3 from "./components/OverviewV3";
+import BaselineDashboard from "./components/BaselineDashboard";
 import AutonomousTaskComposer from "./components/AutonomousTaskComposer";
 import SupervisorInbox from "./components/SupervisorInbox";
 import DeveloperModeGate from "./components/DeveloperModeGate";
+import EmptyFinancialDashboard from "./components/EmptyFinancialDashboard";
 import { buildFinancialBalanceSheetFromReadModel } from "@/lib/financialBalanceSheet";
 import { buildAiDecisions } from "@/lib/aiDecisionCentre";
 import { requireServerPageSession } from "@/lib/auth/serverPageSession";
@@ -86,60 +87,55 @@ export default async function HomePage() {
     );
   }
   const vault = readModel.vault;
+  const financialPositionIsEmpty = readModel.confirmedFacts.length === 0
+    && readModel.documentImportStatus.documents.length === 0
+    && readModel.documentImportStatus.importCount === 0;
+  if (financialPositionIsEmpty) {
+    return (
+      <AppShell active="dashboard">
+        <EmptyFinancialDashboard />
+      </AppShell>
+    );
+  }
   const core = createCoreDecisioningServiceFromEnv();
   const housing = await core.readHousingAffordability(session);
   const balanceSheet = buildFinancialBalanceSheetFromReadModel(readModel);
   const decisions = buildAiDecisions({ vault, housing, balanceSheet });
-  const workflowState = await core.readWorkflows(session, decisions);
-  const dailyReview = await core.getLatestDailyReview(session);
-  const primaryHousingScenario = housing.housing_scenarios[0];
-  const largestHousingObstacle = primaryHousingScenario
-    ? housing.housing_obstacles.find((obstacle) => obstacle.scenarioId === primaryHousingScenario.id)
+  const goalState = await core.readGoalState(session);
+  const monthlyCashFlow = readModel.monthlyCashFlow;
+  const runwayMonths = readModel.cashPosition.sourceRecordIds.length && monthlyCashFlow.monthlyExpenses !== null && monthlyCashFlow.monthlyExpenses > 0
+    ? readModel.cashPosition.confirmedCash / monthlyCashFlow.monthlyExpenses
     : null;
-  const nextHousingAction = housing.housing_action_plans[0] ?? null;
-  const vaultConfidence = Math.min(
-    98,
-    Math.round(Object.keys(vault.financial_profile.sources).length * 6.5 + vault.uploaded_documents.filter((doc) => doc.status === "extracted").length * 6)
-  );
 
   return (
     <AppShell active="dashboard">
-            <OverviewV3
-              netWorth={formatAud(balanceSheet.netWorth, true)}
-              netWorthValue={balanceSheet.netWorth}
-              netWorthTrend={`${formatAud(balanceSheet.monthlyNetChange)} persisted monthly change`}
-              netWorthTrendValue={balanceSheet.monthlyNetChange}
-              cashFlow={formatAud(readModel.income.reduce((sum, record) => sum + Number(record.value.monthlyAmount ?? record.value.amount ?? 0), 0) - readModel.expenses.reduce((sum, record) => sum + Number(record.value.monthlyAmount ?? record.value.amount ?? 0), 0))}
-              savingsRate={readModel.income.length ? `${Math.round(((readModel.income.reduce((sum, record) => sum + Number(record.value.monthlyAmount ?? record.value.amount ?? 0), 0) - readModel.expenses.reduce((sum, record) => sum + Number(record.value.monthlyAmount ?? record.value.amount ?? 0), 0)) / Math.max(1, readModel.income.reduce((sum, record) => sum + Number(record.value.monthlyAmount ?? record.value.amount ?? 0), 0))) * 100)}%` : "Unknown"}
-              runway={balanceSheet.emergencyFundMonths ? `${balanceSheet.emergencyFundMonths.toFixed(1)} mo` : "Unknown"}
-              aiConfidence="Not calculated yet"
-              healthScore={0}
-              healthLabel="Needs confirmed data"
-              insights={[]}
-              portfolioAllocation={[]}
-              healthScores={[]}
-              dateStr={new Intl.DateTimeFormat("en-AU", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(new Date())}
-              vaultSummary={{
-                documentsUploaded: vault.uploaded_documents.length,
-                profileConfidence: vaultConfidence,
-                estimatedBorrowingCapacity: vault.borrowing_capacity.estimatedSafeBorrowing,
-                refinanceSavingEstimate: vault.refinance_opportunities[0]?.estimatedMonthlySaving ?? 0,
-                lenderPackReadiness: vault.lender_pack.documentChecklist.filter((item) => item.available).length,
-              }}
-              housingSummary={{
-                readinessScore: housing.house_readiness_score.score,
-                readinessBand: housing.house_readiness_score.band,
-                estimatedBorrowingCapacity: primaryHousingScenario?.estimatedBorrowingCapacity ?? 0,
-                bestScenario: housing.housing_scenarios
-                  .slice(0, 4)
-                  .sort((a, b) => b.affordabilityScore - a.affordabilityScore)[0]?.propertyPrice ?? 0,
-                largestObstacle: largestHousingObstacle?.category ?? "No major obstacle detected",
-                nextRecommendedAction: nextHousingAction?.action ?? "Prepare lender documentation",
-              }}
-              decisions={decisions}
-              workflows={workflowState.workflows}
-              workflowSummary={workflowState.summary}
-              dailyReview={dailyReview}
+            <BaselineDashboard
+              netWorth={balanceSheet.netWorth}
+              assets={balanceSheet.assetsTotal}
+              liabilities={balanceSheet.liabilitiesTotal}
+              monthlyChange={balanceSheet.monthlyNetChange}
+              monthlySurplus={monthlyCashFlow.monthlySurplus}
+              monthlyIncome={monthlyCashFlow.monthlyIncome}
+              monthlyExpenses={monthlyCashFlow.monthlyExpenses}
+              runwayMonths={runwayMonths}
+              updatedAt={readModel.generatedAt}
+              goals={goalState.snapshot.activeGoals.map((evaluation) => ({
+                id: evaluation.goal.id,
+                title: evaluation.goal.title,
+                current: evaluation.goal.currentAmount,
+                target: evaluation.goal.targetAmount,
+                targetDate: evaluation.goal.targetDate,
+                status: evaluation.goal.status,
+                risk: evaluation.competingGoalConflicts[0] ?? (evaluation.fundingGap > 0 ? `${formatAud(evaluation.fundingGap)} remains to be funded.` : "No material risk identified."),
+                opportunity: evaluation.decisions[0]?.nextAction ?? (evaluation.requiredMonthlyContribution > 0 ? `Contribute ${formatAud(evaluation.requiredMonthlyContribution)} each month.` : "Maintain the current contribution."),
+              }))}
+              assetGroups={[
+                { label: "Property", value: balanceSheet.assets.find((item) => item.id === "property")?.value ?? 0, color: "#3894c2" },
+                { label: "Investments & super", value: balanceSheet.assets.filter((item) => item.id === "investments" || item.id === "superannuation").reduce((sum, item) => sum + item.value, 0), color: "#7185df" },
+                { label: "Cash & savings", value: balanceSheet.assets.find((item) => item.id === "cash")?.value ?? 0, color: "#9daac8" },
+                { label: "Other assets", value: Math.max(0, balanceSheet.assetsTotal - balanceSheet.assets.reduce((sum, item) => sum + item.value, 0)), color: "#d1ad67" },
+              ]}
+              attention={decisions.slice(0, 2).map((decision) => ({ title: decision.title, detail: decision.nextStep, href: decision.actionHref, action: decision.actionLabel }))}
             />
 
             <DeveloperModeGate>

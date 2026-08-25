@@ -29,7 +29,7 @@ export default function PrivacyPage() {
     },
     {
       title: "Export and deletion",
-      body: "You can export your Vireon data from the beta onboarding controls and request account deletion. Deletion requests keep only security audit status, not deleted financial content.",
+      body: "You can export your Vireon data or permanently delete only your financial data. A financial-data reset keeps your Vireon account, personal details, authentication, access, onboarding, preferences, feedback and security audit history.",
     },
   ];
 
@@ -68,9 +68,9 @@ export default function PrivacyPage() {
             <MessageSquareWarning className="h-4 w-4" />
             Report an issue
           </a>
-          <a href="/beta-onboarding" className="flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+          <a href="/beta-onboarding#financial-data-controls" className="flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
             <Trash2 className="h-4 w-4" />
-            Request deletion
+            Delete financial data
           </a>
         </section>
       </main>

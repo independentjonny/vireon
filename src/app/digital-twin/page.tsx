@@ -8,10 +8,11 @@ export const dynamic = "force-dynamic";
 export default async function DigitalTwinPage() {
   const session = await requireServerPageSession();
   const state = await createCoreDecisioningServiceFromEnv().readDigitalTwin(session);
+  const forecast = await createCoreDecisioningServiceFromEnv().readFinancialForecast(session, "12m");
 
   return (
     <AppShell active="digital-twin">
-      <DigitalTwinClient initialState={state} />
+      <DigitalTwinClient initialState={state} initialForecast={forecast.snapshot} />
     </AppShell>
   );
 }

@@ -1,10 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 
 export default function LoginForm({ returnTo }: { returnTo: string }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -28,8 +26,9 @@ export default function LoginForm({ returnTo }: { returnTo: string }) {
         setError(result.error || "Sign-in failed. Please try again.");
         return;
       }
-      router.replace(returnTo);
-      router.refresh();
+      // A full navigation guarantees the newly issued HttpOnly cookie is
+      // included in the first authenticated server-rendered request.
+      window.location.assign(returnTo);
     } catch {
       setError("The authentication service is unavailable. Please try again.");
     } finally {

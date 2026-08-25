@@ -23,6 +23,14 @@ const USER_SECTIONS = [
     ],
   },
   {
+    id: "profile",
+    label: "Financial Profile",
+    items: [
+      ["Financial Position", "/financial-profile"],
+      ["Add financial data", "/financial-profile/add-data"],
+    ],
+  },
+  {
     id: "planning",
     label: "Planning",
     items: [
@@ -74,6 +82,7 @@ export default function MobileNav({ developerMode = false }: { developerMode?: b
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     dashboard: true,
     financial: true,
+    profile: true,
     planning: true,
     vault: false,
     ai: false,

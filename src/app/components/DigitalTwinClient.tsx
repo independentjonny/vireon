@@ -10,6 +10,8 @@ import {
   type TwinSimulationEvent,
   type TwinSimulationOutput,
 } from "@/lib/financialDigitalTwin";
+import type { ForecastSnapshot } from "@/lib/financialForecasting";
+import ForecastTimelineClient from "./ForecastTimelineClient";
 
 const eventTypes: SimulationEventType[] = [
   "interest_rate_change",
@@ -74,7 +76,7 @@ function ScenarioOutput({ output }: { output: TwinSimulationOutput }) {
   );
 }
 
-export default function DigitalTwinClient({ initialState }: { initialState: TwinPersistedState }) {
+export default function DigitalTwinClient({ initialState, initialForecast }: { initialState: TwinPersistedState; initialForecast?: ForecastSnapshot }) {
   const [scenarios, setScenarios] = useState<TwinScenario[]>(initialState.scenarios);
   const [message, setMessage] = useState("Scenarios and simulation history are persisted in PostgreSQL.");
   const [selectedScenarioId, setSelectedScenarioId] = useState(initialState.scenarios[0]?.id ?? "current");
@@ -377,6 +379,7 @@ export default function DigitalTwinClient({ initialState }: { initialState: Twin
           </div>
         </article>
       </section>
+      {initialForecast ? <ForecastTimelineClient initialBaseline={initialForecast} embedded /> : null}
     </div>
   );
 }

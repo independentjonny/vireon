@@ -1,4 +1,4 @@
-import { getDevSession } from "@/lib/auth/middleware";
+import { getDevSession, requireSession } from "@/lib/auth/middleware";
 export async function POST(request: Request) {
   let body: { email?: string; password?: string } = {};
   try {
@@ -46,6 +46,22 @@ export async function POST(request: Request) {
     const auth = (await authResponse.json()) as { access_token?: string; expires_in?: number };
     if (!authResponse.ok || !auth.access_token) {
       return Response.json({ ok: false, error: "Invalid email or password." }, { status: 401 });
+    }
+
+    // Do not tell the browser that sign-in succeeded until the token is also a
+    // valid Vireon workspace session. Otherwise the UI navigates to `/`, the
+    // server rejects the incomplete membership, and the user is silently sent
+    // back to the login screen.
+    const verified = await requireSession(new Request(new URL("/__login_session_check", request.url), {
+      headers: { authorization: `Bearer ${auth.access_token}` },
+    }));
+    if (!verified.ok) {
+      const error = verified.status === 403
+        ? "Your Vireon workspace access is not configured. Redeem your invitation or request access."
+        : verified.status === 500
+          ? "Authentication is configured incorrectly. Please contact support."
+          : "The issued session could not be verified. Please try again.";
+      return Response.json({ ok: false, error }, { status: verified.status });
     }
 
     const response = Response.json({ ok: true, mode: "supabase" });

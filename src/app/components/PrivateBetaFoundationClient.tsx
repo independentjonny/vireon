@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Download, Flag, MessageSquareWarning, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import type { BetaOnboardingState, DeterministicBriefing, FreshnessResult, PrivateBetaReadinessReport, ProvenanceView } from "@/lib/privateBetaFoundation";
 import type { FinancialHealthSnapshot } from "@/lib/financialHealthEngine";
 import type { ForecastSnapshot } from "@/lib/financialForecasting";
 import type { GoalPlanningSnapshot } from "@/lib/goalPlanning";
+import { FINANCIAL_DATA_RESET_CONFIRMATION, totalFinancialDataDeleted, type FinancialDataResetResult } from "@/lib/financialDataReset";
 
 type Props = {
   initialOnboarding: BetaOnboardingState;
@@ -114,10 +116,14 @@ function privateBetaMutationHeaders() {
 }
 
 export default function PrivateBetaFoundationClient({ initialOnboarding, readiness, briefing, health, forecast, goals, provenance }: Props) {
+  const router = useRouter();
   const [onboarding, setOnboarding] = useState(initialOnboarding);
   const [feedbackStatus, setFeedbackStatus] = useState("Not submitted");
   const [exportStatus, setExportStatus] = useState("No export requested");
-  const [deletionStatus, setDeletionStatus] = useState("No deletion request");
+  const [deletionStatus, setDeletionStatus] = useState("No financial-data reset performed");
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetConfirmation, setResetConfirmation] = useState("");
+  const [resetResult, setResetResult] = useState<FinancialDataResetResult | null>(null);
   const [onboardingStatus, setOnboardingStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const completeCount = Object.values(onboarding.steps).filter((status) => status === "complete" || status === "skipped").length;
@@ -176,15 +182,26 @@ export default function PrivateBetaFoundationClient({ initialOnboarding, readine
     }
   }
 
-  async function requestDeletion() {
+  async function resetFinancialData() {
     setBusy(true);
-    setDeletionStatus("Requesting deletion");
+    setDeletionStatus("Deleting financial data");
     try {
-      const response = await fetch("/api/private-beta/deletion", { method: "POST", headers: privateBetaMutationHeaders(), body: JSON.stringify({ confirmation: "REQUEST_DELETE" }) });
+      const response = await fetch("/api/private-beta/financial-data-reset", { method: "POST", headers: privateBetaMutationHeaders(), body: JSON.stringify({ confirmation: resetConfirmation }) });
       const data = await response.json();
-      setDeletionStatus(data.ok ? `Deletion requested ${data.deletion.id}` : `Deletion request failed ${data.referenceId ?? ""}`.trim());
+      if (!data.ok) {
+        setDeletionStatus(data.error ?? "Financial-data reset failed. No data was deleted.");
+        return;
+      }
+      const result = data.result as FinancialDataResetResult;
+      window.sessionStorage.removeItem("vireon-add-financial-data-draft-v1");
+      window.localStorage.removeItem("vireon-ai-decision-status-v1");
+      setResetResult(result);
+      setResetOpen(false);
+      setResetConfirmation("");
+      setDeletionStatus(`${totalFinancialDataDeleted(result).toLocaleString("en-AU")} financial records deleted.`);
+      router.refresh();
     } catch {
-      setDeletionStatus("Deletion request failed offline");
+      setDeletionStatus("Financial-data reset failed offline. No data was deleted.");
     } finally {
       setBusy(false);
     }
@@ -327,7 +344,7 @@ export default function PrivateBetaFoundationClient({ initialOnboarding, readine
           </div>
         </article>
 
-        <article className="rounded-lg border border-slate-200 bg-white p-5">
+        <article id="financial-data-controls" className="scroll-mt-6 rounded-lg border border-slate-200 bg-white p-5">
           <h2 className="text-lg font-semibold text-slate-950">Freshness and controls</h2>
           <div className="mt-4 grid gap-2">
             {(stale.length ? stale : briefing.dataFreshness.slice(0, 5)).map((item: FreshnessResult) => (
@@ -345,13 +362,19 @@ export default function PrivateBetaFoundationClient({ initialOnboarding, readine
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <button onClick={requestExport} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:text-slate-400"><Download className="h-4 w-4" /> Export</button>
             <button onClick={submitFeedback} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"><MessageSquareWarning className="h-4 w-4" /> Feedback</button>
-            <button onClick={requestDeletion} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"><Trash2 className="h-4 w-4" /> Delete</button>
+            <button onClick={() => setResetOpen(true)} disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800 disabled:text-red-300"><Trash2 className="h-4 w-4" /> Delete financial data</button>
           </div>
           <div className="mt-3 grid gap-2 text-xs text-slate-500">
             <span>{exportStatus}</span>
             <span>{feedbackStatus}</span>
             <span>{deletionStatus}</span>
           </div>
+          {resetResult && (
+            <div role="status" className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+              <div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4" /> Financial-data reset completed</div>
+              <p className="mt-2 leading-6">Deleted {totalFinancialDataDeleted(resetResult).toLocaleString("en-AU")} financial records. Your account, personal details, authentication, onboarding, preferences and security audit history were retained.</p>
+            </div>
+          )}
         </article>
       </section>
 
@@ -381,6 +404,56 @@ export default function PrivateBetaFoundationClient({ initialOnboarding, readine
           Open Banking: {readiness.openBankingState}. Live AI: {readiness.liveAiState}. Persistence backend: {readiness.persistenceBackend}.
         </div>
       </section>
+
+      {resetOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="financial-reset-title" className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl bg-white p-5 shadow-2xl sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-red-50 p-2 text-red-700"><Trash2 className="h-5 w-5" /></div>
+              <div>
+                <h2 id="financial-reset-title" className="text-xl font-semibold text-slate-950">Delete financial data now?</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-600">This is immediate and cannot be undone. It affects only your authenticated Vireon user.</p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                <div className="text-sm font-semibold text-red-900">Will be permanently deleted</div>
+                <ul className="mt-2 space-y-1 text-sm leading-5 text-red-800">
+                  <li>Financial records and history</li>
+                  <li>Financial documents and evidence</li>
+                  <li>Transactions and subscriptions</li>
+                  <li>Calculations, reviews and scenarios</li>
+                  <li>Financial goals, decisions and workflows</li>
+                </ul>
+              </div>
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <div className="text-sm font-semibold text-emerald-900">Will be retained</div>
+                <ul className="mt-2 space-y-1 text-sm leading-5 text-emerald-800">
+                  <li>Your Vireon account</li>
+                  <li>Email, name and authentication</li>
+                  <li>Access and onboarding</li>
+                  <li>Non-financial preferences</li>
+                  <li>Feedback and security audit history</li>
+                </ul>
+              </div>
+            </div>
+
+            <label htmlFor="financial-reset-confirmation" className="mt-5 block text-sm font-semibold text-slate-800">Type <span className="font-mono text-red-700">{FINANCIAL_DATA_RESET_CONFIRMATION}</span> to confirm</label>
+            <input
+              id="financial-reset-confirmation"
+              value={resetConfirmation}
+              onChange={(event) => setResetConfirmation(event.target.value)}
+              autoComplete="off"
+              className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+            />
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => { setResetOpen(false); setResetConfirmation(""); }} disabled={busy} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700">Cancel</button>
+              <button type="button" onClick={resetFinancialData} disabled={busy || resetConfirmation !== FINANCIAL_DATA_RESET_CONFIRMATION} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-red-700 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-red-200"><Trash2 className="h-4 w-4" /> {busy ? "Deleting financial data…" : "Delete financial data now"}</button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
