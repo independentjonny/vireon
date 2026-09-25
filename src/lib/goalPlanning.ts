@@ -458,7 +458,9 @@ export function evaluateGoal(goal: FinancialGoal, forecast: ForecastSnapshot, va
 
 function statusFor(evaluation: Omit<GoalEvaluation, "decisions">): GoalStatus {
   if (evaluation.goal.status === "PAUSED" || evaluation.goal.status === "ARCHIVED" || evaluation.goal.status === "DRAFT") return evaluation.goal.status;
-  if (evaluation.currentProgress >= 100 || evaluation.fundingGap === 0) return "ACHIEVED";
+  if (evaluation.goal.targetAmount <= 0 || evaluation.forecastQuality === "INSUFFICIENT") return "ACTIVE";
+  // A hypothetical deposit can close a scenario gap without achieving the saved goal.
+  if (evaluation.goal.currentAmount >= evaluation.goal.targetAmount) return "ACHIEVED";
   if (evaluation.feasibility === "ACHIEVABLE") return "ON_TRACK";
   if (evaluation.feasibility === "STRETCHED" || evaluation.feasibility === "UNLIKELY") return "AT_RISK";
   return "ACTIVE";

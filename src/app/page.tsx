@@ -4,8 +4,7 @@ import AutonomousTaskComposer from "./components/AutonomousTaskComposer";
 import SupervisorInbox from "./components/SupervisorInbox";
 import DeveloperModeGate from "./components/DeveloperModeGate";
 import EmptyFinancialDashboard from "./components/EmptyFinancialDashboard";
-import { buildFinancialBalanceSheetFromReadModel } from "@/lib/financialBalanceSheet";
-import { buildAiDecisions } from "@/lib/aiDecisionCentre";
+import { confirmedPositionSummary } from "@/lib/confirmedPositionSummary";
 import { requireServerPageSession } from "@/lib/auth/serverPageSession";
 import { createFinancialPositionReadServiceFromEnv } from "@/server/services/financialPositionReadService";
 import { createCoreDecisioningServiceFromEnv } from "@/server/services/coreDecisioningPostgresService";
@@ -86,7 +85,6 @@ export default async function HomePage() {
       </AppShell>
     );
   }
-  const vault = readModel.vault;
   const financialPositionIsEmpty = readModel.confirmedFacts.length === 0
     && readModel.documentImportStatus.documents.length === 0
     && readModel.documentImportStatus.importCount === 0;
@@ -98,44 +96,40 @@ export default async function HomePage() {
     );
   }
   const core = createCoreDecisioningServiceFromEnv();
-  const housing = await core.readHousingAffordability(session);
-  const balanceSheet = buildFinancialBalanceSheetFromReadModel(readModel);
-  const decisions = buildAiDecisions({ vault, housing, balanceSheet });
+  const summary = confirmedPositionSummary(readModel);
   const goalState = await core.readGoalState(session);
   const monthlyCashFlow = readModel.monthlyCashFlow;
-  const runwayMonths = readModel.cashPosition.sourceRecordIds.length && monthlyCashFlow.monthlyExpenses !== null && monthlyCashFlow.monthlyExpenses > 0
-    ? readModel.cashPosition.confirmedCash / monthlyCashFlow.monthlyExpenses
+  const runwayMonths = summary.assetGroups[2].value !== null && monthlyCashFlow.monthlyExpenses !== null && monthlyCashFlow.monthlyExpenses > 0
+    ? summary.assetGroups[2].value! / monthlyCashFlow.monthlyExpenses
     : null;
 
   return (
     <AppShell active="dashboard">
             <BaselineDashboard
-              netWorth={balanceSheet.netWorth}
-              assets={balanceSheet.assetsTotal}
-              liabilities={balanceSheet.liabilitiesTotal}
-              monthlyChange={balanceSheet.monthlyNetChange}
+              netWorth={summary.netPosition}
+              assets={summary.assets}
+              liabilities={summary.liabilities}
+              monthlyChange={null}
               monthlySurplus={monthlyCashFlow.monthlySurplus}
               monthlyIncome={monthlyCashFlow.monthlyIncome}
               monthlyExpenses={monthlyCashFlow.monthlyExpenses}
               runwayMonths={runwayMonths}
               updatedAt={readModel.generatedAt}
+              dataNote={summary.note}
+              cashFlowBasis={monthlyCashFlow.basis}
               goals={goalState.snapshot.activeGoals.map((evaluation) => ({
                 id: evaluation.goal.id,
                 title: evaluation.goal.title,
                 current: evaluation.goal.currentAmount,
                 target: evaluation.goal.targetAmount,
                 targetDate: evaluation.goal.targetDate,
-                status: evaluation.goal.status,
-                risk: evaluation.competingGoalConflicts[0] ?? (evaluation.fundingGap > 0 ? `${formatAud(evaluation.fundingGap)} remains to be funded.` : "No material risk identified."),
+                status: evaluation.feasibility === "INSUFFICIENT_DATA" ? "NEEDS_INFORMATION" : evaluation.goal.status,
+                risk: evaluation.feasibility === "INSUFFICIENT_DATA" ? "More information is needed to assess this goal." : evaluation.competingGoalConflicts[0] ?? (evaluation.fundingGap > 0 ? `${formatAud(evaluation.fundingGap)} remains to be funded.` : "Funding target met; this does not establish retirement readiness or assess all risks."),
                 opportunity: evaluation.decisions[0]?.nextAction ?? (evaluation.requiredMonthlyContribution > 0 ? `Contribute ${formatAud(evaluation.requiredMonthlyContribution)} each month.` : "Maintain the current contribution."),
               }))}
-              assetGroups={[
-                { label: "Property", value: balanceSheet.assets.find((item) => item.id === "property")?.value ?? 0, color: "#3894c2" },
-                { label: "Investments & super", value: balanceSheet.assets.filter((item) => item.id === "investments" || item.id === "superannuation").reduce((sum, item) => sum + item.value, 0), color: "#7185df" },
-                { label: "Cash & savings", value: balanceSheet.assets.find((item) => item.id === "cash")?.value ?? 0, color: "#9daac8" },
-                { label: "Other assets", value: Math.max(0, balanceSheet.assetsTotal - balanceSheet.assets.reduce((sum, item) => sum + item.value, 0)), color: "#d1ad67" },
-              ]}
-              attention={decisions.slice(0, 2).map((decision) => ({ title: decision.title, detail: decision.nextStep, href: decision.actionHref, action: decision.actionLabel }))}
+              assetGroups={summary.assetGroups}
+              attention={monthlyCashFlow.missingInputs.map((item) => ({ title: item.title, detail: item.detail, href: item.href, action: "Review data" }))}
+
             />
 
             <DeveloperModeGate>
