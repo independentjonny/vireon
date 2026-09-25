@@ -61,3 +61,14 @@ test("recovery redirect never trusts an arbitrary production Host or body redire
   assert.throws(() => recoveryRedirect("https://preview.example.test", { ...env, VIREON_PASSWORD_RESET_ORIGIN: "http://insecure.test" }), /RECOVERY_ORIGIN/);
   assert.equal(recoveryRedirect("http://localhost:3027", { NODE_ENV: "development" }), "http://localhost:3027/login/reset-password");
 });
+test("diagnostics classify failures without retaining provider messages or submitted secrets", async () => {
+  const events: unknown[] = [];
+  const diagnostic = (event: unknown) => events.push(event);
+  await handlePasswordRecovery(request({ email: "private@example.test" }), "request", { env, diagnostic, fetchImpl: async () => Response.json({ code: "unexpected_failure", message: "private@example.test secret-token" }, { status: 500 }) });
+  await handlePasswordRecovery(request({ email: "private@example.test" }), "request", { env, diagnostic, fetchImpl: async () => { throw new TypeError("private@example.test", { cause: { code: "ENOTFOUND" } }); } });
+  assert.deepEqual(events, [
+    { action: "request", category: "provider", status: 500, code: "unexpected_failure" },
+    { action: "request", category: "network", code: "ENOTFOUND" },
+  ]);
+  assert.doesNotMatch(JSON.stringify(events), /private@|secret-token/);
+});
