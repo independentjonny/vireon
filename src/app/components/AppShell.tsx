@@ -123,7 +123,7 @@ function RuntimeBanner() {
     <div className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/82 px-4 py-2 pr-20 text-xs text-slate-500 backdrop-blur-xl lg:hidden">
       <span className="flex min-w-0 items-center gap-2 font-medium">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-        <span className="min-w-0 truncate">Vireon is synced and ready</span>
+        <span className="min-w-0 truncate">Your financial workspace</span>
       </span>
     </div>
   );
@@ -160,7 +160,7 @@ function Sidebar({
         <div className="relative h-12 w-12 shrink-0" aria-hidden="true">
           <Image src="/vireon2-white.png" alt="" fill sizes="48px" className="object-contain" priority />
         </div>
-        <h1 className="text-2xl font-semibold tracking-normal">vireon</h1>
+        <span className="text-2xl font-semibold tracking-normal">vireon</span>
       </Link>
 
       <nav className="mt-8 flex-1 space-y-6" aria-label="Primary navigation">
@@ -210,19 +210,7 @@ function Sidebar({
           <ShieldCheck className="h-5 w-5 text-orange-300" />
           Financial Profile
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {[
-            ["Docs", "8 / 10"],
-            ["Confidence", "93%"],
-            ["Readiness", "81"],
-            ["Capacity", "$812k"],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-md bg-white/[0.06] p-2">
-              <div className="text-[10px] font-semibold uppercase text-slate-400">{label}</div>
-              <div className="mt-1 text-sm font-semibold text-white">{value}</div>
-            </div>
-          ))}
-        </div>
+        <p className="mt-3 text-xs leading-5 text-slate-300">Review your documents and confirmed financial information.</p>
         <Link href="/financial-vault" className="mt-4 flex h-10 items-center justify-center rounded-lg border border-white/10 bg-white/8 text-sm font-semibold text-white">
           Review Vault
         </Link>
@@ -273,7 +261,7 @@ export default function AppShell({
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#f7f8fb] text-slate-950 font-sans">
+    <div className="min-h-screen bg-[#f7f8fb] text-slate-950 font-sans">
       <MobileNav developerMode={developerMode} />
       <RuntimeBanner />
 
@@ -283,6 +271,6 @@ export default function AppShell({
           <div className="w-full space-y-8">{children}</div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
