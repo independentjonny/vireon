@@ -13,25 +13,22 @@ function Lines({ lines, colors }: { lines: MonthlyCashFlowLine[]; colors: Record
 }
 
 export default function BaselineCashFlow({ cashFlow }: { cashFlow: MonthlyCashFlowModel }) {
-  const incoming = cashFlow.monthlyIncome ?? 0;
-  const outgoing = cashFlow.monthlyExpenses ?? 0;
-  const movement = cashFlow.monthlySurplus ?? incoming - outgoing;
-  const monthFactors = [0.72, 0.55, 0.82, 0.18, -0.42, 1, 0.52, -0.3, 0.34, 0.93, 0.64, 1.08];
-  const trend = monthFactors.map((factor) => movement === 0 ? factor * 1000 : movement * factor);
-  const max = Math.max(...trend.map(Math.abs), 1);
+  const incoming = cashFlow.monthlyIncome;
+  const outgoing = cashFlow.monthlyExpenses;
+  const movement = cashFlow.monthlySurplus;
+  const format = (value: number | null) => value === null ? "Unavailable" : money.format(value);
   return <main className="mx-auto max-w-[1480px] p-6 lg:p-10">
-    <div className="mb-6"><div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Daily money</div><h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Cash Flow</h1><p className="mt-1 text-sm text-slate-600">Money coming in and going out, with future pressure points.</p></div>
+    <div className="mb-6"><div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Daily money</div><h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Cash Flow</h1><p className="mt-1 text-sm text-slate-600">{cashFlow.basis}</p></div>
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between border-b border-slate-200 pb-3"><div><div className="text-xs text-slate-500">Selected month · current</div><h2 className="mt-1 text-lg font-semibold text-slate-900">Monthly cash flow breakdown</h2></div><div className="text-right text-xs text-slate-500">{money.format(incoming)} in − {money.format(outgoing)} out<div className={`text-xl font-semibold ${movement >= 0 ? "text-emerald-700" : "text-rose-700"}`}>= {movement >= 0 ? "+" : ""}{money.format(movement)}</div></div></div>
-      <div className="mt-4"><div className="mb-2 flex justify-between"><h3 className="font-semibold text-slate-900">Money in</h3><strong>{money.format(incoming)}</strong></div><SegmentedBar lines={cashFlow.incomeLines} total={incoming} colors={incomeColors} /><Lines lines={cashFlow.incomeLines} colors={incomeColors} /></div>
-      <div className="mt-5"><div className="mb-2 flex justify-between"><h3 className="font-semibold text-slate-900">Money out</h3><strong>{money.format(outgoing)}</strong></div><SegmentedBar lines={cashFlow.expenseLines} total={outgoing} colors={expenseColors} /><Lines lines={cashFlow.expenseLines} colors={expenseColors} /></div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b border-slate-200 pb-3"><div><div className="text-xs text-slate-500">Recorded monthly amounts</div><h2 className="mt-1 text-lg font-semibold text-slate-900">Monthly cash flow breakdown</h2></div><div className="text-left sm:text-right text-xs text-slate-500">{format(incoming)} in − {format(outgoing)} out<div className={`text-xl font-semibold ${movement === null ? "text-slate-600" : movement >= 0 ? "text-emerald-700" : "text-rose-700"}`}>= {movement !== null && movement >= 0 ? "+" : ""}{format(movement)}</div></div></div>
+      <div className="mt-4"><div className="mb-2 flex justify-between"><h3 className="font-semibold text-slate-900">Money in</h3><strong>{format(incoming)}</strong></div><SegmentedBar lines={cashFlow.incomeLines} total={incoming ?? 0} colors={incomeColors} /><Lines lines={cashFlow.incomeLines} colors={incomeColors} /></div>
+      <div className="mt-5"><div className="mb-2 flex justify-between"><h3 className="font-semibold text-slate-900">Money out</h3><strong>{format(outgoing)}</strong></div><SegmentedBar lines={cashFlow.expenseLines} total={outgoing ?? 0} colors={expenseColors} /><Lines lines={cashFlow.expenseLines} colors={expenseColors} /></div>
     </section>
+    {cashFlow.missingInputs.length > 0 && <section className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5"><h2 className="font-semibold">More information needed</h2><ul className="mt-2 space-y-2 text-sm">{cashFlow.missingInputs.map((item, index) => <li key={`${item.code}-${index}`}>{item.title}: {item.detail}</li>)}</ul></section>}
     <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between"><div><div className="text-xs text-slate-500">12-month trend</div><h2 className="mt-1 text-lg font-semibold text-slate-900">Net cash movement</h2></div><div className="text-xs text-slate-500">Financial year</div></div>
-      <div className="mt-4 grid h-48 grid-cols-12 items-center gap-4 border-y border-slate-200 px-4">
-        {trend.map((value, index) => <div key={index} className="relative h-full" title={`${["Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun"][index]}: ${money.format(value)}`}><div className="absolute left-0 right-0 top-1/2 border-t border-slate-400" /><div className={`absolute left-[15%] right-[15%] rounded-sm ${value >= 0 ? "bottom-1/2 bg-cyan-600/65" : "top-1/2 bg-amber-300"}`} style={{ height: `${Math.max(4, Math.abs(value) / max * 42)}%` }} /></div>)}
-      </div>
-      <div className="mt-2 grid grid-cols-12 gap-4 px-4 text-center text-xs text-slate-500">{["Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun"].map((month) => <span key={month}>{month}</span>)}</div>
+      <div className="flex items-start justify-between"><div><div className="text-xs text-slate-500">12-month trend</div><h2 className="mt-1 text-lg font-semibold text-slate-900">Net cash movement</h2></div><div className="text-xs text-slate-500">Recorded history</div></div>
+      <p className="mt-4 rounded-lg bg-slate-50 p-5 text-sm text-slate-600">History unavailable. Recorded cash flows over time are needed to show a trend.</p>
+
     </section>
   </main>;
 }

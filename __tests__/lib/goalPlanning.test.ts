@@ -7,6 +7,15 @@ import { GoalPlanningEngine, createGoal, defaultGoalState, type FinancialGoal, t
 const userId = "goal-test-user";
 const startDate = "2026-08-01";
 
+test("zero targets and hypothetical deposits do not establish achieved goals", () => {
+  const zero = goal({ targetAmount: 0, currentAmount: 0, type: "RETIREMENT" });
+  assert.notEqual(GoalPlanningEngine.evaluateGoal(zero, forecast()).goal.status, "ACHIEVED");
+  const saved = goal({ targetAmount: 30000, currentAmount: 0 });
+  const variant = { id: "hypothetical", goalId: saved.id, name: "baseline" as const, contributionAmount: 1200, oneOffDeposit: 30000, startDelayMonths: 0, incomeChange: 0, expenseReduction: 0, createdAt: startDate, archived: false };
+  assert.notEqual(GoalPlanningEngine.evaluateGoal(saved, forecast(), variant).goal.status, "ACHIEVED");
+  assert.equal(GoalPlanningEngine.evaluateGoal(goal({ targetAmount: 30000, currentAmount: 30000 }), forecast()).goal.status, "ACHIEVED");
+});
+
 function record(input: Partial<CanonicalFinancialRecord> & { kind: CanonicalFinancialRecord["kind"]; label: string; value: Record<string, unknown> }): CanonicalFinancialRecord {
   return {
     id: input.id ?? `record-${input.kind}-${input.label.replace(/\W/g, "-")}`,
