@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 
 export default function LoginForm({ returnTo }: { returnTo: string }) {
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +73,7 @@ export default function LoginForm({ returnTo }: { returnTo: string }) {
       >
         {submitting ? "Signing in…" : "Sign in"}
       </button>
+      <Link className="block rounded py-2 text-center text-sm font-semibold text-blue-700 underline underline-offset-4" href="/login/forgot-password">Forgot your password?</Link>
     </form>
   );
 }
