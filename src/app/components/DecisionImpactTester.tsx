@@ -27,7 +27,7 @@ export default function DecisionImpactTester() {
         <button type="button" aria-pressed={direction === "spend"} onClick={() => setDirection("spend")}>Spend instead</button>
       </div>
       <div className="cc-form-grid">{field("age", "Current age", 0, 65, "1")}{field("amount", "One-off amount (AUD)", 0)}{field("base", "Annual return assumption (%)", -99.99)}</div>
-      <p className="cc-muted">Enter your own inputs; no return rate or age is preselected. Values are temporary and do not update your plan.</p>
+      <p className="cc-muted">Your inputs only. This illustration does not update your plan.</p>
       <div className={`cc-impact ${direction === "spend" ? "cc-impact-negative" : ""}`} aria-live="polite" aria-atomic="true">
         <span>{direction === "add" ? "Additional investment value at 65" : "Age-65 difference versus investing this amount"}</span>
         <strong>{result ? signed(result.impact) : "Enter inputs to calculate"}</strong>

@@ -261,7 +261,7 @@ export default function AppShell({
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#f7f8fb] text-slate-950 font-sans">
+    <div className={`min-h-screen bg-[#f7f8fb] text-slate-950 font-sans ${active === "dashboard" ? "cc-shell" : ""}`}>
       <MobileNav developerMode={developerMode} />
       <RuntimeBanner />
 
