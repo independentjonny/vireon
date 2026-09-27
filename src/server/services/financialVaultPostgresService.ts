@@ -11,6 +11,7 @@ import {
 import { FINANCIAL_DOCUMENT_INGESTION_VERSION, type FinancialDocumentIngestionResult } from "@/lib/financialDocumentIngestion";
 import type { CanonicalFinancialRecord, CandidateField, FinancialRecordKind, IngestionRecord, IngestionSource, ImportPreview } from "@/lib/manualFinancialDataPlatform";
 import { ManualFinancialDataPlatform } from "@/lib/manualFinancialDataPlatform";
+import { setupCategories, setupRecordValue, validateSetupEntries, type SetupDraft } from "@/lib/financialSetup";
 import { hashRecord, type AuthenticatedSession, type RepositoryContext } from "@/lib/productionDataIntegrity";
 import { createRuntimeDatabaseConfigFromEnv, PsqlRuntimeClient, type DatabaseErrorClass, classifyDatabaseError } from "@/server/db/postgresRuntime";
 import type { PostgresPilotClient } from "@/lib/postgresPilotPersistence";
@@ -454,6 +455,66 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
   return {
     contextFromSession,
     toSafeError: toFinancialVaultSafeError,
+    async getSetup(session: AuthenticatedSession) {
+      return withScopedTransaction(contextFromSession(session), async ctx => {
+        const rows = await scopedDb(ctx).query<{ preview: SetupDraft }>("select preview from migration_runs where user_id = $1 and target_version = 'financial-setup-v2' order by updated_at desc limit 20", [ctx.session.userId]);
+        return { drafts: rows.rows.map(row => row.preview), records: (await listCanonicalRecords(ctx)).filter(record => !record.superseded) };
+      });
+    },
+    async saveSetup(session: AuthenticatedSession, input: SetupDraft, confirm = false): Promise<SetupDraft> {
+      return withScopedTransaction(contextFromSession(session), async ctx => {
+        await initializeProfile(ctx);
+        const userId = ctx.session.userId!;
+        // Serialize retries and concurrent tabs for this user's setup drafts.
+        await scopedDb(ctx).query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [`financial-setup:${userId}`]);
+        const rows = await scopedDb(ctx).query<{ preview: SetupDraft }>("select preview from migration_runs where user_id = $1 and id = $2 and target_version = 'financial-setup-v2' for update", [userId, input.id]);
+        const previous = rows.rows[0]?.preview;
+        if (previous?.status === "confirmed") {
+          if (confirm) return previous;
+          throw new FinancialVaultPersistenceError("CONFLICT", "This set of changes has already been confirmed. Start a new update.", 409);
+        }
+        if ((previous?.revision ?? 0) !== input.revision) throw new FinancialVaultPersistenceError("CONFLICT", "This draft changed in another tab. Reload it before continuing.", 409);
+        const next: SetupDraft = { ...input, revision: input.revision + 1, status: "draft", updatedAt: new Date().toISOString() };
+        if (confirm) {
+          try { validateSetupEntries(next.entries); } catch (error) { throw new FinancialVaultPersistenceError("VALIDATION_FAILED", (error as Error).message, 422); }
+          const canonical = await listCanonicalRecords(ctx);
+          let count = 0;
+          for (const entry of next.entries.filter(item => item.included)) {
+            const category = setupCategories[entry.category];
+            const old = entry.replaceId ? canonical.find(record => record.id === entry.replaceId && !record.superseded) : undefined;
+            if (entry.replaceId && (!old || old.kind !== category.kind || old.updatedAt !== entry.replaceUpdatedAt)) throw new FinancialVaultPersistenceError("CONFLICT", "The record you are updating has changed or is unavailable. Reload and review it again.", 409);
+            if (!old && canonical.some(record => !record.superseded && record.kind === category.kind && record.label.trim().toLowerCase() === entry.label.trim().toLowerCase())) throw new FinancialVaultPersistenceError("CONFLICT", `An item named ${entry.label} already exists. Select it under Update existing item.`, 409);
+            const value = { ...(old?.value ?? {}), ...setupRecordValue(entry) };
+            // Remove old recurring aliases so the newly reviewed amount wins.
+            if (["income", "expenses"].includes(entry.category)) for (const key of ["monthlyAmount", "netMonthlyAmount", "monthlyIncome", "monthlyExpense", "annualAmount", "annualIncome", "annualExpense", "cadence", "period", "paymentFrequency"]) delete (value as Record<string, unknown>)[key];
+            if (!["income", "expenses"].includes(entry.category)) for (const key of ["marketValue", "principal", "amount", "value"]) delete (value as Record<string, unknown>)[key];
+            const generated = new ManualFinancialDataPlatform().manualRecord(userId, { kind: category.kind, subtype: category.subtype, label: entry.label.trim(), value, approximate: false });
+            const record: CanonicalFinancialRecord = { ...generated, ...(old ? { id: old.id, createdAt: old.createdAt, history: [...old.history, { at: next.updatedAt, action: "updated", before: old.value, after: value }] } : {}), updatedAt: next.updatedAt,
+              provenance: { ...generated.provenance, ingestionId: `setup-${next.id}`, sourceField: entry.source === "Manual entry" ? "manual-entry" : `${entry.source}: ${entry.snippet}`, userConfirmed: true } };
+            let saved: { id: string; version: number } | undefined;
+            if (old) {
+              const result = await scopedDb(ctx).query<{ id: string; version: number }>("update financial_facts set fact_value = $1::jsonb, version = version + 1, updated_at = now(), correlation_id = $2 where user_id = $3 and fact_value->>'id' = $4 and fact_value->>'updatedAt' = $5 and source in ('financial-vault-import', 'financial-vault-manual') returning id, version", [JSON.stringify(record), ctx.correlationId, userId, old.id, old.updatedAt]);
+              saved = result.rows[0];
+              if (!saved) throw new FinancialVaultPersistenceError("CONFLICT", "The financial record changed. Reload before updating it.", 409);
+            } else {
+              const result = await scopedDb(ctx).query<{ id: string; version: number }>("insert into financial_facts(user_id, fact_type, fact_value, confidence, verified, sensitivity, source, correlation_id) values ($1, $2, $3::jsonb, 1, true, 'asset-debt', 'financial-vault-manual', $4) returning id, version", [userId, record.kind, JSON.stringify(record), ctx.correlationId]);
+              saved = result.rows[0];
+            }
+            if (!saved) throw new FinancialVaultPersistenceError("DATABASE_UNAVAILABLE", "The update could not be saved. Nothing was confirmed.", 503);
+            await insertFactVersion(ctx, saved.id, saved.version, record, 1, true, `Financial setup confirmed; source: ${entry.source}; draft: ${next.id}`);
+            count++;
+          }
+          next.status = "confirmed"; next.confirmedCount = count;
+        }
+        const stored = await scopedDb(ctx).query(`insert into migration_runs(id, user_id, source_version, target_version, status, preview, record_count, source_checksum, rollback_metadata, source, correlation_id)
+          values ($1, $2, 'financial-setup-v2', 'financial-setup-v2', $3, $4::jsonb, $5, $6, '{}'::jsonb, $7, $8)
+          on conflict (id) do update set preview = excluded.preview, status = excluded.status, record_count = excluded.record_count, updated_at = now()
+          where migration_runs.user_id = excluded.user_id and migration_runs.target_version = 'financial-setup-v2' returning id`,
+          [next.id, userId, confirm ? "CONFIRMED" : "RECEIVED", JSON.stringify(next), next.entries.length, hashRecord(next), ctx.source, ctx.correlationId]);
+        if (!stored.rows.length) throw new FinancialVaultPersistenceError("CONFLICT", "This draft is unavailable. Start a new update.", 409);
+        return next;
+      });
+    },
     async getVault(session: AuthenticatedSession, correlationId: string = randomUUID()): Promise<FinancialVaultState> {
       return withScopedTransaction(contextFromSession(session, correlationId), async (ctx) => {
         await initializeProfile(ctx);

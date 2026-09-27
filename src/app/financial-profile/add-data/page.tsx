@@ -1,14 +1,16 @@
 import AppShell from "../../components/AppShell";
 import AddFinancialDataClient from "../../components/AddFinancialDataClient";
+import FinancialSetupClient from "../../components/FinancialSetupClient";
 import { requireServerPageSession } from "@/lib/auth/serverPageSession";
 import { buildAddFinancialDataSummary, buildExistingPropertyDraft } from "@/lib/addFinancialDataStatus";
 import { createFinancialPositionReadServiceFromEnv } from "@/server/services/financialPositionReadService";
 
 export const dynamic = "force-dynamic";
 
-export default async function AddFinancialDataPage({ searchParams }: { searchParams: Promise<{ category?: string; propertyId?: string }> }) {
+export default async function AddFinancialDataPage({ searchParams }: { searchParams: Promise<{ category?: string; propertyId?: string; legacy?: string }> }) {
   const params = await searchParams;
   const session = await requireServerPageSession("/financial-profile/add-data");
+  if (!params.propertyId && params.legacy !== "property") return <AppShell active="financial-data"><FinancialSetupClient /></AppShell>;
   const position = await createFinancialPositionReadServiceFromEnv().read(session);
   const summary = buildAddFinancialDataSummary(position);
   const savedProperties = position.propertyDetails

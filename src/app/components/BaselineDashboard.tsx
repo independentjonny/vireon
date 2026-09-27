@@ -32,7 +32,7 @@ export default function BaselineDashboard(props: Props) {
   ];
   return <main className="command-centre" id="dashboard-content">
     <section className="cc-hero" aria-labelledby="outcome-heading">
-      <div className="cc-hero-copy"><p className="cc-eyebrow">Your financial command centre</p><h2 id="outcome-heading">A clearer view of your tomorrow.</h2><p className="cc-outcome">Projected wealth at 65: <strong>not yet available</strong></p><p className="cc-hero-explanation">Confirm your age and retirement assumptions to build your personal outlook.</p><a className="cc-primary" href="#future">Explore your outlook <ArrowUpRight size={16} aria-hidden="true" /></a></div>
+      <div className="cc-hero-copy"><p className="cc-eyebrow">Your financial command centre</p><h2 id="outcome-heading">A clearer view of your tomorrow.</h2><p className="cc-outcome">Projected wealth at 65: <strong>not yet available</strong></p><p className="cc-hero-explanation">Confirm your age and retirement assumptions to build your personal outlook.</p><Link className="cc-primary" href="/financial-profile/add-data">{props.assets === null || props.monthlyIncome === null ? "Build your financial picture" : "Update financial data"} <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
       <div className="cc-hero-aside"><p>Understand today.<br />Explore tomorrow.<br /><strong>Decide with clarity.</strong></p><span>A brighter tomorrow</span></div>
     </section>
     <section id="now" aria-label="Current financial position" className="cc-kpis">{metrics.map(({ label, value, detail, href, icon: Icon }) => <Link href={href} className="cc-kpi" key={label}><Icon size={21} aria-hidden="true" /><div><h2>{label}</h2><strong>{value}</strong><p>{detail}</p></div></Link>)}</section>

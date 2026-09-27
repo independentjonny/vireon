@@ -80,7 +80,7 @@ export function permissionForPath(pathname: string, method = "GET"): Permission 
   if (pathname.startsWith("/api/assets")) {
     return READ_METHODS.has(method.toUpperCase()) ? "read:transactions" : "write:transactions";
   }
-  if (pathname.startsWith("/api/financial-vault")) {
+  if (pathname.startsWith("/api/financial-vault") || pathname.startsWith("/api/financial-setup")) {
     return READ_METHODS.has(method.toUpperCase()) ? "read:transactions" : "write:transactions";
   }
   if (pathname.startsWith("/api/ingest")) return "write:transactions";
@@ -152,6 +152,7 @@ export const config = {
     "/api/financial-intelligence",
     "/api/financial-forecast/:path*",
     "/api/financial-vault/:path*",
+    "/api/financial-setup/:path*",
     "/api/goals/:path*",
     "/api/health-score",
     "/api/housing-scenarios/:path*",
