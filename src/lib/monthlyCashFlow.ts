@@ -234,6 +234,7 @@ function mortgageRepaymentLines(records: CanonicalFinancialRecord[]) {
   const lines: MonthlyCashFlowLine[] = [];
   const excludedRecordIds: string[] = [];
   for (const record of records.filter((item) => item.kind === "liability" && /mortgage|home loan/i.test(`${item.subtype} ${item.label}`))) {
+    if (firstPresentNumber(record, ["balance", "principal"]) === 0 && record.value.repaymentAmount === 0) continue;
     const normalised = normaliseAmount(record.value.repaymentAmount, record.value.repaymentFrequency);
     if (!normalised || normalised.amount <= 0) {
       excludedRecordIds.push(record.id);

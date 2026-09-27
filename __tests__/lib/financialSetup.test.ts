@@ -113,15 +113,30 @@ it("saves and updates property and mortgage atomically without duplicate debts",
   assert.throws(() => validateSetupEntries([entry({ category: "property" })]), /mortgage/);
   assert.throws(() => validateSetupEntries([entry({ category: "property", mortgageAmount: "-1" })]), /mortgage/);
   const db = new SetupDb(), service = createFinancialVaultPostgresService(db);
-  const pending = draft([entry({ category: "property", label: "Home", amount: "800000", mortgageAmount: "300000" })]);
+  const pending = draft([entry({ category: "property", label: "Home", amount: "800000", mortgageAmount: "300000", repaymentAmount: "2000", repaymentFrequency: "monthly" })]);
   assert.equal((await service.saveSetup(userA, pending, true)).confirmedCount, 2);
   const [property, mortgage] = db.facts.map(f => structuredClone(f.record));
-  assert.equal(mortgage.value.balance, 300000); assert.equal(mortgage.kind, "liability");
+  assert.equal(mortgage.value.balance, 300000); assert.equal(mortgage.kind, "liability"); assert.equal(mortgage.value.repaymentAmount, 2000); assert.equal(mortgage.value.repaymentFrequency, "monthly");
   assert.equal(mortgage.value.propertyEntityKey, property.value.entityKey);
   await service.saveSetup(userA, pending, true); assert.equal(db.facts.length, 2);
-  const update = entry({ category: "property", label: "Home", amount: "850000", mortgageAmount: "290000", replaceId: property.id, replaceUpdatedAt: property.updatedAt, mortgageReplaceId: mortgage.id, mortgageReplaceUpdatedAt: mortgage.updatedAt });
+  const update = entry({ category: "property", label: "Home", amount: "850000", mortgageAmount: "290000", repaymentAmount: "550", repaymentFrequency: "weekly", replaceId: property.id, replaceUpdatedAt: property.updatedAt, mortgageReplaceId: mortgage.id, mortgageReplaceUpdatedAt: mortgage.updatedAt });
   await assert.rejects(service.saveSetup(userA, draft([{ ...update, mortgageReplaceUpdatedAt: "stale" }]), true), /mortgage/);
   assert.equal(db.facts[0].record.value.marketValue, 800000);
   await service.saveSetup(userA, draft([update]), true);
-  assert.equal(db.facts.length, 2); assert.equal(db.facts[0].record.value.marketValue, 850000); assert.equal(db.facts[1].record.value.balance, 290000);
+  assert.equal(db.facts.length, 2); assert.equal(db.facts[0].record.value.marketValue, 850000); assert.equal(db.facts[1].record.value.balance, 290000); assert.equal(db.facts[1].record.value.repaymentAmount, 550); assert.equal(db.facts[1].record.value.repaymentFrequency, "weekly");
+});
+
+it("feeds saved repayments into monthly surplus and allows an explicitly paid-off mortgage", async () => {
+  const { buildMonthlyCashFlowModel } = await import("../../src/lib/monthlyCashFlow.ts");
+  const db = new SetupDb(), service = createFinancialVaultPostgresService(db);
+  const home = entry({ category: "property", label: "Home", amount: "800000", mortgageAmount: "300000", repaymentAmount: "2000", repaymentFrequency: "monthly" });
+  assert.throws(() => validateSetupEntries([{ ...home, repaymentAmount: "" }]), /repayment/);
+  assert.throws(() => validateSetupEntries([{ ...home, repaymentFrequency: "" }]), /repayment/);
+  await service.saveSetup(userA, draft([home, entry({ category: "income", label: "Salary", amount: "8000", frequency: "monthly" }), entry({ category: "expenses", label: "Living", amount: "2500", frequency: "monthly" })]), true);
+  const flow = buildMonthlyCashFlowModel(db.facts.map(f => f.record), userA.userId);
+  assert.equal(flow.monthlyExpenses, 4500); assert.equal(flow.monthlySurplus, 3500);
+  const property = db.facts[0].record, mortgage = db.facts[1].record;
+  await service.saveSetup(userA, draft([{ ...home, mortgageAmount: "0", repaymentAmount: "", repaymentFrequency: "", replaceId: property.id, replaceUpdatedAt: property.updatedAt, mortgageReplaceId: mortgage.id, mortgageReplaceUpdatedAt: mortgage.updatedAt }]), true);
+  const paidOff = buildMonthlyCashFlowModel(db.facts.map(f => f.record), userA.userId);
+  assert.equal(paidOff.monthlyExpenses, 2500); assert.equal(paidOff.monthlySurplus, 5500);
 });

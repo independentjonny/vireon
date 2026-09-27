@@ -499,6 +499,10 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
             if (entry.replaceId && (!old || old.kind !== category.kind || old.updatedAt !== entry.replaceUpdatedAt)) throw new FinancialVaultPersistenceError("CONFLICT", "The record you are updating has changed or is unavailable. Reload and review it again.", 409);
             if (!old && canonical.some(record => !record.superseded && record.kind === category.kind && record.label.trim().toLowerCase() === entry.label.trim().toLowerCase())) throw new FinancialVaultPersistenceError("CONFLICT", `An item named ${entry.label} already exists. Select it under Update existing item.`, 409);
             const value = { ...(old?.value ?? {}), ...setupRecordValue(entry), ...write.link };
+            if (write.mortgage || entry.category === "loans" && entry.repaymentAmount?.trim()) {
+              (value as Record<string, unknown>).repaymentAmount = write.mortgage && Number(entry.amount) === 0 ? 0 : Number(entry.repaymentAmount);
+              (value as Record<string, unknown>).repaymentFrequency = entry.repaymentFrequency ?? "";
+            }
             // Remove old recurring aliases so the newly reviewed amount wins.
             if (["income", "expenses"].includes(entry.category)) for (const key of ["monthlyAmount", "netMonthlyAmount", "monthlyIncome", "monthlyExpense", "annualAmount", "annualIncome", "annualExpense", "cadence", "period", "paymentFrequency"]) delete (value as Record<string, unknown>)[key];
             if (!["income", "expenses"].includes(entry.category)) for (const key of [entry.category === "property" ? "balance" : "marketValue", "principal", "amount", "value"]) delete (value as Record<string, unknown>)[key];

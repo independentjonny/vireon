@@ -13,7 +13,7 @@ export type SetupCategory = keyof typeof setupCategories;
 export type SetupEntry = {
   id: string; category: SetupCategory; label: string; amount: string; frequency: string;
   asOfDate: string; ownership: string; source: string; snippet: string;
-  replaceId: string; replaceUpdatedAt: string; included: boolean; mortgageAmount?: string; mortgageReplaceId?: string; mortgageReplaceUpdatedAt?: string;
+  replaceId: string; replaceUpdatedAt: string; included: boolean; repaymentAmount?: string; repaymentFrequency?: string; mortgageAmount?: string; mortgageReplaceId?: string; mortgageReplaceUpdatedAt?: string;
 };
 export type SetupFile = { id: string; name: string; hash: string; warnings: string[]; extracted: number };
 export type SetupDraft = { id: string; revision: number; status: "draft" | "confirmed"; entries: SetupEntry[]; files: SetupFile[]; updatedAt: string; confirmedCount?: number };
@@ -29,6 +29,9 @@ export function validateSetupEntries(entries: SetupEntry[]) {
     if (!["Sole", "My share of joint"].includes(entry.ownership)) throw new Error(`Confirm whose amount this is for ${entry.label}.`);
     if (["income", "expenses"].includes(entry.category) && !["weekly", "fortnightly", "monthly", "annual"].includes(entry.frequency)) throw new Error(`Choose the payment frequency for ${entry.label}.`);
     if (entry.category === "property" && (!entry.mortgageAmount?.trim() || !Number.isFinite(Number(entry.mortgageAmount)) || Number(entry.mortgageAmount) < 0 || Number(entry.mortgageAmount) > 1e12)) throw new Error("Enter the current mortgage, or 0 if there is no mortgage.");
+    const repaymentRequired = entry.category === "property" && Number(entry.mortgageAmount) > 0;
+    const hasRepayment = Boolean(entry.repaymentAmount?.trim() || entry.repaymentFrequency);
+    if ((repaymentRequired || hasRepayment) && ["property", "loans"].includes(entry.category) && (!entry.repaymentAmount?.trim() || !Number.isFinite(Number(entry.repaymentAmount)) || Number(entry.repaymentAmount) <= 0 || Number(entry.repaymentAmount) > 1e12 || !["weekly", "fortnightly", "monthly", "annual"].includes(entry.repaymentFrequency ?? ""))) throw new Error("Enter the repayment amount and frequency for your mortgage or loan.");
     const identity = `${entry.category}:${entry.label.trim().toLowerCase()}`;
     if (identities.has(identity) || (entry.replaceId && replacements.has(entry.replaceId))) throw new Error("Two items appear to update the same information. Remove the duplicate before confirming.");
     identities.add(identity); if (entry.replaceId) replacements.add(entry.replaceId);
