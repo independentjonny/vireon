@@ -11,7 +11,7 @@ import {
 import { FINANCIAL_DOCUMENT_INGESTION_VERSION, type FinancialDocumentIngestionResult } from "@/lib/financialDocumentIngestion";
 import type { CanonicalFinancialRecord, CandidateField, FinancialRecordKind, IngestionRecord, IngestionSource, ImportPreview } from "@/lib/manualFinancialDataPlatform";
 import { ManualFinancialDataPlatform } from "@/lib/manualFinancialDataPlatform";
-import { setupCategories, setupRecordValue, validateSetupEntries, type SetupDraft } from "@/lib/financialSetup";
+import { linkedSetupMortgage, setupCategories, setupRecordValue, validateSetupEntries, type SetupDraft } from "@/lib/financialSetup";
 import { hashRecord, type AuthenticatedSession, type RepositoryContext } from "@/lib/productionDataIntegrity";
 import { createRuntimeDatabaseConfigFromEnv, PsqlRuntimeClient, type DatabaseErrorClass, classifyDatabaseError } from "@/server/db/postgresRuntime";
 import type { PostgresPilotClient } from "@/lib/postgresPilotPersistence";
@@ -479,16 +479,30 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
           try { validateSetupEntries(next.entries); } catch (error) { throw new FinancialVaultPersistenceError("VALIDATION_FAILED", (error as Error).message, 422); }
           const canonical = await listCanonicalRecords(ctx);
           let count = 0;
-          for (const entry of next.entries.filter(item => item.included)) {
+
+          const writes = next.entries.filter(item => item.included).flatMap(entry => {
+            if (entry.category !== "property") return [{ entry, link: {} as Record<string, unknown>, mortgage: false }];
+            const property = canonical.find(record => record.id === entry.replaceId && !record.superseded);
+            const mortgage = linkedSetupMortgage(property, canonical);
+            if ((mortgage?.id ?? "") !== (entry.mortgageReplaceId ?? "") || (mortgage?.updatedAt ?? "") !== (entry.mortgageReplaceUpdatedAt ?? "")) throw new FinancialVaultPersistenceError("CONFLICT", "The linked mortgage changed or is unavailable. Select the property again and review both values.", 409);
+            const entityKey = property?.value.entityKey || `property:${property?.id ?? entry.id}`;
+            return [{ entry, link: { entityKey }, mortgage: false }, { entry: { ...entry, category: "loans" as const, label: mortgage?.label ?? `${entry.label} mortgage`, amount: entry.mortgageAmount!, replaceId: mortgage?.id ?? "", replaceUpdatedAt: mortgage?.updatedAt ?? "" }, link: { propertyEntityKey: entityKey }, mortgage: true }];
+          });
+          const written = new Set<string>();
+          for (const write of writes) {
+            const { entry } = write;
+            const identity = entry.replaceId || `${setupCategories[entry.category].kind}:${entry.label.trim().toLowerCase()}`;
+            if (written.has(identity)) throw new FinancialVaultPersistenceError("CONFLICT", "The same item is included twice. Remove the duplicate before confirming.", 409);
+            written.add(identity);
             const category = setupCategories[entry.category];
             const old = entry.replaceId ? canonical.find(record => record.id === entry.replaceId && !record.superseded) : undefined;
             if (entry.replaceId && (!old || old.kind !== category.kind || old.updatedAt !== entry.replaceUpdatedAt)) throw new FinancialVaultPersistenceError("CONFLICT", "The record you are updating has changed or is unavailable. Reload and review it again.", 409);
             if (!old && canonical.some(record => !record.superseded && record.kind === category.kind && record.label.trim().toLowerCase() === entry.label.trim().toLowerCase())) throw new FinancialVaultPersistenceError("CONFLICT", `An item named ${entry.label} already exists. Select it under Update existing item.`, 409);
-            const value = { ...(old?.value ?? {}), ...setupRecordValue(entry) };
+            const value = { ...(old?.value ?? {}), ...setupRecordValue(entry), ...write.link };
             // Remove old recurring aliases so the newly reviewed amount wins.
             if (["income", "expenses"].includes(entry.category)) for (const key of ["monthlyAmount", "netMonthlyAmount", "monthlyIncome", "monthlyExpense", "annualAmount", "annualIncome", "annualExpense", "cadence", "period", "paymentFrequency"]) delete (value as Record<string, unknown>)[key];
             if (!["income", "expenses"].includes(entry.category)) for (const key of [entry.category === "property" ? "balance" : "marketValue", "principal", "amount", "value"]) delete (value as Record<string, unknown>)[key];
-            const generated = new ManualFinancialDataPlatform().manualRecord(userId, { kind: category.kind, subtype: category.subtype, label: entry.label.trim(), value, approximate: false });
+            const generated = new ManualFinancialDataPlatform().manualRecord(userId, { kind: category.kind, subtype: write.mortgage ? "mortgage" : category.subtype, label: entry.label.trim(), value, approximate: false });
             const record: CanonicalFinancialRecord = { ...generated, ...(old ? { id: old.id, createdAt: old.createdAt, history: [...old.history, { at: next.updatedAt, action: "updated", before: old.value, after: value }] } : {}), updatedAt: next.updatedAt,
               provenance: { ...generated.provenance, ingestionId: `setup-${next.id}`, sourceField: entry.source === "Manual entry" ? "manual-entry" : `${entry.source}: ${entry.snippet}`, userConfirmed: true } };
             let saved: { id: string; version: number } | undefined;

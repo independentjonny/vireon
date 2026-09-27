@@ -13,7 +13,7 @@ export type SetupCategory = keyof typeof setupCategories;
 export type SetupEntry = {
   id: string; category: SetupCategory; label: string; amount: string; frequency: string;
   asOfDate: string; ownership: string; source: string; snippet: string;
-  replaceId: string; replaceUpdatedAt: string; included: boolean;
+  replaceId: string; replaceUpdatedAt: string; included: boolean; mortgageAmount?: string; mortgageReplaceId?: string; mortgageReplaceUpdatedAt?: string;
 };
 export type SetupFile = { id: string; name: string; hash: string; warnings: string[]; extracted: number };
 export type SetupDraft = { id: string; revision: number; status: "draft" | "confirmed"; entries: SetupEntry[]; files: SetupFile[]; updatedAt: string; confirmedCount?: number };
@@ -28,6 +28,7 @@ export function validateSetupEntries(entries: SetupEntry[]) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.asOfDate) || !Number.isFinite(Date.parse(entry.asOfDate)) || new Date(entry.asOfDate).toISOString().slice(0,10) !== entry.asOfDate || entry.asOfDate > new Date().toISOString().slice(0,10)) throw new Error(`Enter a valid date, no later than today, for ${entry.label}.`);
     if (!["Sole", "My share of joint"].includes(entry.ownership)) throw new Error(`Confirm whose amount this is for ${entry.label}.`);
     if (["income", "expenses"].includes(entry.category) && !["weekly", "fortnightly", "monthly", "annual"].includes(entry.frequency)) throw new Error(`Choose the payment frequency for ${entry.label}.`);
+    if (entry.category === "property" && (!entry.mortgageAmount?.trim() || !Number.isFinite(Number(entry.mortgageAmount)) || Number(entry.mortgageAmount) < 0 || Number(entry.mortgageAmount) > 1e12)) throw new Error("Enter the current mortgage, or 0 if there is no mortgage.");
     const identity = `${entry.category}:${entry.label.trim().toLowerCase()}`;
     if (identities.has(identity) || (entry.replaceId && replacements.has(entry.replaceId))) throw new Error("Two items appear to update the same information. Remove the duplicate before confirming.");
     identities.add(identity); if (entry.replaceId) replacements.add(entry.replaceId);
@@ -65,4 +66,9 @@ export function suggestSetupEntries(text: string, fileName: string): SetupEntry[
     if (!match) return [];
     return [{ id: crypto.randomUUID(), category, label: "", amount: match[1].replaceAll(",", ""), frequency: "", asOfDate: "", ownership: "", source: fileName, snippet: match[0], replaceId: "", replaceUpdatedAt: "", included: true }];
   });
+}
+
+export function linkedSetupMortgage(property: CanonicalFinancialRecord | undefined, records: CanonicalFinancialRecord[]) {
+  if (!property?.value.entityKey) return undefined;
+  return records.find(record => !record.superseded && record.kind === "liability" && record.value.propertyEntityKey === property.value.entityKey);
 }

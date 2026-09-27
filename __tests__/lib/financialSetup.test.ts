@@ -104,7 +104,24 @@ it("clears obsolete monthly aliases when updating recurring amounts", async () =
 });
 it("keeps the marketValue field required by existing property editing", async () => {
   const db = new SetupDb(), service = createFinancialVaultPostgresService(db);
-  await service.saveSetup(userA, draft([entry({ category: "property", amount: "500000" })]), true);
+  await service.saveSetup(userA, draft([entry({ category: "property", amount: "500000", mortgageAmount: "0" })]), true);
   assert.equal(db.facts[0].record.value.marketValue, 500000);
   assert.equal(db.facts[0].record.value.balance, undefined);
+});
+
+it("saves and updates property and mortgage atomically without duplicate debts", async () => {
+  assert.throws(() => validateSetupEntries([entry({ category: "property" })]), /mortgage/);
+  assert.throws(() => validateSetupEntries([entry({ category: "property", mortgageAmount: "-1" })]), /mortgage/);
+  const db = new SetupDb(), service = createFinancialVaultPostgresService(db);
+  const pending = draft([entry({ category: "property", label: "Home", amount: "800000", mortgageAmount: "300000" })]);
+  assert.equal((await service.saveSetup(userA, pending, true)).confirmedCount, 2);
+  const [property, mortgage] = db.facts.map(f => structuredClone(f.record));
+  assert.equal(mortgage.value.balance, 300000); assert.equal(mortgage.kind, "liability");
+  assert.equal(mortgage.value.propertyEntityKey, property.value.entityKey);
+  await service.saveSetup(userA, pending, true); assert.equal(db.facts.length, 2);
+  const update = entry({ category: "property", label: "Home", amount: "850000", mortgageAmount: "290000", replaceId: property.id, replaceUpdatedAt: property.updatedAt, mortgageReplaceId: mortgage.id, mortgageReplaceUpdatedAt: mortgage.updatedAt });
+  await assert.rejects(service.saveSetup(userA, draft([{ ...update, mortgageReplaceUpdatedAt: "stale" }]), true), /mortgage/);
+  assert.equal(db.facts[0].record.value.marketValue, 800000);
+  await service.saveSetup(userA, draft([update]), true);
+  assert.equal(db.facts.length, 2); assert.equal(db.facts[0].record.value.marketValue, 850000); assert.equal(db.facts[1].record.value.balance, 290000);
 });

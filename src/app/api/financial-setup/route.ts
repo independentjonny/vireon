@@ -39,6 +39,7 @@ export async function POST(request: Request) {
     for (const entry of draft.entries) {
       if (!entry || !Object.hasOwn(setupCategories, entry.category) || ["id", "label", "amount", "frequency", "asOfDate", "ownership", "source", "snippet", "replaceId", "replaceUpdatedAt"].some(key => typeof entry[key as keyof typeof entry] !== "string" || String(entry[key as keyof typeof entry]).length > 500) || typeof entry.included !== "boolean") throw new Error("Check the financial information and try again.");
     }
+    for (const entry of draft.entries) for (const key of ["mortgageAmount", "mortgageReplaceId", "mortgageReplaceUpdatedAt"] as const) if (entry[key] !== undefined && (typeof entry[key] !== "string" || entry[key]!.length > 500)) throw new Error("Check the mortgage information and try again.");
     for (const file of draft.files) if (!file || typeof file.name !== "string" || typeof file.hash !== "string" || !Array.isArray(file.warnings) || file.warnings.some(w => typeof w !== "string")) throw new Error("Invalid file details.");
     const clean: SetupDraft = { id: draft.id, revision: draft.revision, status: "draft", entries: draft.entries, files: draft.files, updatedAt: "" };
     return Response.json({ ok: true, draft: await createFinancialVaultServiceFromEnv().saveSetup(auth.session, clean, body.action === "confirm") });
