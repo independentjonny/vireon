@@ -31,8 +31,6 @@ export default function BaselineDashboard(props: Props) {
     { label: "Cash buffer", value: props.runwayMonths === null ? "Unavailable" : `${props.runwayMonths.toFixed(1)} months`, detail: "Cash / monthly expenses", href: "/cash-flow", icon: CalendarDays },
   ];
   return <main className="command-centre" id="dashboard-content">
-    <header className="cc-topline"><div><h1>Dashboard</h1><p>Plan today. A brighter tomorrow.</p></div><span>Viewed {new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "Australia/Sydney" }).format(new Date(props.updatedAt))}</span></header>
-    <nav className="cc-journey" aria-label="Dashboard sections">{[["01", "Now", "now"], ["02", "Future", "future"], ["03", "Improve", "improve"], ["04", "Decide", "decide"]].map(([number, label, id]) => <a href={`#${id}`} key={id}><span>{number}</span>{label}<ArrowUpRight size={14} aria-hidden="true" /></a>)}</nav>
     <section className="cc-hero" aria-labelledby="outcome-heading">
       <div className="cc-hero-copy"><p className="cc-eyebrow">Your financial command centre</p><h2 id="outcome-heading">A clearer view of your tomorrow.</h2><p className="cc-outcome">Projected wealth at 65: <strong>not yet available</strong></p><p className="cc-hero-explanation">Confirm your age and retirement assumptions to build your personal outlook.</p><a className="cc-primary" href="#future">Explore your outlook <ArrowUpRight size={16} aria-hidden="true" /></a></div>
       <div className="cc-hero-aside"><p>Understand today.<br />Explore tomorrow.<br /><strong>Decide with clarity.</strong></p><span>A brighter tomorrow</span></div>
