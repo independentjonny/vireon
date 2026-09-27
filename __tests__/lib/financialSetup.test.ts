@@ -102,3 +102,9 @@ it("clears obsolete monthly aliases when updating recurring amounts", async () =
   await service.saveSetup(userA, draft([entry({ category: "income", frequency: "fortnightly", amount: "2000", replaceId: old.id, replaceUpdatedAt: old.updatedAt })]), true);
   assert.equal(db.facts[0].record.value.monthlyAmount, undefined); assert.equal(db.facts[0].record.value.frequency, "fortnightly");
 });
+it("keeps the marketValue field required by existing property editing", async () => {
+  const db = new SetupDb(), service = createFinancialVaultPostgresService(db);
+  await service.saveSetup(userA, draft([entry({ category: "property", amount: "500000" })]), true);
+  assert.equal(db.facts[0].record.value.marketValue, 500000);
+  assert.equal(db.facts[0].record.value.balance, undefined);
+});

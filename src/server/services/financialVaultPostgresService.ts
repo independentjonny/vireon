@@ -487,7 +487,7 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
             const value = { ...(old?.value ?? {}), ...setupRecordValue(entry) };
             // Remove old recurring aliases so the newly reviewed amount wins.
             if (["income", "expenses"].includes(entry.category)) for (const key of ["monthlyAmount", "netMonthlyAmount", "monthlyIncome", "monthlyExpense", "annualAmount", "annualIncome", "annualExpense", "cadence", "period", "paymentFrequency"]) delete (value as Record<string, unknown>)[key];
-            if (!["income", "expenses"].includes(entry.category)) for (const key of ["marketValue", "principal", "amount", "value"]) delete (value as Record<string, unknown>)[key];
+            if (!["income", "expenses"].includes(entry.category)) for (const key of [entry.category === "property" ? "balance" : "marketValue", "principal", "amount", "value"]) delete (value as Record<string, unknown>)[key];
             const generated = new ManualFinancialDataPlatform().manualRecord(userId, { kind: category.kind, subtype: category.subtype, label: entry.label.trim(), value, approximate: false });
             const record: CanonicalFinancialRecord = { ...generated, ...(old ? { id: old.id, createdAt: old.createdAt, history: [...old.history, { at: next.updatedAt, action: "updated", before: old.value, after: value }] } : {}), updatedAt: next.updatedAt,
               provenance: { ...generated.provenance, ingestionId: `setup-${next.id}`, sourceField: entry.source === "Manual entry" ? "manual-entry" : `${entry.source}: ${entry.snippet}`, userConfirmed: true } };

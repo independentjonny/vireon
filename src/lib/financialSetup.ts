@@ -35,7 +35,7 @@ export function validateSetupEntries(entries: SetupEntry[]) {
 }
 
 export function setupRecordValue(entry: SetupEntry) {
-  return { ...(["income", "expenses"].includes(entry.category) ? { amount: Number(entry.amount), frequency: entry.frequency } : { balance: Number(entry.amount) }),
+  return { ...(["income", "expenses"].includes(entry.category) ? { amount: Number(entry.amount), frequency: entry.frequency } : entry.category === "property" ? { marketValue: Number(entry.amount) } : { balance: Number(entry.amount) }),
     asOfDate: entry.asOfDate, ownership: entry.ownership, currency: "AUD", setupCategory: entry.category,
     ...(entry.category === "income" ? { incomeBasis: "net" } : {}), sourceName: entry.source };
 }
