@@ -43,7 +43,7 @@ const navGroups = [
     label: "Financial Profile",
     items: [
       ["Financial Position", "/financial-profile", ClipboardCheck],
-      ["Add financial data", "/financial-profile/add-data", FileCheck2],
+      ["Add/Modify Financial Data", "/financial-profile/add-data", FileCheck2],
     ],
   },
   {
@@ -134,7 +134,7 @@ function isSelected(active: ActiveSection, label: string, href: string, pathname
   return (
     (active === "dashboard" && label === "Dashboard") ||
     (active === "financial-position" && label === "Financial Position") ||
-    (active === "financial-data" && label === "Add financial data") ||
+    (active === "financial-data" && label === "Add/Modify Financial Data") ||
     (active === "financial-vault" && label === "Document Vault") ||
     (active === "housing-scenarios" && label === "Housing") ||
     (active === "digital-twin" && label === "Digital Twin") ||

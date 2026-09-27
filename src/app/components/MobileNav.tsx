@@ -27,7 +27,7 @@ const USER_SECTIONS = [
     label: "Financial Profile",
     items: [
       ["Financial Position", "/financial-profile"],
-      ["Add financial data", "/financial-profile/add-data"],
+      ["Add/Modify Financial Data", "/financial-profile/add-data"],
     ],
   },
   {
