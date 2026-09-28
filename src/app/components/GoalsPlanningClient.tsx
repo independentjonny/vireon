@@ -134,11 +134,20 @@ export default function GoalsPlanningClient({
     if (next === "RETIREMENT") {
       setRetirementOpen(true);
       setAdding(false);
-      document
-        .getElementById("retirement")
-        ?.scrollIntoView({ behavior: "smooth" });
+      requestAnimationFrame(() =>
+        document
+          .getElementById("retirement")
+          ?.scrollIntoView({ behavior: "smooth" }),
+      );
       return;
     }
+    setAdding(true);
+    setRetirementOpen(false);
+    requestAnimationFrame(() =>
+      document
+        .getElementById("add-goal")
+        ?.scrollIntoView({ behavior: "smooth" }),
+    );
     setType(next);
     setTitle(types.find((t) => t[0] === next)?.[1] ?? "");
     setTarget("");
@@ -287,127 +296,177 @@ export default function GoalsPlanningClient({
       <header className="goals-heading">
         <div>
           <h1>Your goals</h1>
-          <p>
-            Plan retirement and the other things you want to achieve, all in one
-            place.
-          </p>
+          <p>Choose what you want to achieve. All your goals belong here.</p>
         </div>
-        <button
-          className="goals-primary"
-          aria-expanded={adding}
-          aria-controls="add-goal"
-          onClick={() => {
-            setAdding(!adding);
-            if (!adding)
-              requestAnimationFrame(() =>
-                document
-                  .getElementById("add-goal")
-                  ?.scrollIntoView({ behavior: "smooth" }),
-              );
-          }}
-        >
-          {adding ? "Close add goal" : "+ Add goal"}
-        </button>
       </header>
+      <section aria-labelledby="goal-options-title">
+        <h2 id="goal-options-title">What would you like to plan?</h2>
+        <p>Choose a goal to get started. Your saved goals are shown below.</p>
+        <div className="goals-catalogue">
+          {types.map(([value, label]) => {
+            const count = snapshot.activeGoals.filter(
+              (e) => e.goal.type === value && e.goal.status !== "PAUSED",
+            ).length;
+            return (
+              <button
+                key={value}
+                aria-expanded={
+                  value === "RETIREMENT"
+                    ? retirementOpen
+                    : adding && type === value
+                }
+                aria-controls={
+                  value === "RETIREMENT" ? "retirement" : "add-goal"
+                }
+                onClick={() => choose(value)}
+              >
+                <strong>{label}</strong>
+                <span>
+                  {count
+                    ? `${count} saved ${count === 1 ? "goal" : "goals"}`
+                    : value === "RETIREMENT" && trajectory
+                      ? "Plan saved"
+                      : "Start planning"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
       <div role="status" className={message ? "goals-notice" : ""}>
         {message}
       </div>
-      <section
-        className="goals-card goals-retirement"
-        id="retirement"
-        aria-labelledby="retirement-title"
-      >
-        <div className="goals-card-heading">
-          <div>
-            <h2 id="retirement-title">Retirement</h2>
-            <p>Your retirement age and wealth projection</p>
-          </div>
-          <span className="goals-badge">
-            {outcome ? "Illustrative projection" : "Needs setup"}
-          </span>
-        </div>
-        <dl className="goals-metrics">
-          <div>
-            <dt>Retirement age</dt>
-            <dd>{trajectory?.retirementAge ?? "Not set"}</dd>
-          </div>
-          <div>
-            <dt>Projected net wealth · base</dt>
-            <dd>{outcome ? money(outcome.base) : "Not calculated yet"}</dd>
-          </div>
-          <div>
-            <dt>In today’s money</dt>
-            <dd>{outcome ? money(outcome.realBase) : "Not calculated yet"}</dd>
-          </div>
-        </dl>
-        {outcome ? (
-          <p>
-            Lower {money(outcome.low)} · Higher {money(outcome.high)}. These are
-            illustrations using your assumptions, not a measure of retirement
-            readiness.
-          </p>
-        ) : (
-          <p>
-            {trajectory
-              ? "Review your confirmed assets and debts to establish a usable starting net position."
-              : "Set your current age, retirement age and assumptions to see a projection. Your other goals stay on this page."}
-          </p>
-        )}
-        <button
-          className="goals-primary"
-          aria-expanded={retirementOpen}
-          aria-controls="retirement-editor"
-          onClick={() => setRetirementOpen(!retirementOpen)}
+      {retirementOpen && (
+        <section
+          className="goals-card"
+          id="retirement"
+          aria-labelledby="retirement-title"
         >
-          {retirementOpen
-            ? "Close retirement settings"
-            : trajectory
-              ? "Edit retirement plan"
-              : "Set up retirement"}
-        </button>
-        <div id="retirement-editor">
-          {retirementOpen && (
-            <TrajectorySettingsClient
-              initialSettings={trajectory}
-              onSaved={(s) => {
-                setTrajectory(s);
-                router.refresh();
-              }}
-            />
-          )}
-        </div>
-        {retirementGoals.length > 0 && (
-          <details>
-            <summary>
-              Saved retirement targets ({retirementGoals.length})
-            </summary>
+          <div className="goals-card-heading">
+            <div>
+              <h2 id="retirement-title">Retirement</h2>
+              <p>Your retirement age and wealth projection</p>
+            </div>
+            <span className="goals-badge">
+              {outcome ? "Illustrative projection" : "Needs setup"}
+            </span>
+          </div>
+          <dl className="goals-metrics">
+            <div>
+              <dt>Retirement age</dt>
+              <dd>{trajectory?.retirementAge ?? "Not set"}</dd>
+            </div>
+            <div>
+              <dt>Projected net wealth · base</dt>
+              <dd>{outcome ? money(outcome.base) : "Not calculated yet"}</dd>
+            </div>
+            <div>
+              <dt>In today’s money</dt>
+              <dd>
+                {outcome ? money(outcome.realBase) : "Not calculated yet"}
+              </dd>
+            </div>
+          </dl>
+          {outcome ? (
             <p>
-              Your saved targets are preserved below. The retirement age above
-              controls the Dashboard projection; target names do not set that
-              age.
+              Lower {money(outcome.low)} · Higher {money(outcome.high)}. These
+              are illustrations using your assumptions, not a measure of
+              retirement readiness.
             </p>
-            {retirementGoals.map(({ goal }) => (
-              <div className="goals-comparison" key={goal.id}>
-                <strong>{goal.title}</strong>
-                <p>
-                  Target:{" "}
-                  {goal.targetAmount > 0 ? money(goal.targetAmount) : "Not set"}{" "}
-                  · Target date: {date(goal.targetDate)} · {words(goal.status)}
-                </p>
-                {controls(goal)}
-              </div>
-            ))}
-          </details>
-        )}
-      </section>
+          ) : (
+            <p>
+              {trajectory
+                ? "Review your confirmed assets and debts to establish a usable starting net position."
+                : "Set your current age, retirement age and assumptions to see a projection. Your other goals stay on this page."}
+            </p>
+          )}
+          <button
+            className="goals-primary"
+            aria-expanded={retirementOpen}
+            aria-controls="retirement-editor"
+            onClick={() => setRetirementOpen(!retirementOpen)}
+          >
+            {retirementOpen
+              ? "Close retirement settings"
+              : trajectory
+                ? "Edit retirement plan"
+                : "Set up retirement"}
+          </button>
+          <div id="retirement-editor">
+            {retirementOpen && (
+              <TrajectorySettingsClient
+                initialSettings={trajectory}
+                onSaved={(s) => {
+                  setTrajectory(s);
+                  router.refresh();
+                }}
+              />
+            )}
+          </div>
+          {retirementGoals.length > 0 && (
+            <details>
+              <summary>
+                Saved retirement targets ({retirementGoals.length})
+              </summary>
+              <p>
+                Your saved targets are preserved below. The retirement age above
+                controls the Dashboard projection; target names do not set that
+                age.
+              </p>
+              {retirementGoals.map(({ goal }) => (
+                <div className="goals-comparison" key={goal.id}>
+                  <strong>{goal.title}</strong>
+                  <p>
+                    Target:{" "}
+                    {goal.targetAmount > 0
+                      ? money(goal.targetAmount)
+                      : "Not set"}{" "}
+                    · Target date: {date(goal.targetDate)} ·{" "}
+                    {words(goal.status)}
+                  </p>
+                  {controls(goal)}
+                </div>
+              ))}
+            </details>
+          )}
+        </section>
+      )}
       <section aria-labelledby="other-goals-title">
-        <h2 id="other-goals-title">Your other goals</h2>
+        <h2 id="other-goals-title">Your saved goals</h2>
         <p>
-          {otherGoals.length
-            ? `${otherGoals.length} saved ${otherGoals.length === 1 ? "goal" : "goals"}`
-            : "No other active goals yet. Choose Add goal to get started."}
+          {otherGoals.length + retirementGoals.length > 0 || trajectory
+            ? "Review your progress or choose a goal above to make a new plan."
+            : "No goals saved yet. Choose any goal above to begin."}
         </p>
         <div className="goals-grid">
+          {(retirementGoals.length > 0 || trajectory) && (
+            <article className="goals-card">
+              <div className="goals-card-heading">
+                <h3>Retirement</h3>
+                <span className="goals-badge">
+                  {trajectory
+                    ? `Age ${trajectory.retirementAge}`
+                    : "Age not set"}
+                </span>
+              </div>
+              {retirementGoals.map(({ goal }) => (
+                <p key={goal.id}>
+                  {goal.title} ·{" "}
+                  {goal.targetAmount > 0
+                    ? money(goal.targetAmount)
+                    : "Target amount not set"}
+                </p>
+              ))}
+              <p>
+                {outcome
+                  ? `${money(outcome.base)} projected net wealth · base illustration`
+                  : "Set your retirement age and assumptions to calculate a projection."}
+              </p>
+              <button onClick={() => choose("RETIREMENT")}>
+                Open retirement plan
+              </button>
+            </article>
+          )}
           {otherGoals.map((e) => {
             const g = e.goal,
               ready = hasGoalEstimate(e);
@@ -505,20 +564,10 @@ export default function GoalsPlanningClient({
         <section className="goals-card" id="add-goal">
           <h2>Add a goal</h2>
           <p>
-            Choose what you want to work towards. Enter your own amounts and
-            dates.
+            Enter your own amounts and dates. Choose a different goal above at
+            any time.
           </p>
-          <div className="goals-choices">
-            {types.map(([value, label]) => (
-              <button
-                key={value}
-                aria-pressed={type === value}
-                onClick={() => choose(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <button onClick={() => setAdding(false)}>Cancel new goal</button>
           {type && (
             <form
               className="goals-editor"
