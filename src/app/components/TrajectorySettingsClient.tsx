@@ -1,12 +1,140 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { validateTrajectory, type TrajectorySettings } from "@/lib/wealthTrajectory";
-import "./financial-setup.css";
-const fields = [["currentAge","Current age"],["retirementAge","Retirement age"],["annualAddition","Annual net wealth addition (AUD)"],["low","Lower net wealth growth (% per year)"],["base","Base net wealth growth (% per year)"],["high","Higher net wealth growth (% per year)"],["inflation","Inflation (% per year)"]] as const;
-export default function TrajectorySettingsClient() {
- const [values,setValues]=useState<Record<string,string>>({}),[complete,setComplete]=useState(false),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
- useEffect(()=>{fetch("/api/financial-setup").then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error);if(d.trajectory){setValues(Object.fromEntries(fields.map(([k])=>[k,String(d.trajectory[k])])));setComplete(d.trajectory.complete);}setReady(true);}).catch(e=>setMessage(e.message));},[]);
- async function save(){setMessage("");try{if(fields.some(([k])=>!values[k]?.trim()))throw Error("Complete every projection input.");const settings={...Object.fromEntries(fields.map(([k])=>[k,Number(values[k])])),complete} as TrajectorySettings;validateTrajectory(settings);setBusy(true);const r=await fetch("/api/financial-setup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save-trajectory",settings})});const d=await r.json();if(!r.ok)throw Error(d.error);setMessage("Saved. Return to Dashboard to see your updated trajectory.");}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
- return <main className="fs-page"><header className="fs-heading"><Link className="fs-link" href="/goals">← Back to Goals</Link><h1>Retirement age & projection assumptions</h1><p>Set your retirement age here. These assumptions create an illustrative net wealth trajectory from your confirmed assets less debts.</p></header><section className="fs-card"><h2>Your projection setup</h2><p>No assumptions are supplied automatically. Enter your own annual rates after tax and fees.</p><p>Annual net wealth addition means new savings, super contributions and debt principal repaid, less withdrawals. Do not add mortgage interest or count the same savings twice. Enter 0 where appropriate.</p><p>The growth rate applies to your total starting net wealth, including property and super. This is a simplified illustration, not a detailed retirement or debt repayment model.</p>{!ready && <p>Loading saved settings…</p>}<div className="fs-fields">{fields.map(([key,label])=><label key={key}>{label}<input type="number" step={key.includes("Age")?"1":"0.01"} value={values[key]??""} disabled={!ready||busy} onChange={e=>setValues({...values,[key]:e.target.value})}/></label>)}</div><label className="fs-check" style={{marginTop:20}}><input type="checkbox" checked={complete} onChange={e=>setComplete(e.target.checked)}/>I have reviewed my recorded assets and debts, including super and any investments. They cover my current position; categories I do not hold are zero.</label><p>Assumptions stay constant until retirement. Returns compound annually; additions occur at year end. Inflation adjusts the base result to today’s money. Scenario ranges are illustrations, not probabilities. Retirement spending and pension eligibility are not assessed.</p><p role="status">{message}</p><div className="fs-success-actions"><button className="fs-primary" disabled={!ready||busy} onClick={()=>void save()}>{busy?"Saving…":"Save projection settings"}</button><Link className="fs-secondary" href="/">Return to Dashboard</Link><Link className="fs-link" href="/financial-profile/add-data">Review financial data</Link></div></section></main>;
+import {
+  validateTrajectory,
+  type TrajectorySettings,
+} from "@/lib/wealthTrajectory";
+const fields = [
+  ["currentAge", "Current age"],
+  ["retirementAge", "Retirement age"],
+  ["annualAddition", "Annual additions to wealth (AUD)"],
+  ["low", "Lower growth (% per year)"],
+  ["base", "Base growth (% per year)"],
+  ["high", "Higher growth (% per year)"],
+  ["inflation", "Inflation (% per year)"],
+] as const;
+export default function TrajectorySettingsClient({
+  initialSettings,
+  onSaved,
+}: {
+  initialSettings: TrajectorySettings | null;
+  onSaved: (settings: TrajectorySettings) => void;
+}) {
+  const [values, setValues] = useState<Record<string, string>>(
+    initialSettings
+      ? Object.fromEntries(fields.map(([k]) => [k, String(initialSettings[k])]))
+      : {},
+  );
+  const [complete, setComplete] = useState(initialSettings?.complete ?? false),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState("");
+  const [advanced, setAdvanced] = useState(!initialSettings);
+  async function save() {
+    setMessage("");
+    try {
+      if (fields.some(([k]) => !values[k]?.trim()))
+        throw Error(
+          "Complete your ages and all projection assumptions. Enter 0 where appropriate.",
+        );
+      const settings = {
+        ...Object.fromEntries(fields.map(([k]) => [k, Number(values[k])])),
+        complete,
+      } as TrajectorySettings;
+      validateTrajectory(settings);
+      setBusy(true);
+      const r = await fetch("/api/financial-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save-trajectory", settings }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.trajectory)
+        throw Error(d.error ?? "Could not save retirement settings.");
+      onSaved(d.trajectory);
+      setMessage(
+        "Saved. Your Dashboard uses this retirement age and these assumptions.",
+      );
+    } catch (e) {
+      setAdvanced(true);
+      setMessage((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  function field([key, label]: (typeof fields)[number]) {
+    return (
+      <label key={key} className="goals-field">
+        {label}
+        <input
+          type="number"
+          step={key.includes("Age") ? "1" : "0.01"}
+          value={values[key] ?? ""}
+          disabled={busy}
+          onChange={(e) => setValues({ ...values, [key]: e.target.value })}
+        />
+      </label>
+    );
+  }
+  return (
+    <form
+      className="goals-editor"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save();
+      }}
+      noValidate
+    >
+      <h3>Retirement age & projection</h3>
+      <p>
+        Set the age you want to retire. These saved settings also update your
+        Dashboard trajectory.
+      </p>
+      <div className="goals-fields">{fields.slice(0, 2).map(field)}</div>
+      <details
+        open={advanced}
+        onToggle={(e) => setAdvanced(e.currentTarget.open)}
+      >
+        <summary>
+          Projection assumptions{" "}
+          {initialSettings ? "" : "· needed to calculate"}
+        </summary>
+        <p>
+          Enter your own annual rates after tax and fees. No rates are filled in
+          automatically.
+        </p>
+        <div className="goals-fields">{fields.slice(2).map(field)}</div>
+        <p>
+          Annual additions include new savings, super contributions and debt
+          principal repaid, less withdrawals. Exclude mortgage interest and do
+          not count the same saving twice.
+        </p>
+        <p>
+          Growth applies to total net wealth, including property and super.
+          Assumptions stay constant, returns compound annually and additions
+          occur at year end. Inflation converts the base result to today’s
+          money. This illustration does not assess retirement spending or
+          pension eligibility.
+        </p>
+      </details>
+      <label className="goals-check">
+        <input
+          type="checkbox"
+          checked={complete}
+          disabled={busy}
+          onChange={(e) => setComplete(e.target.checked)}
+        />
+        I have reviewed my assets and debts, including super and investments. My
+        records cover my current position; categories I do not hold are zero.
+      </label>
+      <p role="status">{message}</p>
+      <div className="goals-actions">
+        <button className="goals-primary" disabled={busy}>
+          {busy ? "Saving…" : "Save retirement settings"}
+        </button>
+        <Link href="/financial-profile/add-data">Review financial data</Link>
+        <Link href="/">View Dashboard</Link>
+      </div>
+    </form>
+  );
 }

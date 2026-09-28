@@ -1,310 +1,638 @@
 "use client";
-
 import Link from "next/link";
 import { useState } from "react";
-import { Archive, Flag, Home, Pause, PiggyBank, Target, TrendingUp } from "lucide-react";
-import type { FinancialGoal, GoalPlanningSnapshot, GoalPriority, GoalScenarioVariant, GoalType } from "@/lib/goalPlanning";
-
-type GoalsApiResponse = {
-  ok: boolean;
+import { useRouter } from "next/navigation";
+import type {
+  FinancialGoal,
+  GoalPlanningSnapshot,
+  GoalPriority,
+  GoalScenarioVariant,
+  GoalType,
+} from "@/lib/goalPlanning";
+import {
+  wealthTrajectory,
+  type TrajectorySettings,
+} from "@/lib/wealthTrajectory";
+import TrajectorySettingsClient from "./TrajectorySettingsClient";
+import "./goals.css";
+import { hasGoalEstimate } from "@/lib/goalPresentation";
+const types: Array<[GoalType, string]> = [
+  ["RETIREMENT", "Retirement"],
+  ["EMERGENCY_FUND", "Emergency fund"],
+  ["HOME_PURCHASE", "Home purchase"],
+  ["DEBT_REPAYMENT", "Debt repayment"],
+  ["SAVINGS", "Savings"],
+  ["VEHICLE_PURCHASE", "Vehicle"],
+  ["EDUCATION", "Education"],
+  ["TRAVEL", "Travel"],
+  ["INVESTMENT", "Investment"],
+  ["INCOME", "Income"],
+  ["CUSTOM", "Custom goal"],
+];
+const money = (n: number) =>
+  new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "AUD",
+    maximumFractionDigits: 0,
+  }).format(n);
+const words = (s: string) =>
+  s
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replace(/^\w/, (c) => c.toUpperCase());
+const date = (s: string | null) =>
+  s
+    ? new Intl.DateTimeFormat("en-AU", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }).format(new Date(s.slice(0, 10) + "T00:00:00"))
+    : "Not set";
+type ResponseData = {
   error?: string;
   snapshot?: GoalPlanningSnapshot;
   goals?: FinancialGoal[];
   scenarios?: GoalScenarioVariant[];
 };
-
-const typeOptions: Array<{ value: GoalType; label: string }> = [
-  { value: "EMERGENCY_FUND", label: "Emergency fund" },
-  { value: "HOME_PURCHASE", label: "Home purchase" },
-  { value: "DEBT_REPAYMENT", label: "Debt repayment" },
-  { value: "RETIREMENT", label: "Retirement" },
-  { value: "VEHICLE_PURCHASE", label: "Vehicle" },
-  { value: "SAVINGS", label: "Savings" },
-  { value: "CUSTOM", label: "Custom" },
-];
-
-function money(value: number): string {
-  const sign = value < 0 ? "-" : "";
-  return `${sign}$${Math.round(Math.abs(value || 0)).toLocaleString("en-AU")}`;
-}
-
-function dateLabel(value: string | null): string {
-  if (!value) return "Not calculated yet";
-  return new Intl.DateTimeFormat("en-AU", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(`${value.slice(0, 10)}T00:00:00.000Z`));
-}
-
-function forecastQualityLabel(value?: string): string {
-  if (!value || value === "INSUFFICIENT") return "Needs confirmed data";
-  return value.toLowerCase().replace(/^\w/, (letter) => letter.toUpperCase());
-}
-
-function statusLabel(value: string): string {
-  if (value === "INSUFFICIENT_DATA") return "Needs confirmed data";
-  return value.replaceAll("_", " ");
-}
-
-function statusClass(value: string): string {
-  if (value === "ON_TRACK" || value === "ACHIEVED") return "border-emerald-200 bg-emerald-50 text-emerald-800";
-  if (value === "AT_RISK" || value === "UNLIKELY") return "border-amber-200 bg-amber-50 text-amber-900";
-  if (value === "INSUFFICIENT_DATA") return "border-red-200 bg-red-50 text-red-800";
-  return "border-slate-200 bg-slate-50 text-slate-700";
-}
-
-function Metric({ label, value, note }: { label: string; value: string; note: string }) {
-  return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="text-xs font-semibold uppercase text-slate-500">{label}</div>
-      <div className="mt-2 text-xl font-semibold text-slate-950">{value}</div>
-      <div className="mt-2 text-sm leading-6 text-slate-500">{note}</div>
-    </article>
+export default function GoalsPlanningClient({
+  initialSnapshot,
+  initialGoals,
+  initialScenarios,
+  initialTrajectory,
+  netWorth,
+  openRetirement = false,
+}: {
+  initialSnapshot: GoalPlanningSnapshot;
+  initialGoals: FinancialGoal[];
+  initialScenarios: GoalScenarioVariant[];
+  initialTrajectory: TrajectorySettings | null;
+  netWorth: number | null;
+  openRetirement?: boolean;
+}) {
+  const router = useRouter();
+  const [snapshot, setSnapshot] = useState(initialSnapshot),
+    [goals, setGoals] = useState(initialGoals),
+    [scenarios, setScenarios] = useState(initialScenarios);
+  const [trajectory, setTrajectory] = useState(initialTrajectory),
+    [retirementOpen, setRetirementOpen] = useState(openRetirement),
+    [adding, setAdding] = useState(false);
+  const [type, setType] = useState<GoalType | null>(null),
+    [title, setTitle] = useState(""),
+    [target, setTarget] = useState(""),
+    [current, setCurrent] = useState(""),
+    [targetDate, setTargetDate] = useState(""),
+    [contribution, setContribution] = useState(""),
+    [priority, setPriority] = useState<GoalPriority>("medium");
+  const [scenarioAmounts, setScenarioAmounts] = useState<
+      Record<string, string>
+    >({}),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState("");
+  const retirementGoals = snapshot.activeGoals.filter(
+    (e) => e.goal.type === "RETIREMENT" && e.goal.status !== "PAUSED",
   );
-}
-
-export default function GoalsPlanningClient({ initialSnapshot, initialGoals, initialScenarios }: { initialSnapshot: GoalPlanningSnapshot; initialGoals: FinancialGoal[]; initialScenarios: GoalScenarioVariant[] }) {
-  const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const [, setGoals] = useState(initialGoals);
-  const [, setScenarios] = useState(initialScenarios);
-  const [type, setType] = useState<GoalType>("EMERGENCY_FUND");
-  const [title, setTitle] = useState("Emergency fund");
-  const [targetAmount, setTargetAmount] = useState(30000);
-  const [currentAmount, setCurrentAmount] = useState(5000);
-  const [targetDate, setTargetDate] = useState("2027-08-01");
-  const [priority, setPriority] = useState<GoalPriority>("high");
-  const [contributionAmount, setContributionAmount] = useState(1000);
-  const [scenarioContribution, setScenarioContribution] = useState(1500);
-  const [message, setMessage] = useState("Goals use confirmed records, the baseline forecast and explicit assumptions only.");
-  const [busy, setBusy] = useState(false);
-  const activeCount = snapshot.activeGoals.length;
-  const atRiskCount = snapshot.activeGoals.filter((item) => item.goal.status === "AT_RISK").length;
-  const earliestMilestone = snapshot.aiCfoContext.milestones[0] ?? null;
-  const scenarioComparisons = snapshot.aiCfoContext.scenarioComparisons;
-
+  const otherGoals = snapshot.activeGoals.filter(
+    (e) => e.goal.type !== "RETIREMENT" && e.goal.status !== "PAUSED",
+  );
+  const historical = goals.filter(
+    (g) => g.status === "ARCHIVED" || g.status === "PAUSED",
+  );
+  let outcome: ReturnType<typeof wealthTrajectory>[number] | undefined;
+  if (trajectory && netWorth !== null) {
+    try {
+      outcome = wealthTrajectory(netWorth, trajectory).at(-1);
+    } catch {
+      /* The setup remains available when the starting position cannot be projected. */
+    }
+  }
   async function mutate(payload: unknown, success: string) {
     setBusy(true);
+    setMessage("");
     try {
-      const response = await fetch("/api/goals", {
+      const r = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = (await response.json()) as GoalsApiResponse;
-      if (!response.ok || !data.snapshot || !data.goals || !data.scenarios) throw new Error(data.error ?? "Goal update failed");
-      setSnapshot(data.snapshot);
-      setGoals(data.goals);
-      setScenarios(data.scenarios);
+      const d = (await r.json()) as ResponseData;
+      if (!r.ok || !d.snapshot || !d.goals || !d.scenarios)
+        throw Error(d.error ?? "Could not save your goal. Try again.");
+      setSnapshot(d.snapshot);
+      setGoals(d.goals);
+      setScenarios(d.scenarios);
       setMessage(success);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Goal update failed");
+      router.refresh();
+      return true;
+    } catch (e) {
+      setMessage((e as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
   }
-
-  function applyTemplate(next: GoalType) {
+  function choose(next: GoalType) {
+    if (next === "RETIREMENT") {
+      setRetirementOpen(true);
+      setAdding(false);
+      document
+        .getElementById("retirement")
+        ?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
     setType(next);
-    if (next === "EMERGENCY_FUND") { setTitle("Emergency fund"); setTargetAmount(30000); setCurrentAmount(5000); setContributionAmount(1000); }
-    if (next === "HOME_PURCHASE") { setTitle("Home deposit"); setTargetAmount(260000); setCurrentAmount(80000); setContributionAmount(3500); }
-    if (next === "DEBT_REPAYMENT") { setTitle("Debt payoff"); setTargetAmount(18000); setCurrentAmount(2500); setContributionAmount(900); }
+    setTitle(types.find((t) => t[0] === next)?.[1] ?? "");
+    setTarget("");
+    setCurrent("");
+    setTargetDate("");
+    setContribution("");
   }
-
-  return (
-    <main className="space-y-6">
-      <section className="rounded-lg border border-slate-200 bg-white p-6">
-        <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-          <Target className="h-3.5 w-3.5" />
-          Goals & Scenario Planning v1
+  async function create() {
+    if (!type) return;
+    const ok = await mutate(
+      {
+        action: "create-goal",
+        goal: {
+          type,
+          title: title.trim(),
+          targetAmount: Number(target),
+          currentAmount: Number(current),
+          targetDate,
+          contributionAmount: Number(contribution),
+          priority,
+        },
+      },
+      "Goal added.",
+    );
+    if (ok) {
+      setAdding(false);
+      setType(null);
+    }
+  }
+  function controls(goal: FinancialGoal) {
+    return (
+      <details>
+        <summary>Manage goal</summary>
+        <div className="goals-actions">
+          {goal.status !== "PAUSED" && (
+            <button
+              disabled={busy}
+              onClick={() =>
+                void mutate(
+                  { action: "pause-goal", goalId: goal.id },
+                  "Goal paused. It remains in Paused and archived goals below.",
+                )
+              }
+            >
+              Pause goal
+            </button>
+          )}
+          <button
+            disabled={busy}
+            onClick={() =>
+              void mutate(
+                { action: "archive-goal", goalId: goal.id },
+                "Goal archived. Its saved details remain available below.",
+              )
+            }
+          >
+            Archive goal
+          </button>
         </div>
-        <h1 className="mt-4 text-3xl font-semibold text-slate-950">Goal planning</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Define a target, compare deterministic paths, and see the contribution, milestone and cash-flow implications before changing real commitments.
+      </details>
+    );
+  }
+  function comparisons(goalId: string, canCalculate: boolean) {
+    return (
+      <details>
+        <summary>Explore changes</summary>
+        <p>
+          Compare a different monthly contribution. This saves a scenario
+          without changing your goal or financial records.
         </p>
-<Link href="/goals/retirement" className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Retirement age & projection assumptions →</Link>
-        <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">{message}</div>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Active goals" value={String(activeCount)} note="Archived goals are excluded from planning." />
-        <Metric label="At-risk goals" value={String(atRiskCount)} note="Based on deterministic feasibility, not probability." />
-        <Metric label="Next milestone" value={earliestMilestone ? dateLabel(earliestMilestone.date) : "None"} note={earliestMilestone?.title ?? "Create a goal to generate milestones."} />
-        <Metric label="Forecast quality" value={forecastQualityLabel(snapshot.activeGoals[0]?.forecastQuality)} note="Inherited from the confirmed-record forecast." />
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
-        <article className="rounded-lg border border-slate-200 bg-white p-5">
-          <div className="flex items-center gap-2">
-            <PiggyBank className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-slate-950">Create goal</h2>
-          </div>
-          <div className="mt-4 grid gap-3">
-            <div className="grid grid-cols-3 gap-2">
-              {(["EMERGENCY_FUND", "HOME_PURCHASE", "DEBT_REPAYMENT"] as GoalType[]).map((item) => (
-                <button key={item} type="button" onClick={() => applyTemplate(item)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
-                  {typeOptions.find((option) => option.value === item)?.label}
-                </button>
-              ))}
-            </div>
-            <label className="text-sm font-semibold text-slate-700">
-              Goal type
-              <select value={type} onChange={(event) => setType(event.target.value as GoalType)} className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3">
-                {typeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </label>
-            <label className="text-sm font-semibold text-slate-700">
-              Title
-              <input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3" />
-            </label>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="text-sm font-semibold text-slate-700">Target amount<input aria-label="Target amount" type="number" value={targetAmount} onChange={(event) => setTargetAmount(Number(event.target.value))} className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3" /></label>
-              <label className="text-sm font-semibold text-slate-700">Current amount<input aria-label="Current amount" type="number" value={currentAmount} onChange={(event) => setCurrentAmount(Number(event.target.value))} className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3" /></label>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="text-sm font-semibold text-slate-700">Target date<input aria-label="Target date" type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3" /></label>
-              <label className="text-sm font-semibold text-slate-700">Monthly contribution<input aria-label="Monthly contribution" type="number" value={contributionAmount} onChange={(event) => setContributionAmount(Number(event.target.value))} className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3" /></label>
-            </div>
-            <label className="text-sm font-semibold text-slate-700">
-              Priority
-              <select value={priority} onChange={(event) => setPriority(event.target.value as GoalPriority)} className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3">
-                {["critical", "high", "medium", "low"].map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-            </label>
-            <button disabled={busy} onClick={() => void mutate({ action: "create-goal", goal: { type, title, targetAmount, currentAmount, targetDate, priority, contributionAmount } }, `${title} goal created.`)} className="rounded-lg bg-[#10243b] px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-400">
-              Save goal
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void mutate(
+              {
+                action: "save-scenario",
+                scenario: {
+                  goalId,
+                  name: "custom",
+                  contributionAmount: Number(scenarioAmounts[goalId]),
+                },
+              },
+              "Comparison saved.",
+            );
+          }}
+        >
+          <label className="goals-field">
+            Monthly contribution to compare (AUD)
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              required
+              value={scenarioAmounts[goalId] ?? ""}
+              onChange={(e) =>
+                setScenarioAmounts({
+                  ...scenarioAmounts,
+                  [goalId]: e.target.value,
+                })
+              }
+            />
+          </label>
+          <div className="goals-actions">
+            <button disabled={busy || !canCalculate}>
+              Compare contribution
             </button>
           </div>
-        </article>
-
-        <article className="rounded-lg border border-slate-200 bg-white p-5">
-          <div className="flex items-center gap-2">
-            <Flag className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-slate-950">Goal overview</h2>
+        </form>
+        {!canCalculate && (
+          <p>
+            Add the missing goal or financial information before comparing
+            outcomes.
+          </p>
+        )}
+        {snapshot.aiCfoContext.scenarioComparisons
+          .filter((c) => c.goalId === goalId)
+          .map((c) => (
+            <div className="goals-comparison" key={c.comparedScenarioId}>
+              {canCalculate ? (
+                <>
+                  <strong>
+                    {money(
+                      scenarios.find((s) => s.id === c.comparedScenarioId)
+                        ?.contributionAmount ?? 0,
+                    )}{" "}
+                    per month
+                  </strong>
+                  <p>
+                    Completion change:{" "}
+                    {c.projectedCompletionDeltaMonths === null
+                      ? "Not comparable"
+                      : `${c.projectedCompletionDeltaMonths} months`}
+                    . Monthly cash-flow change: {money(c.cashFlowDelta)}.
+                  </p>
+                </>
+              ) : (
+                <p>Saved comparison · results not calculated yet.</p>
+              )}
+            </div>
+          ))}
+      </details>
+    );
+  }
+  return (
+    <main className="goals-page">
+      <header className="goals-heading">
+        <div>
+          <h1>Your goals</h1>
+          <p>
+            Plan retirement and the other things you want to achieve, all in one
+            place.
+          </p>
+        </div>
+        <button
+          className="goals-primary"
+          aria-expanded={adding}
+          aria-controls="add-goal"
+          onClick={() => {
+            setAdding(!adding);
+            if (!adding)
+              requestAnimationFrame(() =>
+                document
+                  .getElementById("add-goal")
+                  ?.scrollIntoView({ behavior: "smooth" }),
+              );
+          }}
+        >
+          {adding ? "Close add goal" : "+ Add goal"}
+        </button>
+      </header>
+      <div role="status" className={message ? "goals-notice" : ""}>
+        {message}
+      </div>
+      <section
+        className="goals-card goals-retirement"
+        id="retirement"
+        aria-labelledby="retirement-title"
+      >
+        <div className="goals-card-heading">
+          <div>
+            <h2 id="retirement-title">Retirement</h2>
+            <p>Your retirement age and wealth projection</p>
           </div>
-          <div className="mt-4 space-y-3">
-            {snapshot.activeGoals.map((evaluation) => (
-              <div key={evaluation.goal.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+          <span className="goals-badge">
+            {outcome ? "Illustrative projection" : "Needs setup"}
+          </span>
+        </div>
+        <dl className="goals-metrics">
+          <div>
+            <dt>Retirement age</dt>
+            <dd>{trajectory?.retirementAge ?? "Not set"}</dd>
+          </div>
+          <div>
+            <dt>Projected net wealth · base</dt>
+            <dd>{outcome ? money(outcome.base) : "Not calculated yet"}</dd>
+          </div>
+          <div>
+            <dt>In today’s money</dt>
+            <dd>{outcome ? money(outcome.realBase) : "Not calculated yet"}</dd>
+          </div>
+        </dl>
+        {outcome ? (
+          <p>
+            Lower {money(outcome.low)} · Higher {money(outcome.high)}. These are
+            illustrations using your assumptions, not a measure of retirement
+            readiness.
+          </p>
+        ) : (
+          <p>
+            {trajectory
+              ? "Review your confirmed assets and debts to establish a usable starting net position."
+              : "Set your current age, retirement age and assumptions to see a projection. Your other goals stay on this page."}
+          </p>
+        )}
+        <button
+          className="goals-primary"
+          aria-expanded={retirementOpen}
+          aria-controls="retirement-editor"
+          onClick={() => setRetirementOpen(!retirementOpen)}
+        >
+          {retirementOpen
+            ? "Close retirement settings"
+            : trajectory
+              ? "Edit retirement plan"
+              : "Set up retirement"}
+        </button>
+        <div id="retirement-editor">
+          {retirementOpen && (
+            <TrajectorySettingsClient
+              initialSettings={trajectory}
+              onSaved={(s) => {
+                setTrajectory(s);
+                router.refresh();
+              }}
+            />
+          )}
+        </div>
+        {retirementGoals.length > 0 && (
+          <details>
+            <summary>
+              Saved retirement targets ({retirementGoals.length})
+            </summary>
+            <p>
+              Your saved targets are preserved below. The retirement age above
+              controls the Dashboard projection; target names do not set that
+              age.
+            </p>
+            {retirementGoals.map(({ goal }) => (
+              <div className="goals-comparison" key={goal.id}>
+                <strong>{goal.title}</strong>
+                <p>
+                  Target:{" "}
+                  {goal.targetAmount > 0 ? money(goal.targetAmount) : "Not set"}{" "}
+                  · Target date: {date(goal.targetDate)} · {words(goal.status)}
+                </p>
+                {controls(goal)}
+              </div>
+            ))}
+          </details>
+        )}
+      </section>
+      <section aria-labelledby="other-goals-title">
+        <h2 id="other-goals-title">Your other goals</h2>
+        <p>
+          {otherGoals.length
+            ? `${otherGoals.length} saved ${otherGoals.length === 1 ? "goal" : "goals"}`
+            : "No other active goals yet. Choose Add goal to get started."}
+        </p>
+        <div className="goals-grid">
+          {otherGoals.map((e) => {
+            const g = e.goal,
+              ready = hasGoalEstimate(e);
+            return (
+              <article className="goals-card" key={g.id}>
+                <div className="goals-card-heading">
+                  <h3>{g.title}</h3>
+                  <span className="goals-badge">
+                    {ready ? words(e.feasibility) : "Needs information"}
+                  </span>
+                </div>
+                <p>
+                  {types.find((t) => t[0] === g.type)?.[1] ?? words(g.type)} ·{" "}
+                  {words(g.priority)} priority
+                </p>
+                <dl className="goals-metrics">
                   <div>
-                    <div className="font-semibold text-slate-950">{evaluation.goal.title}</div>
-                    <div className="mt-1 text-sm text-slate-500">{evaluation.goal.type.replaceAll("_", " ")} - {evaluation.goal.priority}</div>
+                    <dt>Target</dt>
+                    <dd>
+                      {g.targetAmount > 0 ? money(g.targetAmount) : "Not set"}
+                    </dd>
                   </div>
-                  <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClass(evaluation.goal.status)}`}>{statusLabel(evaluation.goal.status)}</div>
-                </div>
-                <div className="mt-4 h-2 rounded-full bg-slate-200">
-                  <div className="h-2 rounded-full bg-blue-600" style={{ width: `${Math.min(100, evaluation.currentProgress)}%` }} />
-                </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-4">
-                  <Metric label="Progress" value={`${Math.round(evaluation.currentProgress)}%`} note={`${money(evaluation.currentProgress / 100 * evaluation.goal.targetAmount)} funded`} />
-                  <Metric label="Required monthly" value={money(evaluation.requiredMonthlyContribution)} note="Needed for the selected target date." />
-                  <Metric label="Funding gap" value={money(evaluation.fundingGap)} note={`Projected completion ${dateLabel(evaluation.projectedCompletionDate)}`} />
-                  <Metric label="Feasibility" value={evaluation.feasibility} note="Probability-free deterministic class." />
-                </div>
-                {evaluation.homePurchase && (
-                  <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
-                    Indicative loan {money(evaluation.homePurchase.indicativeLoanAmount)}; indicative repayment {money(evaluation.homePurchase.indicativeMonthlyRepayment)} per month. This is not borrowing approval or credit advice.
+                  <div>
+                    <dt>Saved so far</dt>
+                    <dd>{money(g.currentAmount)}</dd>
                   </div>
+                  <div>
+                    <dt>Target date</dt>
+                    <dd>{date(g.targetDate)}</dd>
+                  </div>
+                </dl>
+                {g.targetAmount > 0 && (
+                  <>
+                    <progress
+                      aria-label={`${g.title} funding progress`}
+                      max="100"
+                      value={Math.max(0, Math.min(100, e.currentProgress))}
+                    />
+                    <small>
+                      {Math.round(e.currentProgress)}% of target funded
+                    </small>
+                  </>
                 )}
-                <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                  <button disabled={busy} onClick={() => void mutate({ action: "save-scenario", scenario: { goalId: evaluation.goal.id, name: "accelerated", contributionAmount: scenarioContribution } }, "Accelerated scenario compared.")} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">
-                    Compare accelerated
-                  </button>
-                  <button disabled={busy} onClick={() => void mutate({ action: "pause-goal", goalId: evaluation.goal.id }, "Goal paused.")} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">
-                    <Pause className="h-4 w-4" /> Pause goal
-                  </button>
-                  <button disabled={busy} onClick={() => void mutate({ action: "archive-goal", goalId: evaluation.goal.id }, "Goal archived.")} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">
-                    <Archive className="h-4 w-4" /> Archive goal
-                  </button>
-                </div>
-              </div>
-            ))}
-            {!snapshot.activeGoals.length && (
-              <div className="rounded-lg border border-dashed border-slate-300 p-6 text-sm leading-6 text-slate-600">
-                No goals have been created yet. Add one target, such as an emergency fund or home deposit, to generate a deterministic contribution path and first milestone.
-              </div>
-            )}
-          </div>
-        </article>
+                <p>
+                  {ready
+                    ? `${money(e.requiredMonthlyContribution)} per month needed · ${money(e.fundingGap)} funding gap.`
+                    : "Not calculated yet. Check the target amount, target date and confirmed income, spending and balances."}
+                </p>
+                {!ready && (
+                  <Link href="/financial-profile/add-data">
+                    Review financial information
+                  </Link>
+                )}
+                <details>
+                  <summary>Goal details & milestones</summary>
+                  <p>
+                    Planned contribution: {money(g.contributionAmount)} (
+                    {g.contributionFrequency}). {g.description}
+                  </p>
+                  {ready && (
+                    <p>
+                      Projected completion:{" "}
+                      {e.projectedCompletionDate
+                        ? date(e.projectedCompletionDate)
+                        : "Not calculated yet"}
+                      .
+                    </p>
+                  )}
+                  {ready && e.homePurchase && (
+                    <p>
+                      Indicative loan{" "}
+                      {money(e.homePurchase.indicativeLoanAmount)}; repayment{" "}
+                      {money(e.homePurchase.indicativeMonthlyRepayment)} per
+                      month. Not borrowing approval.
+                    </p>
+                  )}
+                  {ready &&
+                    e.milestones.map((m) => (
+                      <p key={m.id}>
+                        {m.title} · {date(m.date)} · {money(m.amount)}
+                      </p>
+                    ))}
+                  {e.decisions.map((d) => (
+                    <p key={d.id}>{d.nextAction}</p>
+                  ))}
+                </details>
+                {comparisons(g.id, ready)}
+                {controls(g)}
+              </article>
+            );
+          })}
+        </div>
       </section>
-
-      <section className="grid gap-5 xl:grid-cols-3">
-        <article className="rounded-lg border border-slate-200 bg-white p-5">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-slate-950">Scenario comparison</h2>
-          </div>
-          <label className="mt-4 block text-sm font-semibold text-slate-700">
-            Accelerated monthly contribution
-            <input aria-label="Accelerated monthly contribution" type="number" value={scenarioContribution} onChange={(event) => setScenarioContribution(Number(event.target.value))} className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3" />
-          </label>
-          <div className="mt-4 space-y-3 text-sm">
-            {scenarioComparisons.map((comparison) => (
-              <div key={`${comparison.goalId}-${comparison.comparedScenarioId}`} className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-blue-900">
-                Completion change: {comparison.projectedCompletionDeltaMonths == null ? "not comparable" : `${comparison.projectedCompletionDeltaMonths} months`}. Cash-flow change: {money(comparison.cashFlowDelta)}.
-              </div>
+      {adding && (
+        <section className="goals-card" id="add-goal">
+          <h2>Add a goal</h2>
+          <p>
+            Choose what you want to work towards. Enter your own amounts and
+            dates.
+          </p>
+          <div className="goals-choices">
+            {types.map(([value, label]) => (
+              <button
+                key={value}
+                aria-pressed={type === value}
+                onClick={() => choose(value)}
+              >
+                {label}
+              </button>
             ))}
-            {!scenarioComparisons.length && <div className="text-slate-500">Save a scenario variant to compare against the baseline. Vireon will show what changes and which assumptions were used.</div>}
           </div>
-        </article>
-
-        <article className="rounded-lg border border-slate-200 bg-white p-5">
-          <h2 className="text-lg font-semibold text-slate-950">Milestones</h2>
-          <div className="mt-4 max-h-80 space-y-3 overflow-y-auto pr-1">
-            {snapshot.aiCfoContext.milestones.map((milestone) => (
-              <div key={milestone.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-                <div className="font-semibold text-slate-950">{milestone.title}</div>
-                <div className="mt-1 text-slate-500">{dateLabel(milestone.date)} - {money(milestone.amount)}</div>
+          {type && (
+            <form
+              className="goals-editor"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void create();
+              }}
+            >
+              <h3>{types.find((t) => t[0] === type)?.[1]}</h3>
+              <div className="goals-fields">
+                <label className="goals-field">
+                  Goal name
+                  <input
+                    required
+                    maxLength={150}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </label>
+                <label className="goals-field">
+                  Target date
+                  <input
+                    type="date"
+                    required
+                    value={targetDate}
+                    onChange={(e) => setTargetDate(e.target.value)}
+                  />
+                </label>
+                <label className="goals-field">
+                  Target amount (AUD)
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value)}
+                  />
+                </label>
+                <label className="goals-field">
+                  Amount already funded (AUD)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    value={current}
+                    onChange={(e) => setCurrent(e.target.value)}
+                  />
+                </label>
+                <label className="goals-field">
+                  Planned monthly contribution (AUD)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    value={contribution}
+                    onChange={(e) => setContribution(e.target.value)}
+                  />
+                </label>
+                <label className="goals-field">
+                  Priority
+                  <select
+                    value={priority}
+                    onChange={(e) =>
+                      setPriority(e.target.value as GoalPriority)
+                    }
+                  >
+                    {["low", "medium", "high", "critical"].map((p) => (
+                      <option key={p} value={p}>
+                        {words(p)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
-            ))}
-            {!snapshot.aiCfoContext.milestones.length && <div className="text-sm text-slate-500">Milestones appear once a goal has a contribution path.</div>}
-          </div>
-        </article>
-
-        <article className="rounded-lg border border-slate-200 bg-white p-5">
-          <h2 className="text-lg font-semibold text-slate-950">Decision Centre actions</h2>
-          <div className="mt-4 space-y-3">
-            {snapshot.decisions.map((decision) => (
-              <div key={decision.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-6">
-                <div className="font-semibold text-slate-950">{decision.title}</div>
-                <div className="text-slate-600">{decision.nextAction}</div>
-              </div>
-            ))}
-            {!snapshot.decisions.length && (
-              <div className="text-sm leading-6 text-slate-500">
-                No goal actions are ready yet. Add a goal and confirm income, spending and cash balances so Vireon can calculate a safe next step.
-              </div>
-            )}
-          </div>
-        </article>
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-2">
-        <article className="rounded-lg border border-slate-200 bg-white p-5">
-          <h2 className="text-lg font-semibold text-slate-950">Planning framework</h2>
-          <ol className="mt-4 space-y-2 text-sm leading-6 text-slate-700">
-            <li>1. Immediate cash shortfall</li>
-            <li>2. Minimum debt obligations</li>
-            <li>3. Emergency fund</li>
-            <li>4. High-interest debt</li>
-            <li>5. Contractual obligations</li>
-            <li>6. Discretionary goals</li>
-          </ol>
-          <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">This ordering is a deterministic safety framework. Priorities remain user-controlled.</div>
-        </article>
-        <article className="rounded-lg border border-slate-200 bg-white p-5">
-          <div className="flex items-center gap-2">
-            <Home className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-slate-950">AI CFO goal context</h2>
-          </div>
-          <ul className="mt-4 space-y-2 text-sm leading-6 text-slate-700">
-            {snapshot.aiCfoContext.activeGoals.map((goal) => (
-              <li key={goal.id}>{goal.title}: {Math.round(goal.progress)}% funded, {goal.feasibility}, funding gap {money(goal.fundingGap)}.</li>
+              <p>
+                Enter 0 for funding or contributions if none are planned yet.
+              </p>
+              <button disabled={busy} className="goals-primary">
+                {busy ? "Saving…" : "Save goal"}
+              </button>
+            </form>
+          )}
+        </section>
+      )}
+      {historical.length > 0 && (
+        <details className="goals-card">
+          <summary>Paused and archived goals ({historical.length})</summary>
+          <ul className="goals-saved-list">
+            {historical.map((g) => (
+              <li key={g.id}>
+                <strong>{g.title}</strong> · {words(g.status)} · Target{" "}
+                {g.targetAmount > 0 ? money(g.targetAmount) : "not set"} ·{" "}
+                {date(g.targetDate)}
+              </li>
             ))}
           </ul>
-          <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm text-amber-900">{snapshot.aiCfoContext.instruction}</div>
-        </article>
-      </section>
-
-      <section className="rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-        Goal outcomes are projected and assumption-driven. Vireon does not guarantee achievement, borrowing approval, tax outcomes, investment returns or retirement results.
-      </section>
+        </details>
+      )}
+      <details className="goals-card">
+        <summary>How projections work</summary>
+        <p>
+          Retirement uses your saved ages and explicit growth assumptions. Other
+          goal estimates use your saved targets, contributions and the
+          confirmed-record forecast. Calculations are illustrations, not
+          guarantees.
+        </p>
+        <p>
+          Missing information prevents an outcome from being calculated. Saved
+          amounts remain visible even when an estimate is unavailable.
+        </p>
+      </details>
     </main>
   );
 }

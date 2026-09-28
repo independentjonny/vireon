@@ -1,3 +1,4 @@
+import { retirementDisplayTitle } from "@/lib/goalPresentation";
 import { createFinancialVaultServiceFromEnv } from "@/server/services/financialVaultPostgresService";
 import AppShell from "./components/AppShell";
 import BaselineDashboard from "./components/BaselineDashboard";
@@ -99,6 +100,7 @@ export default async function HomePage() {
   const core = createCoreDecisioningServiceFromEnv();
   const summary = confirmedPositionSummary(readModel);
   const goalState = await core.readGoalState(session);
+  const trajectory = await createFinancialVaultServiceFromEnv().getTrajectory(session);
   const monthlyCashFlow = readModel.monthlyCashFlow;
   const runwayMonths = summary.assetGroups[2].value !== null && monthlyCashFlow.monthlyExpenses !== null && monthlyCashFlow.monthlyExpenses > 0
     ? summary.assetGroups[2].value! / monthlyCashFlow.monthlyExpenses
@@ -107,7 +109,7 @@ export default async function HomePage() {
   return (
     <AppShell active="dashboard">
             <BaselineDashboard
-              trajectory={await createFinancialVaultServiceFromEnv().getTrajectory(session)}
+              trajectory={trajectory}
               netWorth={summary.netPosition}
               assets={summary.assets}
               liabilities={summary.liabilities}
@@ -121,7 +123,7 @@ export default async function HomePage() {
               cashFlowBasis={monthlyCashFlow.basis}
               goals={goalState.snapshot.activeGoals.map((evaluation) => ({
                 id: evaluation.goal.id,
-                title: evaluation.goal.title,
+                title: evaluation.goal.type === "RETIREMENT" ? retirementDisplayTitle(trajectory) : evaluation.goal.title,
                 current: evaluation.goal.currentAmount,
                 target: evaluation.goal.targetAmount,
                 targetDate: evaluation.goal.targetDate,
