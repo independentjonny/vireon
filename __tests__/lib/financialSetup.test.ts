@@ -140,3 +140,14 @@ it("feeds saved repayments into monthly surplus and allows an explicitly paid-of
   const paidOff = buildMonthlyCashFlowModel(db.facts.map(f => f.record), userA.userId);
   assert.equal(paidOff.monthlyExpenses, 2500); assert.equal(paidOff.monthlySurplus, 5500);
 });
+
+it("accepts a paid-off property with zero repayment and no frequency", async () => {
+  const db = new SetupDb(), service = createFinancialVaultPostgresService(db);
+  const paidOff = entry({ category: "property", label: "Paid-off home", amount: "630000", mortgageAmount: "0", repaymentAmount: "0", repaymentFrequency: "" });
+  assert.doesNotThrow(() => validateSetupEntries([paidOff]));
+  await service.saveSetup(userA, draft([paidOff]), true);
+  assert.equal(db.facts[0].record.value.marketValue, 630000);
+  assert.equal(db.facts[1].record.value.balance, 0);
+  assert.equal(db.facts[1].record.value.repaymentAmount, 0);
+  assert.equal(db.facts[1].record.value.repaymentFrequency, "");
+});

@@ -501,7 +501,7 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
             const value = { ...(old?.value ?? {}), ...setupRecordValue(entry), ...write.link };
             if (write.mortgage || entry.category === "loans" && entry.repaymentAmount?.trim()) {
               (value as Record<string, unknown>).repaymentAmount = write.mortgage && Number(entry.amount) === 0 ? 0 : Number(entry.repaymentAmount);
-              (value as Record<string, unknown>).repaymentFrequency = entry.repaymentFrequency ?? "";
+              (value as Record<string, unknown>).repaymentFrequency = write.mortgage && Number(entry.amount) === 0 ? "" : entry.repaymentFrequency ?? "";
             }
             // Remove old recurring aliases so the newly reviewed amount wins.
             if (["income", "expenses"].includes(entry.category)) for (const key of ["monthlyAmount", "netMonthlyAmount", "monthlyIncome", "monthlyExpense", "annualAmount", "annualIncome", "annualExpense", "cadence", "period", "paymentFrequency"]) delete (value as Record<string, unknown>)[key];
