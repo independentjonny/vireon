@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Archive, Flag, Home, Pause, PiggyBank, Target, TrendingUp } from "lucide-react";
 import type { FinancialGoal, GoalPlanningSnapshot, GoalPriority, GoalScenarioVariant, GoalType } from "@/lib/goalPlanning";
@@ -117,6 +118,7 @@ export default function GoalsPlanningClient({ initialSnapshot, initialGoals, ini
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
           Define a target, compare deterministic paths, and see the contribution, milestone and cash-flow implications before changing real commitments.
         </p>
+<Link href="/goals/retirement" className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Retirement age & projection assumptions →</Link>
         <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">{message}</div>
       </section>
 
