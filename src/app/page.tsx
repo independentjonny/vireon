@@ -1,3 +1,4 @@
+import { createFinancialVaultServiceFromEnv } from "@/server/services/financialVaultPostgresService";
 import AppShell from "./components/AppShell";
 import BaselineDashboard from "./components/BaselineDashboard";
 import AutonomousTaskComposer from "./components/AutonomousTaskComposer";
@@ -106,6 +107,7 @@ export default async function HomePage() {
   return (
     <AppShell active="dashboard">
             <BaselineDashboard
+              trajectory={await createFinancialVaultServiceFromEnv().getTrajectory(session)}
               netWorth={summary.netPosition}
               assets={summary.assets}
               liabilities={summary.liabilities}

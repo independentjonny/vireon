@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const auth = await requireSession(request);
   if (!auth.ok) return authErrorResponse(auth);
-  try { return Response.json({ ok: true, ...await createFinancialVaultServiceFromEnv().getSetup(auth.session) }); }
+  try { return Response.json({ ok: true, ...await createFinancialVaultServiceFromEnv().getSetup(auth.session), trajectory: await createFinancialVaultServiceFromEnv().getTrajectory(auth.session) }); }
   catch (error) { const safe = toFinancialVaultSafeError(error); return Response.json({ ok: false, error: safe.message }, { status: safe.status }); }
 }
 
@@ -35,6 +35,7 @@ export async function POST(request: Request) {
     const raw = await request.text();
     if (raw.length > 250_000) return Response.json({ error: "This draft is too large. Confirm a smaller set of changes." }, { status: 413 });
     const body = JSON.parse(raw), draft = body.draft as SetupDraft;
+    if (body.action === "save-trajectory") return Response.json({ ok: true, trajectory: await createFinancialVaultServiceFromEnv().saveTrajectory(auth.session, body.settings) });
     if (!["save", "confirm"].includes(body.action) || !draft || !/^[0-9a-f-]{36}$/i.test(draft.id) || !Number.isInteger(draft.revision) || draft.revision < 0 || !Array.isArray(draft.entries) || draft.entries.length > 50 || !Array.isArray(draft.files) || draft.files.length > 20) throw new Error("Invalid draft. Use up to 20 files and 50 items.");
     for (const entry of draft.entries) {
       if (!entry || !Object.hasOwn(setupCategories, entry.category) || ["id", "label", "amount", "frequency", "asOfDate", "ownership", "source", "snippet", "replaceId", "replaceUpdatedAt"].some(key => typeof entry[key as keyof typeof entry] !== "string" || String(entry[key as keyof typeof entry]).length > 500) || typeof entry.included !== "boolean") throw new Error("Check the financial information and try again.");

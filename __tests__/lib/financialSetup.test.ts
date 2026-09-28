@@ -16,6 +16,7 @@ class SetupDb implements PostgresPilotClient {
   drafts = new Map<string, { userId: string; draft: SetupDraft }>();
   facts: Array<{ id: string; userId: string; record: CanonicalFinancialRecord; version: number }> = [];
   versions: unknown[][] = [];
+  projections = new Map<string, unknown>();
   scopedUser = "";
   async transaction<T>(operation: (client: PostgresPilotClient) => Promise<T>): Promise<T> {
     const before = structuredClone({ drafts: this.drafts, facts: this.facts, versions: this.versions });
@@ -27,6 +28,10 @@ class SetupDb implements PostgresPilotClient {
     const rows = (value: unknown[]): QueryResult<T> => ({ rows: value as T[] });
     if (sql.includes("set_config")) { this.scopedUser = String(p[0]); return rows([]); }
     assert.ok(this.scopedUser, "queries require a transaction-local user");
+    if (sql.includes("wealth-trajectory-v1")) {
+      if (sql.includes("insert into migration_runs")) { this.projections.set(String(p[1]), JSON.parse(String(p[2]))); return rows([]); }
+      return rows(this.projections.has(String(p[0])) ? [{preview:structuredClone(this.projections.get(String(p[0])))}] : []);
+    }
     if (sql.includes("select preview from migration_runs")) return rows([...this.drafts.values()].filter(row => row.userId === p[0] && (!sql.includes("id = $2") || row.draft.id === p[1])).map(row => ({ preview: structuredClone(row.draft) })));
     if (sql.includes("insert into migration_runs")) {
       const current = this.drafts.get(String(p[0]));
@@ -150,4 +155,14 @@ it("accepts a paid-off property with zero repayment and no frequency", async () 
   assert.equal(db.facts[1].record.value.balance, 0);
   assert.equal(db.facts[1].record.value.repaymentAmount, 0);
   assert.equal(db.facts[1].record.value.repaymentFrequency, "");
+});
+
+it("persists retirement settings across service recreation and isolates users", async()=>{
+ const db=new SetupDb(), service=createFinancialVaultPostgresService(db);
+ const settings={currentAge:50,retirementAge:67,annualAddition:0,low:0,base:2,high:4,inflation:2,complete:true};
+ await service.saveTrajectory(userA,settings);
+ const restarted=createFinancialVaultPostgresService(db);
+ assert.equal((await restarted.getTrajectory(userA))?.retirementAge,67);
+ assert.equal(await restarted.getTrajectory(userB),null);
+ assert.equal(db.facts.length,0);
 });

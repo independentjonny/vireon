@@ -1,3 +1,4 @@
+import { validateTrajectory, type TrajectorySettings } from "@/lib/wealthTrajectory";
 import { createHash, randomUUID } from "node:crypto";
 import {
   analyzeDocumentText,
@@ -455,6 +456,22 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
   return {
     contextFromSession,
     toSafeError: toFinancialVaultSafeError,
+
+    async getTrajectory(session: AuthenticatedSession): Promise<TrajectorySettings | null> {
+      return withScopedTransaction(contextFromSession(session), async ctx => {
+        const result = await scopedDb(ctx).query<{preview:TrajectorySettings}>("select preview from migration_runs where user_id = $1 and target_version = 'wealth-trajectory-v1' order by updated_at desc limit 1", [ctx.session.userId]);
+        return result.rows[0]?.preview ?? null;
+      });
+    },
+    async saveTrajectory(session: AuthenticatedSession, settings: TrajectorySettings) {
+      validateTrajectory(settings);
+      return withScopedTransaction(contextFromSession(session), async ctx => {
+        await initializeProfile(ctx);
+        const saved = { ...settings, updatedAt: new Date().toISOString() };
+        await scopedDb(ctx).query("insert into migration_runs(id,user_id,source_version,target_version,status,preview,record_count,source_checksum,rollback_metadata,source,correlation_id) values ($1,$2,'wealth-trajectory-v1','wealth-trajectory-v1','CONFIRMED',$3::jsonb,1,$4,'{}'::jsonb,$5,$6)", [randomUUID(),ctx.session.userId,JSON.stringify(saved),hashRecord(saved),ctx.source,ctx.correlationId]);
+        return saved;
+      });
+    },
     async getSetup(session: AuthenticatedSession) {
       return withScopedTransaction(contextFromSession(session), async ctx => {
         const rows = await scopedDb(ctx).query<{ preview: SetupDraft }>("select preview from migration_runs where user_id = $1 and target_version = 'financial-setup-v2' order by updated_at desc limit 20", [ctx.session.userId]);
