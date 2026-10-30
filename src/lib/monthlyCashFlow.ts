@@ -57,7 +57,9 @@ function recordPeriod(record: CanonicalFinancialRecord): MonthlyCashFlowLine["pe
 function finiteNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
-    const parsed = Number(value.replace(/[$,\s]/g, ""));
+    const normalized = value.replace(/[$,\s]/g, "");
+    if (!normalized) return null;
+    const parsed = Number(normalized);
     if (Number.isFinite(parsed)) return parsed;
   }
   return null;
@@ -344,10 +346,10 @@ export function buildMonthlyCashFlowModel(records: CanonicalFinancialRecord[], u
       const property = propertyByEntityKey.get(String(record?.value.propertyEntityKey ?? ""));
       return { code: "mortgage-repayment" as const, recordId, title: `Add repayment details for ${record?.label ?? "the mortgage"}`, detail: "The mortgage balance is confirmed, but its repayment amount or frequency is missing.", href: property ? `/financial-profile/add-data?category=property&propertyId=${encodeURIComponent(property.id)}` : "/financial-profile/property" };
     }),
-    ...income.incompleteRecordIds.map((recordId) => ({ code: "income-cadence" as const, recordId, title: `Add payment frequency for ${recordById.get(recordId)?.label ?? "income"}`, detail: "The income amount is confirmed but cannot be converted to a monthly value without its cadence.", href: "/cash-flow" })),
-    ...expenses.incompleteRecordIds.map((recordId) => ({ code: "expense-cadence" as const, recordId, title: `Add payment frequency for ${recordById.get(recordId)?.label ?? "expense"}`, detail: "The expense amount is confirmed but cannot be converted to a monthly value without its cadence.", href: "/cash-flow" })),
-    ...(monthlyIncome === null && !incomeIncomplete && !incomeLines.length ? [{ code: "income" as const, recordId: null, title: "Add confirmed monthly income", detail: "No confirmed recurring income or classified income transactions are available.", href: "/financial-vault" }] : []),
-    ...(monthlyExpenses === null && !expenseIncomplete && !expenseLines.length ? [{ code: "expenses" as const, recordId: null, title: "Add confirmed monthly expenses", detail: "No confirmed recurring expenses or classified expense transactions are available.", href: "/financial-vault" }] : []),
+    ...income.incompleteRecordIds.map((recordId) => ({ code: "income-cadence" as const, recordId, title: `Complete income details for ${recordById.get(recordId)?.label ?? "income"}`, detail: "The income amount or payment frequency is missing. Update the existing item before calculating a monthly value.", href: "/financial-profile/add-data" })),
+    ...expenses.incompleteRecordIds.map((recordId) => ({ code: "expense-cadence" as const, recordId, title: `Complete expense details for ${recordById.get(recordId)?.label ?? "expense"}`, detail: "The expense amount or payment frequency is missing. Update the existing item before calculating a monthly value.", href: "/financial-profile/add-data" })),
+    ...(monthlyIncome === null && !incomeIncomplete && !incomeLines.length ? [{ code: "income" as const, recordId: null, title: "Add confirmed monthly income", detail: "No confirmed recurring income or classified income transactions are available.", href: "/financial-profile/add-data" }] : []),
+    ...(monthlyExpenses === null && !expenseIncomplete && !expenseLines.length ? [{ code: "expenses" as const, recordId: null, title: "Add confirmed monthly expenses", detail: "No confirmed recurring expenses or classified expense transactions are available.", href: "/financial-profile/add-data" }] : []),
   ];
   const sourceRecordIds = [...new Set([...incomeLines, ...expenseLines].flatMap((line) => line.sourceRecordIds))];
   const basis = status === "confirmed"

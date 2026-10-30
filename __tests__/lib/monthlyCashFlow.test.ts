@@ -91,6 +91,30 @@ test("does not invent a surplus when either recurring side is missing", () => {
   assert.equal(model.status, "unavailable");
 });
 
+test("blank saved amounts remain missing instead of creating a zero expense and false surplus", () => {
+  for (const blank of ["", "   "]) {
+    const model = buildMonthlyCashFlowModel([
+      record("salary", "income", { monthlyAmount: 8000 }),
+      record("living", "expense", { monthlyAmount: blank }),
+    ], userId);
+    assert.equal(model.monthlyExpenses, null);
+    assert.equal(model.monthlySurplus, null);
+    assert.equal(model.status, "unavailable");
+    assert.equal(model.missingInputs[0]?.href, "/financial-profile/add-data");
+    assert.match(model.missingInputs[0]?.detail ?? "", /amount or payment frequency is missing/);
+  }
+});
+
+test("an empty amount alias does not hide a valid amount and frequency", () => {
+  const model = buildMonthlyCashFlowModel([
+    record("salary", "income", { monthlyAmount: "", amount: 8000, frequency: "monthly" }),
+    record("living", "expense", { monthlyAmount: "", amount: 3000, frequency: "monthly" }),
+  ], userId);
+  assert.equal(model.monthlyIncome, 8000);
+  assert.equal(model.monthlyExpenses, 3000);
+  assert.equal(model.monthlySurplus, 5000);
+});
+
 test("uses monthly transaction averages only as an estimated fallback", () => {
   const model = buildMonthlyCashFlowModel([
     record("jan-income", "transaction", { date: "2026-01-03", amount: 8000 }),

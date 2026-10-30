@@ -201,7 +201,7 @@ test("desktop and mobile navigation expose both Financial Profile journeys", () 
   for (const path of ["src/app/components/AppShell.tsx", "src/app/components/MobileNav.tsx"]) {
     const navigation = source(path);
     assert.match(navigation, /Financial Position/);
-    assert.match(navigation, /Add financial data/);
+    assert.match(navigation, /Add\/Modify Financial Data/);
     assert.match(navigation, /\/financial-profile\/add-data/);
   }
   assert.match(source("src/app/components/AppShell.tsx"), /src="\/vireon2-white\.png"/);

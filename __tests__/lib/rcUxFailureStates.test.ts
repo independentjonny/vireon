@@ -61,10 +61,10 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
   assert.match(vault, /No savings opportunities are ready yet/);
   assert.match(vault, /Retry loading Vault/);
 
-  assert.match(goals, /function forecastQualityLabel/);
-  assert.match(goals, /Needs confirmed data/);
-  assert.match(goals, /No goals have been created yet/);
-  assert.match(goals, /No goal actions are ready yet/);
+  assert.match(goals, /ready = hasGoalEstimate\(e\)/);
+  assert.match(goals, /Not calculated yet/);
+  assert.match(goals, /No goals saved yet/);
+  assert.doesNotMatch(goals, />INSUFFICIENT_DATA</);
 
   assert.match(dashboard, /Your financial position/);
   assert.match(dashboard, /What you own, owe, earn and should do next/);
@@ -123,8 +123,9 @@ test("P1 first-run polish avoids misleading zeros and raw status codes", () => {
 
   assert.doesNotMatch(homePage, /Offset mortgage by \$800\/month/);
   assert.doesNotMatch(homePage, /AI detected \$138\/month/);
-  assert.match(homePage, /netWorthTrend="Confirmed position"/);
-  assert.match(homePage, /aiConfidence="Not calculated yet"/);
+  assert.match(homePage, /netWorth=\{summary\.netPosition\}/);
+  assert.match(homePage, /monthlyChange=\{null\}/);
+  assert.match(homePage, /dataNote=\{summary\.note\}/);
 
   assert.match(balanceSheet, /Monthly Change", value: "Not calculated yet"/);
   assert.doesNotMatch(balanceSheet, /Monthly Change", value: "\$0"/);

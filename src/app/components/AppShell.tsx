@@ -130,7 +130,10 @@ function RuntimeBanner() {
 }
 
 function isSelected(active: ActiveSection, label: string, href: string, pathname: string) {
-  if (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)) return true;
+  const matchingHref = navGroups.flatMap(group => group.items.map(item => item[1]))
+    .filter(target => target === "/" ? pathname === "/" : pathname === target || pathname.startsWith(`${target}/`))
+    .sort((a, b) => b.length - a.length)[0];
+  if (matchingHref) return href === matchingHref;
   return (
     (active === "dashboard" && label === "Dashboard") ||
     (active === "financial-position" && label === "Financial Position") ||
@@ -172,6 +175,7 @@ function Sidebar({
                 <Link
                   key={`${label}-${href}`}
                   href={href}
+                  aria-current={isSelected(active, label, href, pathname) ? "page" : undefined}
                   className={
                     "flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 " +
                     (isSelected(active, label, href, pathname)

@@ -368,10 +368,13 @@ test("financial forecast service rejects unsupported scenario deltas before writ
 
 test("active financial forecast route and page do not use filesystem forecast authority", () => {
   const route = readFileSync(join(process.cwd(), "src/app/api/financial-forecast/route.ts"), "utf8");
-  const page = readFileSync(join(process.cwd(), "src/app/digital-twin/timeline/page.tsx"), "utf8");
+  const page = readFileSync(join(process.cwd(), "src/app/digital-twin/page.tsx"), "utf8");
+  const legacyPage = readFileSync(join(process.cwd(), "src/app/digital-twin/timeline/page.tsx"), "utf8");
 
   assert.match(route, /createCoreDecisioningServiceFromEnv/);
   assert.match(page, /readFinancialForecast/);
+  assert.match(page, /requireServerPageSession/);
+  assert.match(legacyPage, /redirect\("\/digital-twin"\)/);
   assert.doesNotMatch(route, /FinancialForecastingEngine\.persist|FinancialForecastingEngine\.readState|readForecastState|writeForecastState/);
   assert.doesNotMatch(page, /FinancialForecastingEngine|createFinancialPositionReadServiceFromEnv/);
 });

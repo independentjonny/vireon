@@ -60,15 +60,20 @@ export function categoryForRecord(record: CanonicalFinancialRecord): SetupCatego
 
 // Propose only explicit labelled amounts. Never turn transaction totals into recurring income.
 export function suggestSetupEntries(text: string, fileName: string): SetupEntry[] {
-  const patterns: Array<[SetupCategory, RegExp]> = [
-    ["bank", /(?:closing|account|available) balance\s*[:\-]?\s*\$?([\d,]+\.\d{2})/i],
-    ["super", /(?:super(?:annuation)? balance|total super balance)\s*[:\-]?\s*\$?([\d,]+\.\d{2})/i],
-    ["loans", /(?:loan balance|mortgage balance|amount owing)\s*[:\-]?\s*\$?([\d,]+\.\d{2})/i],
-    ["income", /(?:net pay|take.home pay)\s*[:\-]?\s*\$?([\d,]+\.\d{2})/i],
+  const patterns: Array<[SetupCategory, string]> = [
+    ["bank", "(?:closing|account|available) balance"],
+    ["super", "(?:super(?:annuation)? balance|total super balance)"],
+    ["loans", "(?:loan balance|mortgage balance|amount owing)"],
+    ["income", "(?:net pay|take.home pay)"],
   ];
-  return patterns.flatMap(([category, pattern]) => {
+  return patterns.flatMap(([category, label]) => {
+    // A minus is a financial sign, not a label separator. Match the whole AUD
+    // amount so malformed grouping or decimal precision cannot become a new value.
+    const pattern = new RegExp(`\\b${label}\\s*:?\\s*\\$?((?:\\d{1,3}(?:,\\d{3})+|\\d+)\\.\\d{2})(?![\\d,]|\\.\\d)`, "i");
     const match = text.match(pattern);
     if (!match) return [];
+    const suffix = text.slice(match.index! + match[0].length);
+    if (/^\s*(?:DR\b|[-−]|\))/.test(suffix.toUpperCase())) return [];
     return [{ id: crypto.randomUUID(), category, label: "", amount: match[1].replaceAll(",", ""), frequency: "", asOfDate: "", ownership: "", source: fileName, snippet: match[0], replaceId: "", replaceUpdatedAt: "", included: true }];
   });
 }

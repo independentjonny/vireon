@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-31",
+  "releaseStatus": "LOCAL_CANDIDATE_NOT_PUBLISHED",
+  "baseline": "47ca9cc4f9c60c6ad574cc625209941a5746a3bb",
+  "responsibility": {
+    "agent": ["Product scope", "Architecture", "Priorities", "Implementation", "Validation", "Preview preparation"],
+    "customer": ["Outcome feedback", "Account sign-in when required", "Spending and consequential release decisions"]
+  },
+  "firstReleaseJourney": [
+    "Add documents or manual financial information",
+    "Review and explicitly confirm values, dates and ownership",
+    "Retain confirmed facts in the authenticated account",
+    "Show consistent financial position, cash flow and goals",
+    "Explain missing information and actionable next steps"
+  ],
+  "completedLocally": [
+    "Do not propose overdrawn or malformed balances as positive assets",
+    "Keep blank recurring amounts unknown rather than reporting a false surplus",
+    "Restore cash-flow correction links and calculation source details",
+    "Remove the global browser-storage decision-status fallback",
+    "Acknowledge decision changes only after a matching server response",
+    "Show recoverable errors for network and server failures without optimistic status changes",
+    "Select one desktop navigation destination and expose aria-current",
+    "Self-host existing fonts so production builds do not download them",
+    "Exercise upload, review, explicit confirmation and failed-save retry on desktop and mobile"
+  ],
+  "latestValidation": {
+    "productionBuild": "PASS",
+    "typecheck": "PASS",
+    "lint": "PASS: no errors; full scan has 29 pre-existing warnings",
+    "desktopAndMobileCustomerBrowserTests": "4 passed",
+    "fullUnitSuite": { "tests": 971, "passed": 937, "failed": 33, "skipped": 1 },
+    "patchApplicationCheckAgainstRelocatedCopy": "PASS: checked only, not applied",
+    "externalAccess": "Existing Supabase and Vercel browser sessions are signed out; CLI has no current Vercel credentials. Sign-in tabs opened for the customer."
+  },
+  "validationBoundaries": {
+    "browserTests": "Synthetic UI contract rehearsal: actual local document parser; confirmation responses mocked. Does not prove hosted PostgreSQL persistence.",
+    "database": "Live restricted-role read-only check reaches Supabase, but configured pooler rejects tenant/user routing. No migration or customer data change attempted.",
+    "historicalAiAudits": "33 existing full-suite checks require absent historical live-model run artifacts. No results fabricated and no checks skipped to hide failures.",
+    "release": "Local validation is not proof of deployed customer usability. No production release or live AI/Open Banking activation."
+  },
+  "nextWork": [
+    "Use authenticated Supabase dashboard to obtain the exact current connection string; preserve restricted runtime role",
+    "Restore local sign-in configuration from the authorised Preview environment",
+    "Rehearse synthetic two-user persistence and restart durability against the approved non-production pilot",
+    "Validate Goals, retirement, Dashboard and next-action consistency against that saved synthetic position",
+    "Publish and verify a reviewable Preview after account access and release checks pass"
+  ]
+}

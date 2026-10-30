@@ -1,4 +1,5 @@
 import type { MonthlyCashFlowLine, MonthlyCashFlowModel } from "@/lib/monthlyCashFlow";
+import Link from "next/link";
 
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 });
 const incomeColors: Record<string, string> = { employment: "#4858e8", rental: "#67b3c7", investment: "#8998d1", "other-income": "#a8b4c9", transactions: "#4858e8" };
@@ -24,7 +25,17 @@ export default function BaselineCashFlow({ cashFlow }: { cashFlow: MonthlyCashFl
       <div className="mt-4"><div className="mb-2 flex justify-between"><h3 className="font-semibold text-slate-900">Money in</h3><strong>{format(incoming)}</strong></div><SegmentedBar lines={cashFlow.incomeLines} total={incoming ?? 0} colors={incomeColors} /><Lines lines={cashFlow.incomeLines} colors={incomeColors} /></div>
       <div className="mt-5"><div className="mb-2 flex justify-between"><h3 className="font-semibold text-slate-900">Money out</h3><strong>{format(outgoing)}</strong></div><SegmentedBar lines={cashFlow.expenseLines} total={outgoing ?? 0} colors={expenseColors} /><Lines lines={cashFlow.expenseLines} colors={expenseColors} /></div>
     </section>
-    {cashFlow.missingInputs.length > 0 && <section className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5"><h2 className="font-semibold">More information needed</h2><ul className="mt-2 space-y-2 text-sm">{cashFlow.missingInputs.map((item, index) => <li key={`${item.code}-${index}`}>{item.title}: {item.detail}</li>)}</ul></section>}
+    {cashFlow.missingInputs.length > 0 && <section className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5"><h2 className="font-semibold">More information needed</h2><ul className="mt-2 space-y-3 text-sm">{cashFlow.missingInputs.map((item, index) => <li key={`${item.code}-${index}`}><p>{item.title}: {item.detail}</p><Link className="inline-flex min-h-11 items-center font-semibold text-blue-800 underline" href={item.href}>Add details<span className="sr-only"> for {item.title}</span></Link></li>)}</ul></section>}
+    <details className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+      <summary className="cursor-pointer font-semibold text-slate-900">Sources and calculation</summary>
+      <p className="mt-3 text-sm text-slate-600">Each line shows a monthly equivalent. Weekly amounts × 52 ÷ 12; fortnightly × 26 ÷ 12; quarterly ÷ 3; yearly ÷ 12.</p>
+      {[...cashFlow.incomeLines, ...cashFlow.expenseLines].map(line => <article key={line.id} className="mt-3 border-t border-slate-200 pt-3 text-sm">
+        <h3 className="font-semibold">{line.label}: {money.format(line.monthlyAmount)} per month</h3>
+        <p>Original cadence: {line.cadence}. {line.period.basis === "current-recurring" ? "Ongoing recurring amount" : `Source period: ${line.period.startDate ?? "Not recorded"} to ${line.period.endDate ?? "Not recorded"}`}.</p>
+        <p>Current as at: {line.period.asOfDate}.{line.approximate && " Estimated source amount."}</p>
+      </article>)}
+      {cashFlow.warnings.map(warning => <p className="mt-3 text-sm text-amber-900" key={warning}>{warning}</p>)}
+    </details>
     <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between"><div><div className="text-xs text-slate-500">12-month trend</div><h2 className="mt-1 text-lg font-semibold text-slate-900">Net cash movement</h2></div><div className="text-xs text-slate-500">Recorded history</div></div>
       <p className="mt-4 rounded-lg bg-slate-50 p-5 text-sm text-slate-600">History unavailable. Recorded cash flows over time are needed to show a trend.</p>

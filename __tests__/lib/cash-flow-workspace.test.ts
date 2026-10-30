@@ -8,13 +8,16 @@ test("Cash Flow is authenticated and uses the canonical financial position model
   assert.match(page, /requireServerPageSession\("\/cash-flow"\)/);
   assert.match(page, /createFinancialPositionReadServiceFromEnv\(\)\.read\(session\)/);
   assert.match(page, /position\.monthlyCashFlow/);
-  assert.match(page, /cashFlow\.missingInputs/);
-  assert.match(page, /Complete the missing cash-flow details/);
-  assert.match(page, /Add details/);
-  assert.match(page, /Source period:/);
-  assert.match(page, /Ongoing recurring amount/);
-  assert.match(page, /original cadence:/);
-  assert.match(page, /monthly equivalent shown/);
+  assert.match(page, /BaselineCashFlow cashFlow=\{position\.monthlyCashFlow\}/);
+  const client = readFileSync(resolve(process.cwd(), "src/app/components/BaselineCashFlow.tsx"), "utf8");
+  assert.match(client, /cashFlow\.missingInputs/);
+  assert.match(client, /More information needed/);
+  assert.match(client, /href=\{item\.href\}/);
+  assert.match(client, /Add details/);
+  assert.match(client, /Source period:/);
+  assert.match(client, /Ongoing recurring amount/);
+  assert.match(client, /Original cadence:/);
+  assert.match(client, /monthly equivalent/);
   assert.doesNotMatch(page, /\$6,420|\$14,680|\$8,260|1 Jun - 30 Jun 2026|Salary Deposit/);
 });
 

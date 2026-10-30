@@ -11,7 +11,7 @@ test("Financial Position route is authenticated and reads the canonical server m
   const page = source("src/app/financial-profile/page.tsx");
   assert.match(page, /requireServerPageSession\("\/financial-profile"\)/);
   assert.match(page, /createFinancialPositionReadServiceFromEnv\(\)\.read\(session\)/);
-  assert.match(page, /FinancialProfileBuilderClient position=\{position\}/);
+  assert.match(page, /BaselineFinancialPosition position=\{position\}/);
 });
 
 test("Financial Position answers the three canonical customer questions", () => {
@@ -61,7 +61,7 @@ test("mobile navigation exposes the unconditional Financial Position route", () 
   const navigation = source("src/app/components/MobileNav.tsx");
   assert.match(navigation, /label: "Financial Profile"/);
   assert.match(navigation, /\["Financial Position", "\/financial-profile"\]/);
-  assert.match(navigation, /\["Add financial data", "\/financial-profile\/add-data"\]/);
+  assert.match(navigation, /\["Add\/Modify Financial Data", "\/financial-profile\/add-data"\]/);
 });
 
 test("desktop navigation preserves the Vireon mark and selects Financial Position", () => {
@@ -71,7 +71,7 @@ test("desktop navigation preserves the Vireon mark and selects Financial Positio
   assert.doesNotMatch(shell, /bg-orange-400[^\n]*<Sparkles/);
   assert.match(shell, /label: "Financial Profile"/);
   assert.match(shell, /\["Financial Position", "\/financial-profile", ClipboardCheck\]/);
-  assert.match(shell, /\["Add financial data", "\/financial-profile\/add-data", FileCheck2\]/);
+  assert.match(shell, /\["Add\/Modify Financial Data", "\/financial-profile\/add-data", FileCheck2\]/);
   assert.match(shell, /active === "financial-position" && label === "Financial Position"/);
   assert.match(page, /<AppShell active="financial-position">/);
 });

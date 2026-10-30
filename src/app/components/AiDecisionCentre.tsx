@@ -1,14 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, ChevronRight, Clock3, Sparkles, X } from "lucide-react";
 import type { AiDecision, AiDecisionStatus } from "@/lib/aiDecisionCentre";
-
-type StoredDecisionState = {
-  status: AiDecisionStatus;
-  clickedAt?: string;
-  actionedAt?: string;
-};
+import { saveDecisionStatus, type StoredDecisionState } from "@/lib/decisionStatusClient";
 
 const priorityClass = {
   Critical: "bg-red-50 text-red-700 border-red-100",
@@ -49,21 +44,23 @@ export default function AiDecisionCentre({
   const [decisionState, setDecisionState] = useState<Record<string, StoredDecisionState>>(initialDecisionState);
   const [selectedDecisionId, setSelectedDecisionId] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const saveInFlight = useRef(false);
 
   async function updateDecisionState(id: string, update: (current: StoredDecisionState) => StoredDecisionState) {
+    if (saveInFlight.current) return;
     const next = { ...decisionState, [id]: update(decisionState[id] ?? { status: "New" }) };
+    saveInFlight.current = true;
+    setSaving(true);
     setMutationError(null);
-    const response = await fetch("/api/decisions", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ decisionId: id, status: next[id].status }),
-    });
-    const data = await response.json().catch(() => ({})) as { states?: Record<string, StoredDecisionState>; error?: string };
-    if (response.ok && data.states) {
-      setDecisionState(data.states);
-      return;
+    try {
+      setDecisionState(await saveDecisionStatus(id, next[id].status));
+    } catch (error) {
+      setMutationError((error as Error).message);
+    } finally {
+      saveInFlight.current = false;
+      setSaving(false);
     }
-    setMutationError(data.error ?? "Decision update could not be saved.");
   }
 
   function setDecisionStatus(id: string, status: AiDecisionStatus) {
@@ -131,7 +128,8 @@ export default function AiDecisionCentre({
         </div>
         {limit && <a href="/insights" className="text-sm font-semibold text-blue-700">View all decisions</a>}
       </div>
-      {mutationError && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{mutationError}</div>}
+      {mutationError && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{mutationError}</div>}
+      {saving && <p role="status" className="mb-3 text-sm text-slate-600">Saving decision status…</p>}
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
@@ -150,7 +148,7 @@ export default function AiDecisionCentre({
 
       {visibleDecisions.length === 0 ? (
         <div className="rounded-lg border border-dashed border-emerald-200 bg-emerald-50 p-6 text-center">
-          <div className="text-base font-semibold text-emerald-900">All current decisions are actioned.</div>
+          <div className="text-base font-semibold text-emerald-900">{decisions.length ? "No decisions awaiting review." : "No recommendations yet."}</div>
           <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-emerald-800">
             New recommendations will appear here when Financial Vault, Cash Flow, Housing, Goals, Alerts, or subscription data changes.
           </p>
@@ -206,11 +204,11 @@ export default function AiDecisionCentre({
                     <ArrowRight className="h-3.5 w-3.5" />
                   </a>
                   {canMarkActioned && (
-                    <button type="button" data-decision-status-id={decision.id} data-decision-status="Actioned" onClick={() => setDecisionStatus(decision.id, "Actioned")} className="h-9 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700">
+                    <button type="button" disabled={saving} data-decision-status-id={decision.id} data-decision-status="Actioned" onClick={() => setDecisionStatus(decision.id, "Actioned")} className="h-9 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700">
                       Mark Actioned
                     </button>
                   )}
-                  <button type="button" data-decision-status-id={decision.id} data-decision-status="Dismissed" onClick={() => setDecisionStatus(decision.id, "Dismissed")} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700">
+                  <button type="button" disabled={saving} data-decision-status-id={decision.id} data-decision-status="Dismissed" onClick={() => setDecisionStatus(decision.id, "Dismissed")} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700">
                     Dismiss
                   </button>
                 </div>
@@ -333,7 +331,7 @@ export default function AiDecisionCentre({
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 {decisionState[selectedDecision.id]?.clickedAt && getStatus(selectedDecision.id) !== "Actioned" && (
-                  <button type="button" data-decision-status-id={selectedDecision.id} data-decision-status="Actioned" onClick={() => setDecisionStatus(selectedDecision.id, "Actioned")} className="h-11 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700">
+                  <button type="button" disabled={saving} data-decision-status-id={selectedDecision.id} data-decision-status="Actioned" onClick={() => setDecisionStatus(selectedDecision.id, "Actioned")} className="h-11 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700">
                     Mark Actioned
                   </button>
                 )}
@@ -341,11 +339,11 @@ export default function AiDecisionCentre({
             </section>
 
             <div className="mt-6 flex flex-wrap gap-2">
-              <button type="button" data-decision-status-id={selectedDecision.id} data-decision-status="Reviewed" onClick={() => setDecisionStatus(selectedDecision.id, "Reviewed")} className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800">
+              <button type="button" disabled={saving} data-decision-status-id={selectedDecision.id} data-decision-status="Reviewed" onClick={() => setDecisionStatus(selectedDecision.id, "Reviewed")} className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800">
                 <Check className="h-4 w-4" />
                 Reviewed
               </button>
-              <button type="button" data-decision-status-id={selectedDecision.id} data-decision-status="Dismissed" onClick={() => setDecisionStatus(selectedDecision.id, "Dismissed")} className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700">
+              <button type="button" disabled={saving} data-decision-status-id={selectedDecision.id} data-decision-status="Dismissed" onClick={() => setDecisionStatus(selectedDecision.id, "Dismissed")} className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700">
                 Dismiss
               </button>
             </div>

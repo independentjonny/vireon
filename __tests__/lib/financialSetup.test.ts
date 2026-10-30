@@ -61,6 +61,17 @@ it("suggests only explicit labelled values and leaves dates and frequency unansw
   assert.ok(proposed.every(row => !row.asOfDate && !row.ownership && !row.frequency));
   assert.equal(suggestSetupEntries("Credits $1000.00 and debits $200.00", "bank.csv").length, 0);
 });
+it("never turns a negative or debit statement balance into a positive asset", () => {
+  for (const text of [
+    "Closing balance -$250.00", "Closing balance: $-250.00",
+    "Closing balance: ($250.00)", "Closing balance: $250.00 DR",
+    "Closing balance: $250.00-", "Closing balance: −$250.00",
+  ]) assert.equal(suggestSetupEntries(text, "overdraft.txt").length, 0, text);
+});
+it("does not suggest the leading portion of an unsupported amount", () => {
+  for (const text of ["Closing balance: $1.234,56", "Closing balance: $12,34.56", "Net pay: $123.456"])
+    assert.equal(suggestSetupEntries(text, "statement.txt").length, 0, text);
+});
 it("saves incomplete drafts without changing financial facts, survives service recreation and isolates users", async () => {
   const db = new SetupDb(); const first = createFinancialVaultPostgresService(db);
   const saved = await first.saveSetup(userA, draft([entry({ amount: "" })]));

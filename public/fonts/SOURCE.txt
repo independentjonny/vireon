@@ -1,0 +1,11 @@
+Unmodified Geist Latin and Geist Mono Latin WOFF2 assets from the installed,
+lockfile-pinned Next.js 16.2.6 package:
+next/dist/next-devtools/server/font/geist-latin.woff2
+next/dist/next-devtools/server/font/geist-mono-latin.woff2
+
+Upstream font project: https://github.com/vercel/geist-font
+Upstream licence: https://github.com/vercel/geist-font/blob/main/LICENSE.txt
+Licence included as GEIST-LICENSE.txt in this directory.
+
+Self-hosting preserves the existing typeface and removes Google Fonts downloads
+from production builds. Update these assets deliberately when changing fonts.
