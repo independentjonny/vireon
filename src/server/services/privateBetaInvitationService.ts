@@ -455,7 +455,7 @@ export function createPrivateBetaInvitationService(deps: PrivateBetaInvitationSe
         await setScope(tx, "private-beta-invitation-redemption");
         const update = await tx.query<{ id: string }>(
           `update public.private_beta_invitations
-           set status = 'consumed', consumed_at = now(), consumed_by_user_id = $1, redeemed_at = now(), redeemed_user_id = $1, updated_at = now(), correlation_id = $2
+           set status = 'consumed', consumed_at = now(), consumed_by_user_id = $1::text, redeemed_at = now(), redeemed_user_id = $1::uuid, updated_at = now(), correlation_id = $2
            where id = $3 and status in ('pending', 'issued') and coalesce(consumed_by_user_id::text, redeemed_user_id::text) is null
            returning id`,
           [signup.userId, correlationId, invitation.id]

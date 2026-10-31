@@ -47,6 +47,11 @@ class FakeInviteDb implements PostgresPilotClient {
       return { rows: [this.invitation as T], rowCount: 1 };
     }
     if (/update public\.private_beta_invitations/i.test(sql)) {
+      // The migration keeps the current consumer ID as text and the legacy ID as
+      // uuid. PostgreSQL cannot infer a shared uncast parameter for both fields.
+      if (!/consumed_by_user_id\s*=\s*\$1::text/i.test(sql) || !/redeemed_user_id\s*=\s*\$1::uuid/i.test(sql)) {
+        throw new Error("inconsistent types deduced for parameter $1");
+      }
       if (this.invitation?.status !== "pending" || this.invitation.redeemedUserId) return { rows: [], rowCount: 0 };
       this.invitation = { ...this.invitation, status: "consumed", redeemedUserId: String(params[0]) };
       return { rows: [{ id: this.invitation.id } as T], rowCount: 1 };
