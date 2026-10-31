@@ -1,4 +1,5 @@
 import type { Session } from "@/lib/auth/middleware";
+import { hasPermission } from "@/lib/auth/rbac";
 import { FINANCIAL_DATA_RESET_CONFIRMATION, type FinancialDataResetResult } from "@/lib/financialDataReset";
 import type { PostgresPilotClient } from "@/lib/postgresPilotPersistence";
 import { classifyDatabaseError, createRuntimeDatabaseConfigFromEnv, PsqlRuntimeClient } from "@/server/db/postgresRuntime";
@@ -55,8 +56,8 @@ export function createFinancialDataResetPostgresService(client: PostgresPilotCli
       if (!financialDataResetEnabled(env)) {
         throw new FinancialDataResetError("PREVIEW_ONLY", "Financial-data reset is available only in Preview.", 403);
       }
-      if (session.role !== "owner") {
-        throw new FinancialDataResetError("FORBIDDEN", "Only the Vireon account owner can delete financial data.", 403);
+      if (!hasPermission(session.role, "delete:own_financial_data")) {
+        throw new FinancialDataResetError("FORBIDDEN", "Your access does not allow financial-data deletion.", 403);
       }
       if (confirmation !== FINANCIAL_DATA_RESET_CONFIRMATION) {
         throw new FinancialDataResetError("CONFIRMATION_REQUIRED", `Type ${FINANCIAL_DATA_RESET_CONFIRMATION} exactly to continue.`, 422);

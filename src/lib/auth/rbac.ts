@@ -15,6 +15,7 @@ export type Permission =
   | "manage:workspace"
   | "manage:private_beta_access"
   | "manage:billing"
+  | "delete:own_financial_data"
   | "invoke:agents"
   | "read:memory"
   | "write:memory";
@@ -28,6 +29,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "read:memory",
   ],
   member: [
+    "delete:own_financial_data",
     "read:transactions",
     "write:transactions",
     "read:subscriptions",
@@ -39,6 +41,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "invoke:agents",
   ],
   admin: [
+    "delete:own_financial_data",
     "read:transactions",
     "write:transactions",
     "read:subscriptions",
@@ -56,6 +59,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "invoke:agents",
   ],
   owner: [
+    "delete:own_financial_data",
     "read:transactions",
     "write:transactions",
     "read:subscriptions",

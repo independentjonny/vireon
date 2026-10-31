@@ -5,6 +5,8 @@ import type { Session } from "../../src/lib/auth/middleware.ts";
 import { FINANCIAL_DATA_RESET_CONFIRMATION, totalFinancialDataDeleted, type FinancialDataResetResult } from "../../src/lib/financialDataReset.ts";
 import type { PostgresPilotClient, QueryResult } from "../../src/lib/postgresPilotPersistence.ts";
 import { createFinancialDataResetPostgresService } from "../../src/server/services/financialDataResetPostgresService.ts";
+import { hasPermission } from "../../src/lib/auth/rbac.ts";
+import { permissionForPath } from "../../src/proxy.ts";
 
 const session: Session = {
   userId: "user-a",
@@ -56,14 +58,31 @@ test("financial-data reset requires exact typed confirmation", async () => {
   assert.equal(calls.length, 0);
 });
 
-test("financial-data reset requires the account owner before any SQL runs", async () => {
+test("read-only users cannot reset financial data before any SQL runs", async () => {
   const calls: Array<{ sql: string; params: unknown[] }> = [];
   const service = createFinancialDataResetPostgresService(resetClient(calls), { NODE_ENV: "test", VERCEL_ENV: "preview" });
   await assert.rejects(
-    () => service.reset({ ...session, role: "member" }, FINANCIAL_DATA_RESET_CONFIRMATION),
-    /Only the Vireon account owner/i,
+    () => service.reset({ ...session, role: "viewer" }, FINANCIAL_DATA_RESET_CONFIRMATION),
+    /access does not allow financial-data deletion/i,
   );
   assert.equal(calls.length, 0);
+});
+
+test("members can reset their own data without workspace administration rights", async () => {
+  const calls: Array<{ sql: string; params: unknown[] }> = [];
+  const service = createFinancialDataResetPostgresService(resetClient(calls), { NODE_ENV: "test", VERCEL_ENV: "preview" });
+  const ownId = "11111111-1111-4111-8111-111111111111";
+  await service.reset({ ...session, role: "member", userId: ownId }, FINANCIAL_DATA_RESET_CONFIRMATION);
+  const scope = calls.find(call => call.sql.includes("set_config('app.current_user_id'"));
+  assert.deepEqual(scope?.params, [ownId]);
+  const reset = calls.find(call => call.sql.includes("reset_current_user_financial_data"));
+  assert.deepEqual(reset?.params, [FINANCIAL_DATA_RESET_CONFIRMATION]);
+  assert.equal(hasPermission("member", "manage:workspace"), false);
+  assert.equal(hasPermission("member", "manage:users"), false);
+  assert.equal(hasPermission("viewer", "delete:own_financial_data"), false);
+  assert.equal(permissionForPath("/api/private-beta/financial-data-reset", "POST"), "delete:own_financial_data");
+  assert.equal(permissionForPath("/api/private-beta/operations", "POST"), "manage:workspace");
+  assert.equal(permissionForPath("/api/private-beta/deletion", "POST"), "manage:workspace");
 });
 
 test("financial-data reset scopes the transaction to the authenticated user and returns deletion counts", async () => {

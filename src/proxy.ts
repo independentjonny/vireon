@@ -63,8 +63,10 @@ export function permissionForPath(pathname: string, method = "GET"): Permission 
   if (pathname.startsWith("/api/housing-scenarios")) {
     return READ_METHODS.has(method.toUpperCase()) ? "read:transactions" : "write:transactions";
   }
+  if (pathname === "/api/private-beta/financial-data-reset") {
+    return READ_METHODS.has(method.toUpperCase()) ? "read:transactions" : "delete:own_financial_data";
+  }
   if (
-    pathname.startsWith("/api/private-beta/financial-data-reset") ||
     pathname.startsWith("/api/private-beta/deletion") ||
     pathname.startsWith("/api/private-beta/export") ||
     pathname.startsWith("/api/private-beta/operations") ||
