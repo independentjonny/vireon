@@ -1305,7 +1305,8 @@ export function createCoreDecisioningPostgresService(client: PostgresPilotClient
       await withScopedTransaction(ctxFromSession(session), async (ctx) => {
         const userId = await scope(ctx);
         const goal = GoalPlanningEngine.createGoal({ ...input, userId });
-        await idempotency(ctx, "goals.create", input.idempotencyKey ?? `goal:${hashRecord({ ...input, userId })}`, input);
+        const replay = await idempotency(ctx, "goals.create", input.idempotencyKey ?? `goal:${hashRecord({ ...input, userId })}`, input);
+        if (replay === "replay") return;
         await scopedDb(ctx).query(
           `insert into goals(user_id, app_id, title, goal_type, status, target_value, current_value, target_date, priority, payload, source, correlation_id)
            values ($1, $2, $3, $4, $5, $6, $7, $8::date, $9, $10::jsonb, $11, $12)

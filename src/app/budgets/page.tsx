@@ -7,15 +7,16 @@ export default function BudgetsPage() {
       <PremiumWorkspacePage
         eyebrow="Budget Planning"
         title="Budgets"
-        subtitle="Track spending pressure, category drift, and savings opportunities."
-        metrics={[
-          { label: "Dining", value: "+18%", note: "Above recent average" },
-          { label: "Savings Gap", value: "$400", note: "Improves housing readiness" },
-          { label: "Subscriptions", value: "$268", note: "Review recommended" },
-          { label: "Budget Status", value: "Watch", note: "Two categories elevated" },
-        ]}
+        subtitle="Budget planning is not available in this Preview. Review your recorded income and expenses in Cash Flow."
+        metrics={[]}
         actions={[{ label: "Review Transactions", href: "/transactions" }]}
-      />
+      >
+        <section className="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-slate-950">Budget analysis unavailable</h2>
+          <p className="mt-2 text-sm text-slate-600">Category trends, budget targets and savings opportunities have not been calculated for your account.</p>
+          <a className="mt-4 inline-block font-semibold text-blue-700 underline" href="/cash-flow">Review cash flow</a>
+        </section>
+      </PremiumWorkspacePage>
     </AppShell>
   );
 }

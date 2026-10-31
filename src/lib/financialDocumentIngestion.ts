@@ -114,7 +114,9 @@ function extractPdfText(bytes: Uint8Array): { text: string; warnings: string[] }
   if (!binary.startsWith("%PDF-")) throw new Error("The file extension says PDF but the PDF signature is missing.");
   if (/\/Encrypt\b/.test(binary)) throw new Error("Password-protected PDFs are not supported.");
   const fragments: string[] = [];
-  for (const stream of binary.matchAll(/BT([\s\S]*?)ET/g)) {
+  // Text operators must be whole tokens outside literal strings. Words such as
+  // SYNTHETIC, or the text " ET ", must not terminate a text block.
+  for (const stream of binary.matchAll(/\bBT\b((?:\((?:\\[\s\S]|[^\\)])*\)|(?!\(|\bET\b)[\s\S])*)\bET\b/g)) {
     for (const literal of stream[1].matchAll(/\(((?:\\.|[^\\)])*)\)\s*(?:Tj|'|")/g)) {
       if (fragments.length >= MAX_FINANCIAL_DOCUMENT_PDF_TEXT_FRAGMENTS) throw new Error("PDF text extraction exceeds supported limits.");
       fragments.push(unescapePdfString(literal[1]));

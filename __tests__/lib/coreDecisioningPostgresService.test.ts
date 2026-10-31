@@ -35,6 +35,32 @@ function clientForDecisionStatus(calls: Call[]): PostgresPilotClient {
   };
 }
 
+test("goal retry acknowledges the existing write and changed payloads conflict", async () => {
+  const keys = new Map<string, unknown>();
+  let inserts = 0;
+  const client: PostgresPilotClient = {
+    async query<T>(sql: string, params: unknown[] = []): Promise<QueryResult<T>> {
+      if (sql.includes("select response_hash")) {
+        const hash = keys.get(JSON.stringify(params));
+        return { rows: hash ? [{ responseHash: hash }] as T[] : [] };
+      }
+      if (sql.includes("insert into idempotency_keys")) keys.set(JSON.stringify([params[0], params[2], params[1]]), params[3]);
+      if (sql.includes("insert into goals(")) inserts++;
+      return { rows: [] };
+    },
+    async transaction<T>(operation: (client: PostgresPilotClient) => Promise<T>) { return operation(this); },
+  };
+  const model = buildFinancialPositionReadModel({ userId: "qa", vault: createEmptyFinancialVaultState(), canonical: [], freshness: [], ingestions: [] });
+  const service = createCoreDecisioningPostgresService(client, { readModel: { read: async () => model } });
+  const session = { userId: "qa", expiresAt: "2027-01-01T00:00:00Z" };
+  const input = { type: "SAVINGS" as const, title: "Synthetic savings", targetAmount: 10000, idempotencyKey: "same-goal-request" };
+  await service.createGoal(session, input);
+  await service.createGoal(session, input);
+  assert.equal(inserts, 1);
+  await assert.rejects(() => service.createGoal(session, { ...input, targetAmount: 20000 }), /different payload/);
+  assert.equal(inserts, 1);
+});
+
 test("core decisioning service scopes decision mutations by trusted user and writes history", async () => {
   const calls: Call[] = [];
   const service = createCoreDecisioningPostgresService(clientForDecisionStatus(calls));

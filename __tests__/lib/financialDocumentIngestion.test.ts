@@ -43,6 +43,20 @@ test("scanned PDF is retained for review rather than reported as extracted", () 
   assert.match(result.warnings[0], /OCR or manual review/);
 });
 
+test("PDF words containing ET do not hide later labelled balances", () => {
+  const pdf = "%PDF-1.4\nBT (SYNTHETIC QA BANK) Tj (Closing balance: $12,000.00) Tj ET\n%%EOF";
+  const result = ingestFinancialDocument({ fileName: "statement.pdf", mimeType: "application/pdf", documentType: "bank_statement", bytes: bytes(pdf) });
+  assert.equal(result.status, "extracted");
+  assert.match(result.extractedText, /Closing balance: \$12,000\.00/);
+});
+
+test("PDF literal ET text and escaped parentheses do not end the text block", () => {
+  const pdf = "%PDF-1.4\nBT (Reference ET \\(internal\\)) Tj (Closing balance: $4,500.00) Tj ET\n%%EOF";
+  const result = ingestFinancialDocument({ fileName: "statement.pdf", mimeType: "application/pdf", documentType: "bank_statement", bytes: bytes(pdf) });
+  assert.match(result.extractedText, /Reference ET \(internal\)/);
+  assert.match(result.extractedText, /Closing balance: \$4,500\.00/);
+});
+
 test("encrypted, spoofed, unsupported, empty and oversized files are rejected", () => {
   assert.throws(() => ingestFinancialDocument({ fileName: "tax.pdf", mimeType: "application/pdf", documentType: "tax_return", bytes: bytes("not a pdf") }), /signature/);
   assert.throws(() => ingestFinancialDocument({ fileName: "tax.pdf", mimeType: "application/pdf", documentType: "tax_return", bytes: bytes("%PDF-1.4 /Encrypt") }), /Password-protected/);
