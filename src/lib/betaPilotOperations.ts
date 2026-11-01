@@ -397,7 +397,7 @@ export function createReleaseManifest(input: Partial<ReleaseManifest> & { commit
     commit: input.commit,
     migrations: input.migrations ?? ["0002_private_beta_foundation.sql"],
     featureFlags,
-    calculationVersions: input.calculationVersions ?? ["financial-health-engine-v1", "financial-timeline-forecasting-v1", "goals-scenario-planning-v1"],
+    calculationVersions: input.calculationVersions ?? ["financial-health-engine-v2", "financial-timeline-forecasting-v2", "goals-scenario-planning-v1"],
     knownWarnings: input.knownWarnings ?? [],
     rollbackPoint: input.rollbackPoint ?? input.commit,
     approver: input.approver,

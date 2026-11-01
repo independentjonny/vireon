@@ -369,10 +369,10 @@ test("financial forecast route persistence writes deterministic snapshots throug
     "12m",
   );
 
-  assert.equal(result.snapshot.version, "financial-timeline-forecasting-v1");
+  assert.equal(result.snapshot.version, "financial-timeline-forecasting-v2");
   assert.equal(result.persisted.snapshotCount, 1);
   assert.ok(calls.some((call) => call.sql.includes("insert into calculation_snapshots") && call.params.includes("Financial Forecast")));
-  assert.ok(calls.some((call) => call.sql.includes("insert into simulation_runs") && call.params.includes("financial-timeline-forecasting-v1")));
+  assert.ok(calls.some((call) => call.sql.includes("insert into simulation_runs") && call.params.includes("financial-timeline-forecasting-v2")));
   assert.ok(calls.some((call) => call.sql.includes("insert into digital_twin_scenarios") && call.params.includes("Extra repayment")));
   assert.ok(calls.some((call) => call.sql.includes("set_config") && call.sql.includes("app.current_user_id")));
   assert.ok(calls.every((call) => !call.params.includes("forecast-user-a")));

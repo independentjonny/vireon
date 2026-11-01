@@ -1,6 +1,7 @@
 import type { CanonicalFinancialRecord, FinancialRecordKind } from "@/lib/manualFinancialDataPlatform";
+import { buildMonthlyCashFlowModel } from "@/lib/monthlyCashFlow";
 
-export const FINANCIAL_HEALTH_ENGINE_VERSION = "financial-health-engine-v1";
+export const FINANCIAL_HEALTH_ENGINE_VERSION = "financial-health-engine-v2";
 
 export type HealthRating = "Strong" | "Stable" | "Needs Attention" | "Insufficient Data";
 export type HealthActionPriority = "Critical" | "High" | "Medium" | "Low";
@@ -232,8 +233,9 @@ export function buildFinancialHealthSnapshot(input: {
 
   const transactionIncome = average(months.map((month) => month.income));
   const transactionSpending = average(months.map((month) => month.spending));
-  const manualIncome = incomeRecords.reduce((sum, record) => sum + recordNumber(record, ["monthlyAmount", "netMonthlyAmount", "amount", "annualAmount"]) / (record.value.annualAmount ? 12 : 1), 0);
-  const manualExpenses = expenseRecords.reduce((sum, record) => sum + recordNumber(record, ["monthlyAmount", "amount"]), 0);
+  const monthlyCashFlow = buildMonthlyCashFlowModel(records, input.userId);
+  const manualIncome = monthlyCashFlow.monthlyIncome ?? 0;
+  const manualExpenses = monthlyCashFlow.monthlyExpenses ?? 0;
   const averageMonthlyIncome = transactionIncome || manualIncome;
   const averageMonthlySpending = transactionSpending || manualExpenses;
   const monthlySurplus = averageMonthlyIncome - averageMonthlySpending;
@@ -314,8 +316,10 @@ export function buildFinancialHealthSnapshot(input: {
   if (debtToIncome > 400) score -= 8;
   if (creditCardUtilisation > 50) score -= 8;
   if (months.length >= 2) score += 4;
-  const healthScore = Math.max(0, Math.min(100, Math.round(score)));
-  const healthRating: HealthRating = records.length === 0 ? "Insufficient Data" : healthScore >= 82 ? "Strong" : healthScore >= 62 ? "Stable" : "Needs Attention";
+  const cashFlowKnown = (transactionIncome > 0 && transactionSpending > 0) || (monthlyCashFlow.monthlyIncome !== null && monthlyCashFlow.monthlyExpenses !== null);
+  const sufficientData = cashFlowKnown && accountRecords.length > 0 && liabilityRecords.length > 0;
+  const healthScore = sufficientData ? Math.max(0, Math.min(100, Math.round(score))) : 0;
+  const healthRating: HealthRating = !sufficientData ? "Insufficient Data" : healthScore >= 82 ? "Strong" : healthScore >= 62 ? "Stable" : "Needs Attention";
   const actions: FinancialHealthAction[] = [];
 
   if (!records.length) {

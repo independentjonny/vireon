@@ -5,6 +5,38 @@ import type { CanonicalFinancialRecord } from "../../src/lib/manualFinancialData
 
 const userId = "11111111-1111-4111-a111-111111111111";
 
+test("cash flow includes saved personal-loan repayments alongside mortgage and living expenses", () => {
+  const model = buildMonthlyCashFlowModel([
+    record("salary", "income", { amount: 6000, frequency: "monthly" }),
+    record("living", "expense", { amount: 2500, frequency: "monthly" }),
+    record("Home mortgage", "liability", { balance: 300000, repaymentAmount: 1800, repaymentFrequency: "monthly" }),
+    record("Personal loan", "liability", { balance: 10000, repaymentAmount: 500, repaymentFrequency: "monthly" }),
+  ], userId);
+  assert.equal(model.monthlyExpenses, 4800);
+  assert.equal(model.monthlySurplus, 1200);
+  assert.equal(model.expenseLines.filter(line => line.category === "loan").length, 1);
+});
+
+test("an existing mortgage expense does not suppress a separate personal-loan repayment", () => {
+  const model = buildMonthlyCashFlowModel([
+    record("salary", "income", { monthlyAmount: 6000 }),
+    record("Mortgage payment", "expense", { monthlyAmount: 1800 }),
+    record("Home mortgage", "liability", { balance: 300000, repaymentAmount: 1800, repaymentFrequency: "monthly" }),
+    record("Personal loan", "liability", { balance: 10000, repaymentAmount: 500, repaymentFrequency: "monthly" }),
+  ], userId);
+  assert.equal(model.monthlyExpenses, 2300);
+});
+
+test("a personal-loan repayment without cadence remains incomplete", () => {
+  const model = buildMonthlyCashFlowModel([
+    record("salary", "income", { monthlyAmount: 6000 }),
+    record("living", "expense", { monthlyAmount: 2500 }),
+    record("Personal loan", "liability", { balance: 10000, repaymentAmount: 500 }),
+  ], userId);
+  assert.equal(model.monthlyExpenses, null);
+  assert.ok(model.missingInputs.some(item => item.code === "loan-repayment"));
+});
+
 function record(id: string, kind: CanonicalFinancialRecord["kind"], value: Record<string, unknown>, input: Partial<CanonicalFinancialRecord> = {}): CanonicalFinancialRecord {
   return {
     id,

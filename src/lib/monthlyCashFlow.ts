@@ -10,7 +10,7 @@ export type MonthlyCashFlowLine = {
   cadence: string;
   sourceRecordIds: string[];
   approximate: boolean;
-  category: "employment" | "rental" | "investment" | "other-income" | "living-expense" | "mortgage" | "transactions";
+  category: "employment" | "rental" | "investment" | "other-income" | "living-expense" | "mortgage" | "loan" | "transactions";
   period: {
     basis: "current-recurring" | "observed-period";
     startDate: string | null;
@@ -34,7 +34,7 @@ export type MonthlyCashFlowModel = {
 };
 
 export type MonthlyCashFlowMissingInput = {
-  code: "rental-income" | "mortgage-repayment" | "income-cadence" | "expense-cadence" | "income" | "expenses";
+  code: "rental-income" | "mortgage-repayment" | "loan-repayment" | "income-cadence" | "expense-cadence" | "income" | "expenses";
   recordId: string | null;
   title: string;
   detail: string;
@@ -123,6 +123,15 @@ function normaliseAmount(amount: unknown, rawCadence: unknown): NormalisedAmount
   };
   const multiplier = multipliers[valueCadence];
   return multiplier === undefined ? null : { amount: Math.abs(parsed) * multiplier, cadence: valueCadence };
+}
+
+export function monthlyRecurringAmount(record: CanonicalFinancialRecord): number | null {
+  return normaliseExplicitRecord(record)?.amount ?? null;
+}
+
+export function monthlyDebtRepayment(record: CanonicalFinancialRecord): number | null {
+  const monthly = firstPresentNumber(record, ["monthlyRepayment", "monthlyPayment", "minimumPayment"]);
+  return monthly !== null ? Math.abs(monthly) : normaliseAmount(record.value.repaymentAmount, record.value.repaymentFrequency)?.amount ?? null;
 }
 
 function incomeCategory(record: CanonicalFinancialRecord): MonthlyCashFlowLine["category"] {
@@ -235,14 +244,16 @@ function investmentIncomeLines(records: CanonicalFinancialRecord[]) {
 function mortgageRepaymentLines(records: CanonicalFinancialRecord[]) {
   const lines: MonthlyCashFlowLine[] = [];
   const excludedRecordIds: string[] = [];
-  for (const record of records.filter((item) => item.kind === "liability" && /mortgage|home loan/i.test(`${item.subtype} ${item.label}`))) {
+  for (const record of records.filter((item) => item.kind === "liability" && (/mortgage|home loan/i.test(`${item.subtype} ${item.label}`) || ["repaymentAmount", "monthlyRepayment", "monthlyPayment", "minimumPayment"].some(key => key in item.value)))) {
     if (firstPresentNumber(record, ["balance", "principal"]) === 0 && record.value.repaymentAmount === 0) continue;
-    const normalised = normaliseAmount(record.value.repaymentAmount, record.value.repaymentFrequency);
+    const amount = monthlyDebtRepayment(record);
+    const normalised = amount === null ? null : { amount, cadence: String(record.value.repaymentFrequency ?? "monthly") };
     if (!normalised || normalised.amount <= 0) {
       excludedRecordIds.push(record.id);
       continue;
     }
-    lines.push({ id: `mortgage-${record.id}`, label: `Mortgage repayment — ${record.label}`, kind: "expense", monthlyAmount: normalised.amount, cadence: normalised.cadence, sourceRecordIds: [record.id], approximate: record.approximate, category: "mortgage", period: recordPeriod(record) });
+    const mortgage = /mortgage|home loan/i.test(`${record.subtype} ${record.label}`);
+    lines.push({ id: `repayment-${record.id}`, label: `${mortgage ? "Mortgage" : "Loan"} repayment — ${record.label}`, kind: "expense", monthlyAmount: normalised.amount, cadence: normalised.cadence, sourceRecordIds: [record.id], approximate: record.approximate, category: mortgage ? "mortgage" : "loan", period: recordPeriod(record) });
   }
   return { lines, excludedRecordIds };
 }
@@ -306,7 +317,8 @@ export function buildMonthlyCashFlowModel(records: CanonicalFinancialRecord[], u
   const expenses = explicitLines(confirmed, "expense");
   const rental = income.lines.some((line) => line.category === "rental") ? { lines: [], excludedRecordIds: [] } : propertyRentalLines(confirmed);
   const investment = income.lines.some((line) => line.category === "investment") ? [] : investmentIncomeLines(confirmed);
-  const mortgages = expenses.lines.some((line) => /mortgage|home loan/i.test(line.label)) ? { lines: [], excludedRecordIds: [] } : mortgageRepaymentLines(confirmed);
+  const mortgageExpenseRecorded = expenses.lines.some((line) => /mortgage|home loan/i.test(line.label));
+  const mortgages = mortgageRepaymentLines(confirmed.filter(record => !mortgageExpenseRecorded || !/mortgage|home loan/i.test(`${record.subtype} ${record.label}`)));
   const transactions = transactionFallback(confirmed);
   const recurringIncomeLines = [...income.lines, ...rental.lines, ...investment];
   const recurringExpenseLines = [...expenses.lines, ...mortgages.lines];
@@ -325,13 +337,14 @@ export function buildMonthlyCashFlowModel(records: CanonicalFinancialRecord[], u
   const cadenceExcludedRecordIds = [...income.excludedRecordIds, ...expenses.excludedRecordIds];
   const replacedRecordIds = [...income.replacedRecordIds, ...expenses.replacedRecordIds];
   const excludedRecordIds = [...new Set([...income.excludedRecordIds, ...expenses.excludedRecordIds, ...replacedRecordIds, ...rental.excludedRecordIds, ...mortgages.excludedRecordIds, ...transactions.excludedRecordIds])];
+  const incompleteDebtKinds = new Set(confirmed.filter(record => mortgages.excludedRecordIds.includes(record.id)).map(record => /mortgage|home loan/i.test(`${record.subtype} ${record.label}`) ? "mortgage" : "loan"));
   const warnings = [
     ...(replacedRecordIds.length ? [`${replacedRecordIds.length} older overlapping recurring record${replacedRecordIds.length === 1 ? " was" : "s were"} excluded; only the latest current value for each household item is used.`] : []),
     ...(cadenceExcludedRecordIds.length ? [`${cadenceExcludedRecordIds.length} record${cadenceExcludedRecordIds.length === 1 ? " was" : "s were"} excluded because it is one-off or its monthly cadence could not be established.`] : []),
     ...(monthlyIncome === null ? ["Confirmed monthly income is unavailable."] : []),
     ...(monthlyExpenses === null ? ["Confirmed monthly expenses are unavailable."] : []),
     ...(rental.excludedRecordIds.length ? ["A property is marked as earning rent but has no confirmed rent amount and frequency."] : []),
-    ...(mortgages.excludedRecordIds.length ? ["A confirmed mortgage has no usable repayment amount and frequency."] : []),
+    ...[...incompleteDebtKinds].map(kind => `A confirmed ${kind} has no usable repayment amount and frequency.`),
     ...(transactions.excludedRecordIds.length ? [`${transactions.excludedRecordIds.length} transfer, reimbursement, sale, refund or unclassified positive transaction${transactions.excludedRecordIds.length === 1 ? " was" : "s were"} excluded from cash flow.`] : []),
   ];
   const recordById = new Map(confirmed.map((record) => [record.id, record]));
@@ -344,7 +357,8 @@ export function buildMonthlyCashFlowModel(records: CanonicalFinancialRecord[], u
     ...mortgages.excludedRecordIds.map((recordId) => {
       const record = recordById.get(recordId);
       const property = propertyByEntityKey.get(String(record?.value.propertyEntityKey ?? ""));
-      return { code: "mortgage-repayment" as const, recordId, title: `Add repayment details for ${record?.label ?? "the mortgage"}`, detail: "The mortgage balance is confirmed, but its repayment amount or frequency is missing.", href: property ? `/financial-profile/add-data?category=property&propertyId=${encodeURIComponent(property.id)}` : "/financial-profile/property" };
+      const mortgage = /mortgage|home loan/i.test(`${record?.subtype} ${record?.label}`);
+      return { code: mortgage ? "mortgage-repayment" as const : "loan-repayment" as const, recordId, title: `Add repayment details for ${record?.label ?? "the loan"}`, detail: "The balance is confirmed, but its repayment amount or frequency is missing.", href: property ? `/financial-profile/add-data?category=property&propertyId=${encodeURIComponent(property.id)}` : mortgage ? "/financial-profile/property" : "/financial-profile/add-data" };
     }),
     ...income.incompleteRecordIds.map((recordId) => ({ code: "income-cadence" as const, recordId, title: `Complete income details for ${recordById.get(recordId)?.label ?? "income"}`, detail: "The income amount or payment frequency is missing. Update the existing item before calculating a monthly value.", href: "/financial-profile/add-data" })),
     ...expenses.incompleteRecordIds.map((recordId) => ({ code: "expense-cadence" as const, recordId, title: `Complete expense details for ${recordById.get(recordId)?.label ?? "expense"}`, detail: "The expense amount or payment frequency is missing. Update the existing item before calculating a monthly value.", href: "/financial-profile/add-data" })),

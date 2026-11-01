@@ -2,8 +2,9 @@ import { createHash, randomUUID } from "crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import type { CanonicalFinancialRecord } from "@/lib/manualFinancialDataPlatform";
+import { monthlyRecurringAmount, monthlyDebtRepayment } from "@/lib/monthlyCashFlow";
 
-export const FINANCIAL_FORECAST_VERSION = "financial-timeline-forecasting-v1";
+export const FINANCIAL_FORECAST_VERSION = "financial-timeline-forecasting-v2";
 
 export type ForecastHorizon = "30d" | "90d" | "12m" | "3y" | "5y" | "custom";
 export type ForecastQuality = "HIGH" | "MODERATE" | "LOW" | "INSUFFICIENT";
@@ -280,10 +281,10 @@ export function buildForecastInput(input: {
   const expenseMonths = new Set(expenseTxs.map((record) => String(record.value.date ?? "").slice(0, 7))).size || 1;
   const monthlyIncomeFromTx = incomeTxs.reduce((sum, record) => sum + firstNumber(record, ["amount"]), 0) / incomeMonths;
   const monthlyExpenseFromTx = Math.abs(expenseTxs.reduce((sum, record) => sum + firstNumber(record, ["amount"]), 0)) / expenseMonths;
-  const recurringIncome: ForecastLine[] = incomes.map((record) => ({
+  const recurringIncome: ForecastLine[] = incomes.flatMap((record) => monthlyRecurringAmount(record) === null ? [] : [{
     id: `income-${record.id}`,
     label: record.label,
-    amount: firstNumber(record, ["monthlyAmount", "netMonthlyAmount", "amount", "annualAmount"]) / (record.value.annualAmount ? 12 : 1),
+    amount: monthlyRecurringAmount(record)!,
     frequency: "monthly",
     startDate,
     endDate: null,
@@ -291,14 +292,14 @@ export function buildForecastInput(input: {
     sourceRecordIds: [record.id],
     certainty: "confirmed",
     userEditable: false,
-  }));
-  if (!recurringIncome.length && monthlyIncomeFromTx > 0) {
+  }]);
+  if (!incomes.length && monthlyIncomeFromTx > 0) {
     recurringIncome.push({ id: "income-from-transactions", label: "Average confirmed income", amount: round(monthlyIncomeFromTx), frequency: "monthly", startDate, endDate: null, category: "income", sourceRecordIds: incomeTxs.map((record) => record.id), certainty: incomeMonths >= 3 ? "confirmed" : "estimated", userEditable: true });
   }
-  const recurringExpenses: ForecastLine[] = expenses.map((record) => ({
+  const recurringExpenses: ForecastLine[] = expenses.flatMap((record) => monthlyRecurringAmount(record) === null ? [] : [{
     id: `expense-${record.id}`,
     label: record.label,
-    amount: firstNumber(record, ["monthlyAmount", "amount"]),
+    amount: monthlyRecurringAmount(record)!,
     frequency: "monthly",
     startDate,
     endDate: null,
@@ -306,8 +307,8 @@ export function buildForecastInput(input: {
     sourceRecordIds: [record.id],
     certainty: "confirmed",
     userEditable: false,
-  }));
-  if (!recurringExpenses.length && monthlyExpenseFromTx > 0) {
+  }]);
+  if (!expenses.length && monthlyExpenseFromTx > 0) {
     recurringExpenses.push({ id: "expenses-from-transactions", label: "Average confirmed spending", amount: round(monthlyExpenseFromTx), frequency: "monthly", startDate, endDate: null, category: "variable", sourceRecordIds: expenseTxs.map((record) => record.id), certainty: expenseMonths >= 3 ? "confirmed" : "estimated", userEditable: true });
   }
   const debts = liabilities.map((record): ForecastDebt => ({
@@ -316,7 +317,7 @@ export function buildForecastInput(input: {
     type: classifyDebt(record),
     openingBalance: firstNumber(record, ["balance", "amount", "principal"]),
     annualInterestRate: firstNumber(record, ["interestRate", "rate"]) || null,
-    monthlyRepayment: firstNumber(record, ["monthlyRepayment", "monthlyPayment", "minimumPayment"]) || null,
+    monthlyRepayment: monthlyDebtRepayment(record),
     extraMonthlyRepayment: firstNumber(record, ["extraMonthlyRepayment"]),
     sourceRecordIds: [record.id],
     certainty: record.provenance.confidence >= 0.9 ? "confirmed" : "estimated",

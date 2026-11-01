@@ -3,6 +3,26 @@ import test from "node:test";
 import { ManualFinancialDataPlatform } from "../../src/lib/manualFinancialDataPlatform.ts";
 import { buildFinancialHealthSnapshot, FINANCIAL_HEALTH_ENGINE_VERSION } from "../../src/lib/financialHealthEngine.ts";
 
+test("cash-only profiles are insufficient for a financial health rating", () => {
+  const platform = new ManualFinancialDataPlatform();
+  platform.manualRecord("u1", { kind: "account", subtype: "cash", label: "Savings", value: { balance: 13000 } });
+  const snapshot = platform.financialHealth("u1");
+  assert.equal(snapshot.healthRating, "Insufficient Data");
+  assert.equal(snapshot.healthScore, 0);
+});
+
+test("manual health cash flow uses the same cadence and debt repayments as Cash Flow", () => {
+  const platform = new ManualFinancialDataPlatform();
+  platform.manualRecord("u1", { kind: "account", subtype: "cash", label: "Savings", value: { balance: 12000 } });
+  platform.manualRecord("u1", { kind: "income", subtype: "salary", label: "Weekly salary", value: { amount: 2800, frequency: "weekly" } });
+  platform.manualRecord("u1", { kind: "expense", subtype: "living", label: "Living", value: { monthlyAmount: 2500 } });
+  platform.manualRecord("u1", { kind: "liability", subtype: "loan", label: "Personal loan", value: { balance: 10000, repaymentAmount: 500, repaymentFrequency: "monthly" } });
+  const snapshot = platform.financialHealth("u1");
+  assert.equal(snapshot.cashFlow.averageMonthlyIncome.value, 12133.33);
+  assert.equal(snapshot.cashFlow.averageMonthlySpending.value, 3000);
+  assert.equal(snapshot.cashFlow.monthlySurplus.value, 9133.33);
+});
+
 function platformWithHealthData() {
   const platform = new ManualFinancialDataPlatform();
   const csv = [

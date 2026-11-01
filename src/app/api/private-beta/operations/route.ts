@@ -22,7 +22,7 @@ export async function GET() {
       hostingEnvironment: process.env.VIREON_HOSTING_ENVIRONMENT ?? "external-private-beta",
       databaseMigrationVersion: config.migrationVersion ?? "unknown",
       featureFlags: foundation.featureFlags,
-      calculationVersions: ["financial-health-engine-v1", "financial-timeline-forecasting-v1", "goals-scenario-planning-v1"],
+      calculationVersions: ["financial-health-engine-v2", "financial-timeline-forecasting-v2", "goals-scenario-planning-v1"],
       rollbackReference: process.env.VIREON_ROLLBACK_REFERENCE ?? "previous-deployment",
       approver: process.env.VIREON_DEPLOYMENT_APPROVER ?? "unrecorded",
       deploymentOutcome: "VERIFIED",

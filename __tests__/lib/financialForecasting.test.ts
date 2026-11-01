@@ -24,6 +24,31 @@ function records() {
   return [...platform.canonical.values()];
 }
 
+test("forecast normalizes weekly income, fortnightly expenses and saved loan repayments", () => {
+  const platform = new ManualFinancialDataPlatform();
+  platform.manualRecord("u1", { kind: "income", subtype: "salary", label: "Weekly salary", value: { amount: 2800, frequency: "weekly" } });
+  platform.manualRecord("u1", { kind: "expense", subtype: "living", label: "Fortnightly living", value: { amount: 1000, frequency: "fortnightly" } });
+  platform.manualRecord("u1", { kind: "liability", subtype: "mortgage", label: "Mortgage", value: { balance: 300000, repaymentAmount: 450, repaymentFrequency: "weekly" } });
+  platform.manualRecord("u1", { kind: "liability", subtype: "loan", label: "Personal loan", value: { balance: 10000, repaymentAmount: 500, repaymentFrequency: "monthly" } });
+  const input = FinancialForecastingEngine.buildInput({ userId: "u1", records: [...platform.canonical.values()], horizon: "12m", startDate: "2026-10-31" });
+  assert.ok(Math.abs(input.recurringIncome[0].amount - 2800 * 52 / 12) < 0.001);
+  assert.ok(Math.abs(input.recurringExpenses[0].amount - 1000 * 26 / 12) < 0.001);
+  assert.ok(Math.abs(input.debts[0].monthlyRepayment! - 1950) < 0.001);
+  assert.equal(input.debts[1].monthlyRepayment, 500);
+  const snapshot = FinancialForecastingEngine.generate(input);
+  assert.equal(snapshot.months[0].projectedIncome, 12133.33);
+  assert.equal(snapshot.months[0].debtRepayments, 2450);
+});
+
+test("explicit monthly amounts win over annual aliases and missing cadence is not guessed", () => {
+  const platform = new ManualFinancialDataPlatform();
+  platform.manualRecord("u1", { kind: "income", subtype: "salary", label: "Salary", value: { monthlyAmount: 10000, annualAmount: 240000 } });
+  platform.manualRecord("u1", { kind: "income", subtype: "other", label: "Unknown cadence", value: { amount: 2800 } });
+  const input = FinancialForecastingEngine.buildInput({ userId: "u1", records: [...platform.canonical.values()], horizon: "12m", startDate: "2026-10-31" });
+  assert.equal(input.recurringIncome.length, 1);
+  assert.equal(input.recurringIncome[0].amount, 10000);
+});
+
 function forecast(deltas: ForecastScenarioDelta[] = []) {
   const input = FinancialForecastingEngine.buildInput({ userId: "u1", records: records(), startDate: "2026-08-01", horizon: "12m" });
   const scenario: ForecastScenario | undefined = deltas.length ? { id: "scenario-test", name: "Test scenario", createdAt: "2026-08-01T00:00:00.000Z", archived: false, deltas } : undefined;
