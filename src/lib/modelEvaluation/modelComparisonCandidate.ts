@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "crypto";
 import { spawnSync } from "child_process";
+import { fileURLToPath } from "node:url";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { buildModelRegistry } from "../modelOrchestrator/registry.ts";
@@ -11,88 +12,7 @@ import {
   validateCanonicalModelRegistry,
   type CanonicalModelRegistryEntry,
   type ModelComparisonApproval,
-} from "../modelOrchestrator/modelRegistry.ts";
-import { APPROVED_STAGE_A_FIXTURES } from "../modelOrchestrator/taskRestrictions.ts";
-import { EVALUATION_FIXTURES } from "./fixtures.ts";
-import {
-  CONFIDENCE_POLICY_V3,
-  ORIGINAL_LIVE_RUN_ID,
-  SCORER_V3_CANDIDATE,
-  buildStageACandidateManifest,
-} from "./liveFailureDecomposition.ts";
-import {
-  LIVE_EVALUATION_PROMPT_STAGE_A_V3,
-  buildLiveEvaluationPreflight,
-  buildStageABudgetReservation,
-  runLiveEvaluationPilot,
-  selectLiveEvaluationFixtures,
-} from "./livePilot.ts";
-import type { EvaluationFixture } from "./types.ts";
-import type { ModelProvider } from "../modelOrchestrator/types.ts";
-import { fixtureToModelTask } from "./adapters/orchestrator.ts";
-
-export const MODEL_COMPARISON_PROGRAM_ID = "model-comparison-program-v1";
-export const MODEL_COMPARISON_REGISTRY_VERSION = "model-registry-v1";
-export const MODEL_COMPARISON_ADAPTER_VERSION = "provider-adapters-v1";
-export const MODEL_COMPARISON_API_SURFACE = "openai-responses-api-v1";
-export const MODEL_COMPARISON_REVIEW_POLICY = "stage-a-human-review-rubric-v1";
-export const MODEL_COMPARISON_GATE_POLICY = "frozen-stage-a-success-gates-v1";
-export const GPT_52_RETIRED_STAGE_A_RUN_ID = "live-eval-b60c3e10-8664-4120-9e2b-23b065a647ef";
-export const GPT_56_TERRA_STAGE_A_RUN_ID = "live-eval-d30efd91-7857-4bd5-a665-e7424fb69a7a";
-export const GPT_56_TERRA_SOURCE_HALTED_RUN_ID = "live-eval-18283104-85df-4868-981a-f39b952ccdf1";
-
-type Env = NodeJS.ProcessEnv;
-
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function sha256(value: string) {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-function stableHash(value: unknown) {
-  return sha256(JSON.stringify(value));
-}
-
-function artifactDir() {
-  const dir = join(process.cwd(), ".vireon", "model-evaluation", "model-comparison");
-  mkdirSync(dir, { recursive: true });
-  return dir;
-}
-
-function writeArtifact(name: string, payload: unknown) {
-  const path = join(artifactDir(), name);
-  writeFileSync(path, `${JSON.stringify(payload, null, 2)}\n`, { flag: "wx" });
-  return path;
-}
-
-function writeOrReplaceArtifact(name: string, payload: unknown) {
-  const path = join(artifactDir(), name);
-  writeFileSync(path, `${JSON.stringify(payload, null, 2)}\n`);
-  return path;
-}
-
-function redactReceipt(value: Record<string, unknown>) {
-  return Object.fromEntries(Object.entries(value).filter(([key]) => !/key|secret|token|password|credential|authorization/i.test(key)));
-}
-
-function fixtureSet() {
-  return [...APPROVED_STAGE_A_FIXTURES]
-    .map((fixtureId) => EVALUATION_FIXTURES.find((fixture) => fixture.fixtureId === fixtureId))
-    .filter((fixture): fixture is EvaluationFixture => Boolean(fixture));
-}
-
-function configuredApproval(provider: ModelProvider, exactModelId: string, env: Env = process.env) {
-  return readComparisonApprovals(env).find((approval) => approval.provider === provider && approval.exactModelId === exactModelId) ?? null;
-}
-
-function configuredCandidate(provider: ModelProvider, exactModelId: string, env: Env = process.env) {
-  return buildCanonicalModelRegistry(env).find((entry) => entry.provider === provider && entry.exactModelId === exactModelId) ?? null;
-}
-
-function sourceHash(path: string) {
-  return existsSync(path) ? sha256(readFileSync(path, "utf8")) : "missing";
+} from "../modelOrchestrator/modn existsSync(path) ? sha256(readFileSync(path, "utf8")) : "missing";
 }
 
 function readJsonArtifact<T = Record<string, unknown>>(path: string): T | null {
@@ -630,7 +550,8 @@ export function finalizeTerraRetirementDecision(runId = GPT_56_TERRA_STAGE_A_RUN
 }
 
 export function runChildProcessPropagationCheck(env: Env) {
-  const result = spawnSync(process.execPath, ["--experimental-strip-types", "scripts/models-comparison-stage-a-receipt.mjs"], {
+  const receiptScript = fileURLToPath(new URL("../../../scripts/models-comparison-stage-a-receipt.mjs", import.meta.url));
+  const result = spawnSync(process.execPath, ["--experimental-strip-types", receiptScript], {
     cwd: process.cwd(),
     env: { ...process.env, ...env },
     encoding: "utf8",

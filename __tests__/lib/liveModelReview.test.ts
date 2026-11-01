@@ -1,3 +1,4 @@
+import { evaluationTestWorkspace } from "../fixtures/modelEvaluationWorkspace.ts";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -32,12 +33,22 @@ import {
   counterfactualRescoring,
   confidenceCeiling,
   lintPromptCandidates,
+  loadLiveRunArtifacts,
 } from "../../src/lib/modelEvaluation/index.ts";
 import { routeModelTask } from "../../src/lib/modelOrchestrator/router.ts";
 import { buildModelRegistry } from "../../src/lib/modelOrchestrator/registry.ts";
 import type { ModelTaskRequest } from "../../src/lib/modelOrchestrator/types.ts";
 
-test("original live-run artifacts are immutable and hashed", () => {
+test("synthetic archive is isolated, labelled, and never substitutes for missing live evidence", () => {
+  assert.equal(process.cwd(), evaluationTestWorkspace);
+  const { manifestPath } = loadLiveRunArtifacts(REVIEWED_LIVE_RUN_ID);
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  assert.equal(manifest.providerCallsMade, false);
+  assert.match(manifest.provenance, /synthetic unit-test data; not historical provider evidence/);
+  assert.throws(() => loadLiveRunArtifacts("missing-test-run"), /Live run artifacts not found/);
+});
+
+test("synthetic run artifacts are immutable and hashed", () => {
   const integrity = recordRunIntegrity(REVIEWED_LIVE_RUN_ID);
 
   assert.equal(integrity.immutable, true);

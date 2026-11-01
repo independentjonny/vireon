@@ -7,7 +7,9 @@
 - `coreDecisioningPostgresService.test.ts` rejects nested database connections and financial-input reads while a workflow mutation holds the user row. Resolve financial inputs and generated decisions before opening the workflow transaction, then persist workflow changes atomically within that transaction.
 - The reset permission in `securityAuthRoutes.test.ts` must agree with the dedicated `delete:own_financial_data` capability, without granting workspace administration.
 
-The migrated workspace lacks the historical live-model manifests and summaries referenced by 33 archive-dependent tests. Those checks remain failing; do not synthesize historical results, remove assertions, or treat the full suite as green. Deterministic product and fresh authenticated Preview checks are separate evidence.
+Model-evaluation regression tests use `__tests__/fixtures/modelEvaluationWorkspace.ts` to create a disposable working directory for each test worker. It contains explicitly labelled synthetic run scenarios, exact copies of the source files needed for methodology hashes, and no credentials or provider calls. The tests exercise pass/fail transitions, immutable summaries, review classifications and spending gates without depending on a developer's ignored `.vireon` archive. All temporary data is removed when the worker completes. Child-process configuration checks locate their script relative to its module while inheriting the isolated working directory.
+
+These synthetic scenarios are not historical provider evidence. The genuine historical live-model archive is still absent from the migrated workspace; production review functions continue to reject missing artifacts. Do not copy generated test data into the runtime archive or use a passing regression suite to claim a historical model run, paid-run approval, or production readiness.
 
 ## PostgreSQL Phase 2 Slice 2
 

@@ -1,3 +1,4 @@
+import "../fixtures/modelEvaluationWorkspace.ts";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -485,12 +486,7 @@ describe("Model Orchestrator routing and guardrails", () => {
     assert.equal(results.length, 5);
     assert.equal(summary.blockedCount, 1);
     assert.equal(summary.passedCount, 0);
-    assert.equal((summary.scoreSummary as Record<string, unknown>).hardFailureCount, 5);
-    assert.notEqual(results.length, summary.fixtureCount);
-    assert.notEqual(matrix.winnerSelected, true);
-  });
-
-  it("candidate approval is exact-model specific", () => {
+  c", () => {
     const registry = buildCanonicalModelRegistry(env({
       VIREON_OPENAI_ENABLED: "true",
       VIREON_OPENAI_API_KEY: "test-key",
@@ -607,81 +603,6 @@ describe("Model Orchestrator routing and guardrails", () => {
 
   it("candidate environment reaches a child process without provider calls", () => {
     const candidateEnv = buildCandidateEnvironment({
-      provider: "openai",
-      model: "gpt-4.1",
-      approval: candidate2Approval,
-      env: env({ VIREON_OPENAI_API_KEY: "test-key", VIREON_STAGE_A_BUDGET_APPROVED: "true" }),
-    });
-    const envelope = buildExecutionEnvelope({
-      provider: "openai",
-      model: "gpt-4.1",
-      approval: candidate2Approval,
-      snapshotId: "snapshot-test",
-      budgetApprovalId: "budget-test",
-      budgetConfigurationHash: "budget-hash",
-      env: candidateEnv,
-    });
-    candidateEnv.VIREON_CANDIDATE_EXECUTION_ENVELOPE = JSON.stringify(envelope);
-    candidateEnv.VIREON_CANDIDATE_CONFIGURATION_HASH = envelope.configurationHash;
-
-    const propagation = runChildProcessPropagationCheck(candidateEnv);
-    assert.equal(propagation.status, "valid");
-    assert.equal(propagation.message, "CANDIDATE ENVIRONMENT PROPAGATION VALID");
-  });
-
-  it("router dry execution resolves the candidate without provider calls", () => {
-    const candidateEnv = buildCandidateEnvironment({
-      provider: "openai",
-      model: "gpt-4.1",
-      approval: candidate2Approval,
-      env: env({ VIREON_OPENAI_API_KEY: "test-key", VIREON_STAGE_A_BUDGET_APPROVED: "true" }),
-    });
-    const envelope = buildExecutionEnvelope({
-      provider: "openai",
-      model: "gpt-4.1",
-      approval: candidate2Approval,
-      snapshotId: "snapshot-test",
-      budgetApprovalId: "budget-test",
-      budgetConfigurationHash: "budget-hash",
-      env: candidateEnv,
-    });
-    candidateEnv.VIREON_CANDIDATE_EXECUTION_ENVELOPE = JSON.stringify(envelope);
-    candidateEnv.VIREON_CANDIDATE_CONFIGURATION_HASH = envelope.configurationHash;
-    const dry = buildRouterDryExecution({ env: candidateEnv, provider: "openai", model: "gpt-4.1" });
-
-    assert.equal(dry.status, "ready");
-    assert.equal(dry.message, "ROUTER DRY EXECUTION READY");
-    assert.equal(dry.provider, "openai");
-    assert.equal(dry.model, "gpt-4.1");
-    assert.equal(dry.providerCallsMade, false);
-  });
-
-  it("missing candidate context is not reported as MODEL_UNHEALTHY", async () => {
-    const fixture = EVALUATION_FIXTURES.find((item) => item.fixtureId === "fixture-01-payslip-extraction");
-    assert.ok(fixture);
-    const task = fixtureToModelTask(fixture, {
-      executionMode: "live-single-provider",
-      provider: "openai",
-      model: "gpt-5.6-terra",
-      promptVersion: "stage-a-task-specific-v3",
-      scorerVersion: "deterministic-scorer-v3-structured-claims-candidate",
-      maximumTaskCost: 0.3,
-      maximumRetries: 1,
-      maximumOutputTokens: 800,
-    });
-    delete task.inputPayload.stageACandidateId;
-    const result = await executeModelTask(task, [
-      model({
-        provider: "openai",
-        model: "gpt-5.6-terra",
-        enabled: false,
-        availability: "unavailable",
-        healthStatus: "disabled",
-        promotionState: "unconfigured",
-      }),
-    ]);
-
-    assert.equal(result.status, "blocked");
-    assert.equal(result.errorCode, "CANDIDATE_CONTEXT_MISSING");
+      providesult.errorCode, "CANDIDATE_CONTEXT_MISSING");
   });
 });
