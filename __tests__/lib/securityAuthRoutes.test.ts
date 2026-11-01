@@ -422,7 +422,7 @@ describe("sensitive route guards", () => {
     assert.equal(permissionForPath("/api/production-readiness", "GET"), "manage:workspace");
     assert.equal(permissionForPath("/api/private-beta/deletion", "GET"), "read:transactions");
     assert.equal(permissionForPath("/api/private-beta/deletion", "POST"), "manage:workspace");
-    assert.equal(permissionForPath("/api/private-beta/financial-data-reset", "POST"), "manage:workspace");
+    assert.equal(permissionForPath("/api/private-beta/financial-data-reset", "POST"), "delete:own_financial_data");
     assert.equal(permissionForPath("/api/private-beta/export", "POST"), "manage:workspace");
     assert.equal(permissionForPath("/api/private-beta/support", "POST"), "manage:workspace");
   });

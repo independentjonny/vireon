@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Download, Flag, MessageSquareWarning, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import type { BetaOnboardingState, DeterministicBriefing, FreshnessResult, PrivateBetaReadinessReport, ProvenanceView } from "@/lib/privateBetaFoundation";
@@ -8,6 +8,7 @@ import type { FinancialHealthSnapshot } from "@/lib/financialHealthEngine";
 import type { ForecastSnapshot } from "@/lib/financialForecasting";
 import type { GoalPlanningSnapshot } from "@/lib/goalPlanning";
 import { FINANCIAL_DATA_RESET_CONFIRMATION, totalFinancialDataDeleted, type FinancialDataResetResult } from "@/lib/financialDataReset";
+import { buildPrivateBetaFirstValues } from "@/lib/privateBetaPresentation";
 
 type Props = {
   initialOnboarding: BetaOnboardingState;
@@ -103,10 +104,6 @@ function tone(status: string) {
   return "border-amber-200 bg-amber-50 text-amber-800";
 }
 
-function money(value: number) {
-  return `$${Math.round(value).toLocaleString("en-AU")}`;
-}
-
 function privateBetaMutationHeaders() {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (process.env.NEXT_PUBLIC_VIREON_DEV_AUTH_BYPASS === "true" && process.env.NODE_ENV !== "production") {
@@ -129,19 +126,10 @@ export default function PrivateBetaFoundationClient({ initialOnboarding, readine
   const completeCount = Object.values(onboarding.steps).filter((status) => status === "complete" || status === "skipped").length;
   const progress = Math.round((completeCount / Object.keys(onboarding.steps).length) * 100);
   const stale = briefing.dataFreshness.filter((item) => item.class === "STALE");
-  const topForecast = forecast.months.at(-1);
-  const topGoal = goals.activeGoals[0];
-  const firstRisk = forecast.decisions[0] ?? health.actions[0];
+  const firstRisk = health.recordCount > 0 && forecast.quality.class !== "INSUFFICIENT" ? forecast.decisions[0] ?? health.actions[0] : health.actions.find(action => action.category === "Data quality");
   const readinessCritical = readiness.checklist.filter((item) => item.critical && item.status === "BLOCKED");
 
-  const firstValue = useMemo(() => [
-    ["Health", health.healthRating],
-    ["Net worth", health.wealth.netWorth.label],
-    ["Monthly surplus", health.cashFlow.monthlySurplus.label],
-    ["Emergency fund", health.safety.emergencyFundMonths.label],
-    ["12m cash forecast", topForecast ? money(topForecast.cashBalance) : "Not calculated yet"],
-    ["Top goal", topGoal?.goal.title ?? "Create first goal"],
-  ], [health, topForecast, topGoal]);
+  const firstValue = buildPrivateBetaFirstValues({ health, forecast, goals });
 
   async function updateStep(step: string, status: "complete" | "skipped") {
     setBusy(true);

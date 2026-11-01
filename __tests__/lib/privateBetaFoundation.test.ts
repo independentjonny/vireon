@@ -4,6 +4,7 @@ import type { CanonicalFinancialRecord } from "../../src/lib/manualFinancialData
 import { buildFinancialHealthSnapshot } from "../../src/lib/financialHealthEngine.ts";
 import { FinancialForecastingEngine } from "../../src/lib/financialForecasting.ts";
 import { GoalPlanningEngine, createGoal } from "../../src/lib/goalPlanning.ts";
+import { buildPrivateBetaFirstValues } from "../../src/lib/privateBetaPresentation.ts";
 import {
   DEFAULT_PRIVATE_BETA_FLAGS,
   ONBOARDING_STEPS,
@@ -45,12 +46,12 @@ function records(): CanonicalFinancialRecord[] {
   ];
 }
 
-function context() {
-  const health = buildFinancialHealthSnapshot({ userId: "user-a", records: records(), asOf: now });
-  const forecast = FinancialForecastingEngine.generate(FinancialForecastingEngine.buildInput({ userId: "user-a", records: records(), startDate: "2026-07-24", horizon: "12m" }));
+function context(source = records()) {
+  const health = buildFinancialHealthSnapshot({ userId: "user-a", records: source, asOf: now });
+  const forecast = FinancialForecastingEngine.generate(FinancialForecastingEngine.buildInput({ userId: "user-a", records: source, startDate: "2026-07-24", horizon: "12m" }));
   const goal = createGoal({ userId: "user-a", type: "EMERGENCY_FUND", title: "Emergency buffer", targetAmount: 30000, currentAmount: 12000, targetDate: "2027-07-24", contributionAmount: 1000, contributionFrequency: "monthly" });
   const goals = GoalPlanningEngine.buildSnapshot({ userId: "user-a", goals: [goal], forecast });
-  const briefing = PrivateBetaFoundation.buildDeterministicBriefing({ userId: "user-a", householdId: "household-a", records: records(), health, forecast, goals, asOf: now });
+  const briefing = PrivateBetaFoundation.buildDeterministicBriefing({ userId: "user-a", householdId: "household-a", records: source, health, forecast, goals, asOf: now });
   return { health, forecast, goals, briefing };
 }
 
@@ -106,6 +107,28 @@ test("8 onboarding optional-step skip", () => {
 test("9 first-value briefing generation", () => {
   assert.equal(context().briefing.presentation, "deterministic-template");
   assert(context().briefing.sections.some((section) => section.id === "current-position"));
+});
+
+test("empty accounts show missing values without fabricated risks or forecast dates", () => {
+  const empty = context([]);
+  const values = Object.fromEntries(buildPrivateBetaFirstValues(empty));
+  assert.equal(values["Net worth"], "Not added");
+  assert.equal(values["Monthly surplus"], "Not available yet");
+  assert.equal(values["12m cash forecast"], "Not calculated yet");
+  assert.doesNotMatch(empty.briefing.sections.find(section => section.id === "current-position")!.body, /\$0/);
+  assert.doesNotMatch(empty.briefing.sections.find(section => section.id === "key-risk")!.body, /falls below|shortfall/i);
+  assert.doesNotMatch(empty.briefing.sections.find(section => section.id === "upcoming-event")!.body, /projected on/);
+  const provenance = PrivateBetaFoundation.buildProvenanceViews(empty).filter(view => !view.valueId.startsWith("goal-"));
+  assert.ok(provenance.every(view => view.confirmedStatus === "insufficient-data"));
+  assert.ok(provenance.every(view => !/\$0|^0%$/.test(view.value)));
+});
+
+test("explicitly confirmed zero balances remain visible while incomplete forecasts stay unavailable", () => {
+  const cashOnly = context([record({ kind: "account", label: "Confirmed empty account", value: { balance: 0 } })]);
+  const values = Object.fromEntries(buildPrivateBetaFirstValues(cashOnly));
+  assert.equal(values["Net worth"], "$0");
+  assert.equal(values["12m cash forecast"], "Not calculated yet");
+  assert.doesNotMatch(cashOnly.briefing.sections.find(section => section.id === "upcoming-event")!.body, /projected on/);
 });
 
 test("10 briefing provenance", () => {

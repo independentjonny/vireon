@@ -1,5 +1,14 @@
 # Testing
 
+## Fresh-start regressions (2 November 2026)
+
+- `betaHardening.test.ts` checks the golden household's cash flow after mortgage repayments and compares monthly equivalents across weekly and fortnightly inputs. Expected-output version v2 includes the existing mortgage repayment; source fixture v1 is unchanged.
+- `privateBetaFoundation.test.ts` distinguishes an empty account from an explicitly confirmed zero balance. Empty onboarding summaries and provenance must show missing information, and insufficient forecasts must not produce projected risk dates.
+- `coreDecisioningPostgresService.test.ts` rejects nested database connections and financial-input reads while a workflow mutation holds the user row. Resolve financial inputs and generated decisions before opening the workflow transaction, then persist workflow changes atomically within that transaction.
+- The reset permission in `securityAuthRoutes.test.ts` must agree with the dedicated `delete:own_financial_data` capability, without granting workspace administration.
+
+The migrated workspace lacks the historical live-model manifests and summaries referenced by 33 archive-dependent tests. Those checks remain failing; do not synthesize historical results, remove assertions, or treat the full suite as green. Deterministic product and fresh authenticated Preview checks are separate evidence.
+
 ## PostgreSQL Phase 2 Slice 2
 
 Financial Vault API persistence is covered by `__tests__/lib/financialVaultPostgresService.test.ts`.

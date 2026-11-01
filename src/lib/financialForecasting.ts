@@ -248,7 +248,7 @@ function frequencyMultiplier(frequency: ForecastLine["frequency"]): number {
   return 1;
 }
 
-function monthlyAmount(line: ForecastLine): number {
+export function monthlyAmount(line: ForecastLine): number {
   return line.frequency === "one-off" ? 0 : line.amount * frequencyMultiplier(line.frequency);
 }
 

@@ -340,7 +340,15 @@ export function buildProvenanceViews(input: {
       views.push({ valueId: `goal-${goal.goal.id}`, label: goal.goal.title, value: goal.feasibility, sourceRecordIds: goal.goal.provenance.sourceRecordIds, sourceType: "user-defined goal and forecast", calculation: "goal funding gap and contribution path", calculationVersion: input.goals.version, assumptions: goal.goal.assumptions.map((item) => `${item.label}: ${item.value}`), confirmedStatus: goal.feasibility === "INSUFFICIENT_DATA" ? "insufficient-data" : "estimated", lastUpdatedAt: input.goals.generatedAt, warnings: goal.competingGoalConflicts });
     }
   }
-  return views;
+  return views.map((view) => {
+    if (input.health?.recordCount === 0 && ["net-worth", "savings-rate", "emergency-fund", "debt-ratio"].includes(view.valueId)) {
+      return { ...view, value: "Not available yet", confirmedStatus: "insufficient-data" as const };
+    }
+    if (view.valueId === "forecast-cash" && input.forecast?.quality.class === "INSUFFICIENT") {
+      return { ...view, value: "Not calculated yet", confirmedStatus: "insufficient-data" as const };
+    }
+    return view;
+  });
 }
 
 export function buildDeterministicBriefing(input: {
@@ -354,8 +362,8 @@ export function buildDeterministicBriefing(input: {
 }): DeterministicBriefing {
   const generatedAt = input.asOf ?? nowIso();
   const sourceRecordIds = input.records.filter((record) => record.userId === input.userId && record.provenance.userConfirmed && !record.superseded).map((record) => record.id);
-  const health = input.health;
-  const forecast = input.forecast;
+  const health = sourceRecordIds.length ? input.health : null;
+  const forecast = sourceRecordIds.length && input.forecast?.quality.class !== "INSUFFICIENT" ? input.forecast : null;
   const topGoal = input.goals?.activeGoals.find((goal) => !["ACHIEVED", "ARCHIVED"].includes(goal.goal.status));
   const topForecastRisk = forecast?.decisions[0];
   const sections = [

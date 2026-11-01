@@ -9,7 +9,7 @@ function source(path: string) {
 
 test("Private Beta onboarding does not present unknown forecast as zero and exposes failed saves", () => {
   const file = source("src/app/components/PrivateBetaFoundationClient.tsx");
-  assert.match(file, /topForecast \? money\(topForecast\.cashBalance\) : "Not calculated yet"/);
+  assert.match(file, /buildPrivateBetaFirstValues\(\{ health, forecast, goals \}\)/);
   assert.match(file, /Onboarding update failed/);
   assert.match(file, /setOnboarding\(data\.onboarding\)/);
   assert.match(file, /Estimated time: 15 minutes/);

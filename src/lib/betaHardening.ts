@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "crypto";
 import type { FinancialHealthSnapshot } from "@/lib/financialHealthEngine";
 import type { ForecastSnapshot } from "@/lib/financialForecasting";
+import { monthlyAmount as forecastMonthlyAmount } from "@/lib/financialForecasting";
 import type { GoalPlanningSnapshot } from "@/lib/goalPlanning";
 import {
   PrivateBetaFoundation,
@@ -91,7 +92,7 @@ export type FunnelMetrics = {
 export type GoldenSuiteResult = {
   version: typeof BETA_HARDENING_VERSION;
   fixtureVersion: "beta-golden-fixtures-v1";
-  approvedOutputVersion: "beta-golden-expected-v1";
+  approvedOutputVersion: "beta-golden-expected-v2";
   passed: boolean;
   cases: Array<{ id: string; engine: "financial-health" | "forecasting" | "goals"; passed: boolean; actual: number | string; expected: number | string; tolerance: number; rationale: string }>;
   approvalRequiredForChanges: true;
@@ -284,9 +285,9 @@ export function verifyGoldenCalculations(input: { health: FinancialHealthSnapsho
   const goal = input.goals.activeGoals[0];
   const finalForecast = input.forecast.months.at(-1);
   const cases = [
-    { id: "health-monthly-cash-flow", engine: "financial-health" as const, actual: input.health.cashFlow.monthlySurplus.value, expected: 5500, tolerance: 1, rationale: "Salary 12000 less household spending 6500." },
-    { id: "health-savings-rate", engine: "financial-health" as const, actual: input.health.cashFlow.savingsRate.value, expected: 45.83, tolerance: 0.1, rationale: "Monthly surplus divided by monthly income." },
-    { id: "health-emergency-fund", engine: "financial-health" as const, actual: input.health.safety.emergencyFundMonths.value, expected: 6.46, tolerance: 0.1, rationale: "Liquid cash divided by monthly spending." },
+    { id: "health-monthly-cash-flow", engine: "financial-health" as const, actual: input.health.cashFlow.monthlySurplus.value, expected: 1300, tolerance: 1, rationale: "Salary 12000 less household spending 6500 and mortgage repayment 4200." },
+    { id: "health-savings-rate", engine: "financial-health" as const, actual: input.health.cashFlow.savingsRate.value, expected: 10.83, tolerance: 0.1, rationale: "Surplus 1300 after debt repayments divided by income 12000." },
+    { id: "health-emergency-fund", engine: "financial-health" as const, actual: input.health.safety.emergencyFundMonths.value, expected: 3.93, tolerance: 0.1, rationale: "Liquid cash 42000 divided by spending 10700 including mortgage repayments." },
     { id: "health-net-worth", engine: "financial-health" as const, actual: input.health.wealth.netWorth.value, expected: 422000, tolerance: 1, rationale: "Assets minus liabilities." },
     { id: "forecast-final-cash", engine: "forecasting" as const, actual: finalForecast?.cashBalance ?? 0, expected: 56518.51, tolerance: 100, rationale: "Twelve months of surplus less debt repayment with monthly compounding." },
     { id: "forecast-debt-reduction", engine: "forecasting" as const, actual: Math.round(finalForecast?.debtBalance ?? 0), expected: 711862, tolerance: 1000, rationale: "Mortgage amortisation with confirmed repayment and rate." },
@@ -296,18 +297,19 @@ export function verifyGoldenCalculations(input: { health: FinancialHealthSnapsho
     const passed = typeof item.actual === "number" && typeof item.expected === "number" ? Math.abs(item.actual - item.expected) <= item.tolerance : item.actual === item.expected;
     return { ...item, passed };
   });
-  return { version: BETA_HARDENING_VERSION, fixtureVersion: "beta-golden-fixtures-v1", approvedOutputVersion: "beta-golden-expected-v1", passed: cases.every((item) => item.passed), cases, approvalRequiredForChanges: true };
+  return { version: BETA_HARDENING_VERSION, fixtureVersion: "beta-golden-fixtures-v1", approvedOutputVersion: "beta-golden-expected-v2", passed: cases.every((item) => item.passed), cases, approvalRequiredForChanges: true };
 }
 
 export function verifyCrossEngineConsistency(input: { health: FinancialHealthSnapshot; forecast: ForecastSnapshot; goals: GoalPlanningSnapshot }): CrossEngineConsistencyReport {
   const opening = input.forecast.input.openingBalances;
   const openingNetWorth = opening.cash + opening.property + opening.super + opening.investments + opening.vehicles + opening.otherAssets - opening.mortgages - opening.loans - opening.creditCards;
-  const monthlyIncome = input.forecast.input.recurringIncome.reduce((sum, line) => sum + line.amount, 0);
-  const monthlyExpenses = input.forecast.input.recurringExpenses.reduce((sum, line) => sum + line.amount, 0);
+  const monthlyIncome = input.forecast.input.recurringIncome.reduce((sum, line) => sum + forecastMonthlyAmount(line), 0);
+  const monthlyExpenses = input.forecast.input.recurringExpenses.reduce((sum, line) => sum + forecastMonthlyAmount(line), 0)
+    + input.forecast.input.debts.reduce((sum, debt) => sum + (debt.monthlyRepayment ?? 0), 0);
   const values = [
     { name: "net worth", sources: ["Financial Health", "Forecast input"], values: [input.health.wealth.netWorth.value, openingNetWorth], consistent: Math.abs(input.health.wealth.netWorth.value - openingNetWorth) <= 1, reason: "Opening forecast balance should match current net worth." },
     { name: "monthly income", sources: ["Financial Health", "Forecast input"], values: [input.health.cashFlow.averageMonthlyIncome.value, monthlyIncome], consistent: Math.abs(input.health.cashFlow.averageMonthlyIncome.value - monthlyIncome) <= 1, reason: "Confirmed recurring income should align across health and forecast." },
-    { name: "monthly expenses", sources: ["Financial Health", "Forecast input"], values: [input.health.cashFlow.averageMonthlySpending.value, monthlyExpenses], consistent: Math.abs(input.health.cashFlow.averageMonthlySpending.value - monthlyExpenses) <= 1, reason: "Confirmed recurring expenses should align across health and forecast." },
+    { name: "monthly expenses", sources: ["Financial Health", "Forecast input"], values: [input.health.cashFlow.averageMonthlySpending.value, monthlyExpenses], consistent: Math.abs(input.health.cashFlow.averageMonthlySpending.value - monthlyExpenses) <= 1, reason: "Confirmed recurring expenses and debt repayments should align across health and forecast." },
     { name: "goal forecast hash", sources: ["Forecast", "Goals"], values: [input.forecast.hash, input.goals.forecastHash], consistent: input.forecast.hash === input.goals.forecastHash, reason: "Goal snapshot must evaluate the same forecast hash." },
   ];
   return { version: BETA_HARDENING_VERSION, passed: values.every((item) => item.consistent), values };

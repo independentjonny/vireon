@@ -91,6 +91,7 @@ test("4 golden Financial Health Forecast and Goal fixtures pass", () => {
 
 test("5 golden output approval enforcement is explicit", () => {
   assert.equal(BetaHardening.verifyGoldenCalculations(context()).approvalRequiredForChanges, true);
+  assert.equal(BetaHardening.verifyGoldenCalculations(context()).approvedOutputVersion, "beta-golden-expected-v2");
 });
 
 test("6 cross-engine net-worth and cash-flow consistency", () => {
@@ -98,6 +99,22 @@ test("6 cross-engine net-worth and cash-flow consistency", () => {
   assert.equal(report.passed, true);
   assert(report.values.some((value) => value.name === "net worth"));
   assert(report.values.some((value) => value.name === "monthly income"));
+});
+
+test("cross-engine checks normalize cadence and include debt repayments", () => {
+  const ctx = context();
+  const income = ctx.forecast.input.recurringIncome[0];
+  income.amount = 12000 * 12 / 52;
+  income.frequency = "weekly";
+  const expenses = ctx.forecast.input.recurringExpenses[0];
+  expenses.amount = 6500 * 12 / 26;
+  expenses.frequency = "fortnightly";
+  const report = BetaHardening.verifyCrossEngineConsistency(ctx);
+  assert.equal(report.passed, true);
+  assert.deepEqual(report.values.find(value => value.name === "monthly expenses")?.values, [10700, 10700]);
+
+  ctx.forecast.input.debts[0].monthlyRepayment = 0;
+  assert.equal(BetaHardening.verifyCrossEngineConsistency(ctx).passed, false, "Missing repayment must remain a discrepancy");
 });
 
 test("7 explanation provenance and stale-source explanation model", () => {

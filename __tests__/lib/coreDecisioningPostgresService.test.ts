@@ -169,6 +169,30 @@ test("core decisioning service persists workflow outcomes as first-class Postgre
   assert.ok(calls.every((call) => !call.params.includes("workflow-user-a")));
 });
 
+test("workflow reads and mutations resolve inputs before locking user state", async () => {
+  const calls: Call[] = [];
+  const client = clientForWorkflowPersistence(calls);
+  const transaction = client.transaction.bind(client);
+  let transactionActive = false;
+  client.transaction = async operation => {
+    assert.equal(transactionActive, false, "Nested connections can wait on their own user-row lock");
+    transactionActive = true;
+    try { return await transaction(operation); }
+    finally { transactionActive = false; }
+  };
+  const guardedReadModel = {
+    async read() {
+      assert.equal(transactionActive, false, "Financial inputs must be read before workflow mutations lock the user");
+      return readModel.read();
+    },
+  };
+  const service = createCoreDecisioningPostgresService(client, { readModel: guardedReadModel });
+  const session = { userId: "workflow-user-a", expiresAt: "2027-01-01T00:00:00.000Z" };
+  const state = await service.readWorkflows(session);
+  assert.ok(state.workflows.length > 0);
+  await service.dismissWorkflow(session, state.workflows[0].id);
+});
+
 test("core decisioning service normalizes workflow evidence and links it to outcomes", async () => {
   const calls: Call[] = [];
   const service = createCoreDecisioningPostgresService(clientForWorkflowPersistence(calls), { readModel });

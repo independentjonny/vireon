@@ -758,10 +758,8 @@ export function createCoreDecisioningPostgresService(client: PostgresPilotClient
     }
   }
 
-  async function buildWorkflowState(session: AuthenticatedSession, providedDecisions?: AiDecision[], scopedCtx?: ScopedRepositoryContext): Promise<ActionWorkflowState> {
-    const ctx = scopedCtx ?? ctxFromSession(session);
+  async function buildWorkflowState(decisions: AiDecision[], ctx: ScopedRepositoryContext): Promise<ActionWorkflowState> {
     await ensureUser(ctx);
-    const decisions = providedDecisions ?? await generatedDecisions(session);
     for (const decision of decisions) await upsertDecision(ctx, decision);
     const existing = await workflowRows(ctx);
     const byDecision = new Map(existing.map((execution) => [execution.sourceDecisionId, execution]));
@@ -1024,22 +1022,25 @@ export function createCoreDecisioningPostgresService(client: PostgresPilotClient
       });
     },
     async readWorkflows(session: AuthenticatedSession, decisions?: AiDecision[]): Promise<ActionWorkflowState> {
-      return withScopedTransaction(ctxFromSession(session), (ctx) => buildWorkflowState(session, decisions, ctx));
+      const resolvedDecisions = decisions ?? await generatedDecisions(session);
+      return withScopedTransaction(ctxFromSession(session), (ctx) => buildWorkflowState(resolvedDecisions, ctx));
     },
     async updateWorkflowStep(session: AuthenticatedSession, workflowId: string, stepId: string, status: ActionWorkflowStepStatus): Promise<ActionWorkflowState> {
+      const decisions = await generatedDecisions(session);
       return withScopedTransaction(ctxFromSession(session), async (ctx) => {
-        const state = await buildWorkflowState(session, undefined, ctx);
+        const state = await buildWorkflowState(decisions, ctx);
         const executionId = workflowId.replace(/^workflow-/, "execution-");
         const current = state.executions.find((item) => item.id === executionId);
         if (!current) throw new CoreDecisioningPersistenceError("NOT_FOUND", "Workflow was not found.", 404);
         const next = WorkflowExecutionEngine.transitionStep(current, stepId, status, "user", nowIso()).execution;
         await upsertExecution(ctx, next);
-        return buildWorkflowState(session, undefined, ctx);
+        return buildWorkflowState(decisions, ctx);
       });
     },
     async dismissWorkflow(session: AuthenticatedSession, workflowId: string): Promise<ActionWorkflowState> {
+      const decisions = await generatedDecisions(session);
       return withScopedTransaction(ctxFromSession(session), async (ctx) => {
-        const state = await buildWorkflowState(session, undefined, ctx);
+        const state = await buildWorkflowState(decisions, ctx);
         const executionId = workflowId.replace(/^workflow-/, "execution-");
         const current = state.executions.find((item) => item.id === executionId);
         if (!current) throw new CoreDecisioningPersistenceError("NOT_FOUND", "Workflow was not found.", 404);
@@ -1051,37 +1052,40 @@ export function createCoreDecisioningPostgresService(client: PostgresPilotClient
           lastUpdatedAt: at,
           auditEvents: [{ id: `audit-cancelled-${at.replace(/[^0-9]/g, "").slice(0, 14)}`, at, eventType: "cancelled", summary: "Workflow cancelled by user.", immutable: true, supersedesEventId: null }, ...current.auditEvents],
         }));
-        return buildWorkflowState(session, undefined, ctx);
+        return buildWorkflowState(decisions, ctx);
       });
     },
     async addWorkflowEvidence(session: AuthenticatedSession, workflowId: string, evidence: WorkflowEvidenceInput): Promise<ActionWorkflowState> {
+      const decisions = await generatedDecisions(session);
       return withScopedTransaction(ctxFromSession(session), async (ctx) => {
-        const state = await buildWorkflowState(session, undefined, ctx);
+        const state = await buildWorkflowState(decisions, ctx);
         const current = state.executions.find((item) => item.id === workflowId.replace(/^workflow-/, "execution-"));
         if (!current) throw new CoreDecisioningPersistenceError("NOT_FOUND", "Workflow was not found.", 404);
         const next = WorkflowExecutionEngine.addEvidence(current, evidence, "user", nowIso()).execution;
         await upsertExecution(ctx, next);
-        return buildWorkflowState(session, undefined, ctx);
+        return buildWorkflowState(decisions, ctx);
       });
     },
     async verifyWorkflowOutcome(session: AuthenticatedSession, workflowId: string, actualValue: number | null, evidenceIds: string[], recalculationSucceeded = true): Promise<ActionWorkflowState> {
+      const decisions = await generatedDecisions(session);
       return withScopedTransaction(ctxFromSession(session), async (ctx) => {
-        const state = await buildWorkflowState(session, undefined, ctx);
+        const state = await buildWorkflowState(decisions, ctx);
         const current = state.executions.find((item) => item.id === workflowId.replace(/^workflow-/, "execution-"));
         if (!current) throw new CoreDecisioningPersistenceError("NOT_FOUND", "Workflow was not found.", 404);
         const next = WorkflowExecutionEngine.evaluateOutcome(current, actualValue, evidenceIds, recalculationSucceeded, nowIso());
         await upsertExecution(ctx, next);
-        return buildWorkflowState(session, undefined, ctx);
+        return buildWorkflowState(decisions, ctx);
       });
     },
     async generateWorkflowArtefact(session: AuthenticatedSession, workflowId: string, type: WorkflowArtefact["type"]): Promise<ActionWorkflowState> {
+      const decisions = await generatedDecisions(session);
       return withScopedTransaction(ctxFromSession(session), async (ctx) => {
-        const state = await buildWorkflowState(session, undefined, ctx);
+        const state = await buildWorkflowState(decisions, ctx);
         const current = state.executions.find((item) => item.id === workflowId.replace(/^workflow-/, "execution-"));
         if (!current) throw new CoreDecisioningPersistenceError("NOT_FOUND", "Workflow was not found.", 404);
         const next = WorkflowExecutionEngine.generateArtefact(current, type, nowIso());
         await upsertExecution(ctx, next);
-        return buildWorkflowState(session, undefined, ctx);
+        return buildWorkflowState(decisions, ctx);
       });
     },
     async readAICfoState(session: AuthenticatedSession): Promise<AICfoPersistedState> {
