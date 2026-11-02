@@ -37,8 +37,15 @@ test("Hotmail user can set up, resume, confirm and navigate the refreshed worksp
   page.setDefaultTimeout(20_000);
   page.setDefaultNavigationTimeout(60_000);
   const errors: string[] = [];
+  const platformDiagnostics: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("console", message => {
+    if (message.type() !== "error") return;
+    const text = message.text();
+    if (text.includes("Loading the script 'https://vercel.live/_next-live/feedback/feedback.js'") && text.includes("Content Security Policy")) {
+      platformDiagnostics.push(text);
+    } else errors.push(text);
+  });
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Your financial picture starts here" })).toBeVisible();
   await expect(page.getByText("0 of 3 areas recorded")).toBeVisible();
@@ -145,4 +152,5 @@ test("Hotmail user can set up, resume, confirm and navigate the refreshed worksp
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("deficit-small-mobile.png"), fullPage: true });
   expect(errors).toEqual([]);
+  if (platformDiagnostics.length) await testInfo.attach("blocked-preview-toolbar", { body: JSON.stringify(platformDiagnostics), contentType: "application/json" });
 });
