@@ -96,6 +96,9 @@ button, summary { -webkit-tap-highlight-color: transparent; }
 .workspace-skip { position: fixed; left: 16px; top: -100px; z-index: 100; background: white; padding: 12px 18px; border: 2px solid #285d9b; border-radius: 8px; }
 .workspace-skip:focus { top: 12px; }
 .workspace-nav-group { color: #dce6f0; }
+.workspace-nav-direct { display: flex; align-items: center; gap: 12px; min-height: 48px; border-radius: 8px; padding: 10px 12px; font-size: 15px; font-weight: 600; color: #dce6f0; }
+.workspace-nav-direct:hover { background: #ffffff0d; color: white; }
+.workspace-nav-direct[aria-current=page] { background: #ffffff17; color: white; box-shadow: inset 3px 0 #87b8ed; }
 .workspace-nav-group summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; min-height: 48px; border-radius: 8px; padding: 10px 12px; font-size: 15px; font-weight: 600; }
 .workspace-nav-group summary::-webkit-details-marker { display: none; }
 .workspace-nav-group summary>span { flex: 1; }

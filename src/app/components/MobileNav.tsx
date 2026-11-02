@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { ChevronDown, LayoutDashboard, Menu, X } from "lucide-react";
 import { workspaceNavigation, selectedWorkspaceHref } from "@/lib/workspaceNavigation";
 
 export default function MobileNav({ developerMode = false }: { developerMode?: boolean }) {
@@ -36,7 +36,7 @@ export default function MobileNav({ developerMode = false }: { developerMode?: b
       <button type="button" className="workspace-mobile-backdrop" aria-label="Close navigation backdrop" onClick={() => setOpen(false)} />
       <aside ref={drawer} id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Navigation" className="fixed inset-y-0 right-0 workspace-mobile-drawer">
         <header><div><strong>vireon</strong><p>Your financial workspace</p></div><button type="button" aria-label="Close navigation menu" onClick={() => setOpen(false)}><X size={22} aria-hidden="true" /></button></header>
-        <nav aria-label="Mobile navigation">{workspaceNavigation.map(group => <details className="workspace-nav-group" key={group.id} open={group.items.some(item => item.href === selected)}>
+        <nav aria-label="Mobile navigation">{workspaceNavigation.map(group => group.id === "dashboard" ? <Link key={group.id} href="/" className="workspace-nav-direct" aria-current={selected === "/" ? "page" : undefined} onClick={() => setOpen(false)}><LayoutDashboard size={19} aria-hidden="true" /><span>{group.label}</span></Link> : <details className="workspace-nav-group" key={group.id} open={group.items.some(item => item.href === selected)}>
           <summary><span>{group.label}</span><ChevronDown size={16} aria-hidden="true" /></summary>
           <div>{group.items.map(item => <Link key={item.href} href={item.href} aria-current={selected === item.href ? "page" : undefined} onClick={() => setOpen(false)}>{item.label}</Link>)}</div>
         </details>)}

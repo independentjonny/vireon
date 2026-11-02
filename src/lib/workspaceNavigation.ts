@@ -1,5 +1,5 @@
 export const workspaceNavigation = [
-  { id: "overview", label: "Overview", items: [
+  { id: "dashboard", label: "Dashboard", items: [
     { label: "Dashboard", href: "/" },
   ] },
   { id: "money", label: "Money", items: [
