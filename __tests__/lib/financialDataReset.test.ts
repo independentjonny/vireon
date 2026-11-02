@@ -130,7 +130,9 @@ test("customer-facing reset copy distinguishes deleted financial data from retai
   assert.match(client, /vireon-add-financial-data-draft-v1/);
   assert.match(privacy, /Delete financial data/);
   assert.doesNotMatch(privacy, /request account deletion/i);
-  assert.match(home, /financialPositionIsEmpty/);
+  assert.match(home, /ControlCentre/);
+  assert.match(home, /monthlyIncome: monthlyCashFlow.monthlyIncome/);
+  assert.match(home, /cash: summary.assetGroups\[2\].value/);
   assert.match(dashboard, /SetupChecklist records=\{\[\]\}/);
   assert.match(dashboard, /confirmed zero balance/i);
   assert.doesNotMatch(dashboard, /Financial data cleared/);

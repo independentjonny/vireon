@@ -8,14 +8,16 @@ const now = Date.parse("2026-11-02T00:00:00Z");
 function record(kind: CanonicalFinancialRecord["kind"], value: Record<string, unknown>, patch: Partial<CanonicalFinancialRecord> = {}): CanonicalFinancialRecord {
   return { id: crypto.randomUUID(), userId: "u", kind, label: "Record", subtype: "setup", value, provenance: { ingestionId: "i", sourceField: "manual-entry", sourceType: "MANUAL", confidence: 100, userConfirmed: true }, createdAt: "2026-11-01T00:00:00Z", updatedAt: "2026-11-01T00:00:00Z", approximate: false, superseded: false, history: [], ...patch };
 }
-test("top-level Dashboard and four shared groups select the most specific route", () => {
-  assert.deepEqual(workspaceNavigation.map(group => group.label), ["Dashboard", "Money", "Planning", "AI adviser", "Documents"]);
+test("top-level Control Centre and four shared groups select the most specific route", () => {
+  assert.deepEqual(workspaceNavigation.map(group => group.label), ["Control Centre", "Money", "Planning", "AI adviser", "Documents"]);
   assert.equal(selectedWorkspaceHref("/financial-profile/add-data"), "/financial-profile/add-data");
-  assert.equal(selectedWorkspaceHref("/financial-profile/property"), "/");
-  assert.equal(selectedWorkspaceHref("/balance-sheet"), "/");
-  assert.deepEqual(workspaceNavigation.find(group => group.id === "dashboard")?.items.map(item => item.label), ["Dashboard"]);
+  assert.equal(selectedWorkspaceHref("/financial-profile/property"), "/control-centre");
+  assert.equal(selectedWorkspaceHref("/balance-sheet"), "/control-centre");
+  assert.deepEqual(workspaceNavigation.find(group => group.id === "dashboard")?.items.map(item => item.label), ["Control Centre"]);
   assert.ok(workspaceNavigation.find(group => group.id === "documents")?.items.some(item => item.href === "/financial-profile/add-data"));
-  assert.equal(selectedWorkspaceHref("/"), "/");
+  assert.equal(selectedWorkspaceHref("/"), "/control-centre");
+  assert.equal(selectedWorkspaceHref("/control-centre"), "/control-centre");
+  assert.equal(selectedWorkspaceHref("/dashboard-old"), undefined);
   assert.equal(selectedWorkspaceHref("/accounts-unknown"), undefined);
   const links = workspaceNavigation.flatMap(group => group.items.map(item => item.href));
   assert.equal(new Set(links).size, links.length);

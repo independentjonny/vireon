@@ -101,7 +101,7 @@ function Sidebar({
           const Icon = groupIcons[group.id];
           const selected = selectedWorkspaceHref(pathname);
           const current = group.items.some(item => item.href === selected);
-          if (group.id === "dashboard") return <Link key={group.id} href="/" className="workspace-nav-direct" aria-current={current ? "page" : undefined}><Icon size={19} aria-hidden="true" /><span>{group.label}</span></Link>;
+          if (group.id === "dashboard") return <Link key={group.id} href={group.items[0].href} className="workspace-nav-direct" aria-current={current ? "page" : undefined}><Icon size={19} aria-hidden="true" /><span>{group.label}</span></Link>;
           return <details className="workspace-nav-group" key={group.id + pathname} open={current}>
             <summary><Icon size={19} aria-hidden="true" /><span>{group.label}</span><ChevronDown size={16} aria-hidden="true" /></summary>
             <div>{group.items.map(item => <Link key={item.href} href={item.href} aria-current={selected === item.href ? "page" : undefined}>{item.label}</Link>)}</div>

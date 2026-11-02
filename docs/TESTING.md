@@ -1,5 +1,12 @@
 # Testing
 
+## Control Centre
+
+- `controlCentreProjection.test.ts` checks no duplicated wealth, effective dates, month and leap-year boundaries, unknown inputs, retirement salary replacement, spending versus debt transfers, goal target caps, earmarked cash, liquidity shortfalls and invalid inputs.
+- `workspaceExperience.test.ts` checks Control Centre is the first direct destination, legacy Dashboard is hidden, and financial-data entry remains under Documents.
+- Desktop 1440px and mobile 390px/320px browser checks use a temporary local route with explicitly synthetic data, removed before production build. They exercise the slider, manual dates, settings, goal creation/reset, retirement inputs, errors and mobile navigation, and verify that current figures remain unchanged and there is no horizontal overflow. Evidence is saved under `D:\Vireon\testing-control-centre-20261103`.
+- Do not run the fresh-start account reset journey against an account with existing financial records for this change.
+
 ## Workspace UI acceptance (2 November 2026)
 
 - `workspaceExperience.test.ts` validates the five shared navigation groups, longest matching route, recorded-area coverage, explicit zero debts and stale/unconfirmed exclusions.

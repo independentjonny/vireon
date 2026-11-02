@@ -1,6 +1,6 @@
 export const workspaceNavigation = [
-  { id: "dashboard", label: "Dashboard", items: [
-    { label: "Dashboard", href: "/" },
+  { id: "dashboard", label: "Control Centre", items: [
+    { label: "Control Centre", href: "/control-centre" },
   ] },
   { id: "money", label: "Money", items: [
     { label: "Bank accounts", href: "/accounts" },
@@ -30,8 +30,8 @@ export const workspaceNavigation = [
 ] as const;
 
 export function selectedWorkspaceHref(pathname: string) {
-  const path = pathname === "/balance-sheet" || (pathname.startsWith("/financial-profile") && !pathname.startsWith("/financial-profile/add-data")) ? "/" : pathname;
+  const path = pathname === "/" || pathname === "/balance-sheet" || (pathname.startsWith("/financial-profile") && !pathname.startsWith("/financial-profile/add-data")) ? "/control-centre" : pathname;
   return workspaceNavigation.flatMap(group => group.items.map(item => item.href))
-    .filter(href => href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`))
+    .filter(href => path === href || path.startsWith(`${href}/`))
     .sort((a, b) => b.length - a.length)[0];
 }

@@ -1,5 +1,13 @@
 # Design System
 
+## Control Centre (3 November 2026)
+
+- Control Centre is the first direct menu link, at `/control-centre`; `/` shows the same workspace. The former Dashboard is preserved at `/dashboard-old`, titled `Dashboard_Old`, and excluded from desktop and mobile navigation.
+- Row one shows the four recorded position measures. Row two repeats them for an editable future date, with a month slider, manual start/end dates, editable goals and model assumptions. Row three repeats them at retirement, using an explicit retirement-income input rather than extending salary.
+- Preview figures show their change from today and are labelled modelled. Goal and assumption edits are temporary previews; saved goals and recorded financial facts remain PostgreSQL-owned. Manage saved goals through the existing Goals workspace.
+- Use a shared deterministic calculation module. Transfers cannot create wealth, earmarked cash cannot fund multiple goals, missing inputs stay unknown, and unaffordable allocations show a funding gap. Current figures never respond to preview edits.
+- Preserve Financial Position and supporting dashboard detail below the three control rows. Keep Your next step last. At narrow phone widths, stack financial cards so currency amounts remain readable.
+
 Vireon should feel like a professional financial operating system: quiet, dense, reliable, and decision-oriented.
 
 ## Visual Direction

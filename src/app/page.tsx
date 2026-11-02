@@ -3,10 +3,11 @@ import { createFinancialVaultServiceFromEnv } from "@/server/services/financialV
 import AppShell from "./components/AppShell";
 import BaselineDashboard from "./components/BaselineDashboard";
 import BaselineFinancialPosition from "./components/BaselineFinancialPosition";
+import ControlCentre from "./components/ControlCentre";
+import type { ControlGoal } from "@/lib/controlCentreProjection";
 import AutonomousTaskComposer from "./components/AutonomousTaskComposer";
 import SupervisorInbox from "./components/SupervisorInbox";
 import DeveloperModeGate from "./components/DeveloperModeGate";
-import EmptyFinancialDashboard from "./components/EmptyFinancialDashboard";
 import { confirmedPositionSummary } from "@/lib/confirmedPositionSummary";
 import { requireServerPageSession } from "@/lib/auth/serverPageSession";
 import { createFinancialPositionReadServiceFromEnv } from "@/server/services/financialPositionReadService";
@@ -88,16 +89,6 @@ export default async function HomePage() {
       </AppShell>
     );
   }
-  const financialPositionIsEmpty = readModel.confirmedFacts.length === 0
-    && readModel.documentImportStatus.documents.length === 0
-    && readModel.documentImportStatus.importCount === 0;
-  if (financialPositionIsEmpty) {
-    return (
-      <AppShell active="dashboard">
-        <EmptyFinancialDashboard now={Date.parse(readModel.generatedAt)} />
-      </AppShell>
-    );
-  }
   const core = createCoreDecisioningServiceFromEnv();
   const summary = confirmedPositionSummary(readModel);
   const [goalState, trajectory] = await Promise.all([
@@ -112,6 +103,15 @@ export default async function HomePage() {
   return (
     <AppShell active="dashboard">
             <BaselineDashboard
+              title="Control Centre"
+              controlCentre={<ControlCentre asOf={readModel.generatedAt} trajectory={trajectory}
+                position={{ assets: summary.assets, liabilities: summary.liabilities, cash: summary.assetGroups[2].value, monthlyIncome: monthlyCashFlow.monthlyIncome, monthlyExpenses: monthlyCashFlow.monthlyExpenses }}
+                goals={goalState.goals.filter(goal => !["ARCHIVED", "PAUSED", "ACHIEVED", "DRAFT"].includes(goal.status)).map(goal => ({
+                  id: goal.id, title: goal.title, target: goal.targetAmount, current: goal.currentAmount,
+                  monthly: goal.contributionFrequency === "weekly" ? goal.contributionAmount * 52 / 12 : goal.contributionFrequency === "fortnightly" ? goal.contributionAmount * 26 / 12 : goal.contributionFrequency === "one-off" ? 0 : goal.contributionAmount,
+                  date: goal.targetDate?.slice(0, 10) ?? "", enabled: true,
+                  effect: (["INVESTMENT", "RETIREMENT"].includes(goal.type) ? "invest" : goal.type === "DEBT_REPAYMENT" ? "repay" : ["TRAVEL", "EDUCATION", "VEHICLE_PURCHASE"].includes(goal.type) ? "spend" : "reserve") as ControlGoal["effect"],
+                }))} />}
               financialPosition={<BaselineFinancialPosition position={readModel} embedded />}
               staleRecordIds={readModel.staleDataSummary.staleRecordIds}
               records={readModel.confirmedFacts}

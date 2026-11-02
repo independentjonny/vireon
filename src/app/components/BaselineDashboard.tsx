@@ -11,6 +11,8 @@ import "./command-centre.css";
 
 type GoalSummary = { id: string; title: string; current: number; target: number; targetDate: string | null; status: string; risk: string; opportunity: string };
 type Props = {
+  title?: string;
+  controlCentre?: ReactNode;
   financialPosition: ReactNode;
   trajectory: TrajectorySettings | null;
   netWorth: number | null; assets: number | null; liabilities: number | null;
@@ -43,8 +45,8 @@ export default function BaselineDashboard(props: Props) {
   const maximum = Math.max(props.monthlyIncome ?? 0, props.monthlyExpenses ?? 0, 1);
   const secondary = props.attention.filter(action => action.title !== priority.title).slice(0, 3);
   return <main className="workspace-dashboard" id="dashboard-content">
-    <header className="workspace-page-heading"><div><p className="workspace-eyebrow">Overview</p><h1>Your money, with a clearer next step</h1><p>Your current position and the information to act on.</p></div><Link href="/financial-profile/add-data" className="workspace-secondary">Update financial data</Link></header>
-    <section className="workspace-metrics" aria-label="Current financial position">{metrics.map(({ label, value, detail, href, icon: Icon }) => <Link href={href} key={label} className="workspace-metric"><div><span>{label}</span><Icon size={18} aria-hidden="true" /></div><strong>{value}</strong><p>{detail}</p></Link>)}</section>
+    <header className="workspace-page-heading"><div><p className="workspace-eyebrow">Your financial workspace</p><h1>{props.title ?? "Your money, with a clearer next step"}</h1><p>{props.controlCentre ? "See where you stand. Change your plan. See the impact." : "Your current position and the information to act on."}</p></div><Link href="/financial-profile/add-data" className="workspace-secondary">Update financial data</Link></header>
+    {props.controlCentre ?? <section className="workspace-metrics" aria-label="Current financial position">{metrics.map(({ label, value, detail, href, icon: Icon }) => <Link href={href} key={label} className="workspace-metric"><div><span>{label}</span><Icon size={18} aria-hidden="true" /></div><strong>{value}</strong><p>{detail}</p></Link>)}</section>}
     {props.financialPosition}
     {coverage.recorded < 3 && <SetupChecklist records={props.records.filter(record => !props.staleRecordIds.includes(record.id))} now={Date.parse(props.updatedAt)} />}
     <div className="workspace-two-columns">
