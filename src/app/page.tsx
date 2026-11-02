@@ -99,8 +99,10 @@ export default async function HomePage() {
   }
   const core = createCoreDecisioningServiceFromEnv();
   const summary = confirmedPositionSummary(readModel);
-  const goalState = await core.readGoalState(session);
-  const trajectory = await createFinancialVaultServiceFromEnv().getTrajectory(session);
+  const [goalState, trajectory] = await Promise.all([
+    core.readGoalState(session),
+    createFinancialVaultServiceFromEnv().getTrajectory(session),
+  ]);
   const monthlyCashFlow = readModel.monthlyCashFlow;
   const runwayMonths = summary.assetGroups[2].value !== null && monthlyCashFlow.monthlyExpenses !== null && monthlyCashFlow.monthlyExpenses > 0
     ? summary.assetGroups[2].value! / monthlyCashFlow.monthlyExpenses

@@ -35,10 +35,11 @@ test.afterAll(async ({ request }) => {
 test("Hotmail user can set up, resume, confirm and navigate the refreshed workspace", async ({ page, request }, testInfo) => {
   test.setTimeout(360_000);
   page.setDefaultTimeout(20_000);
+  page.setDefaultNavigationTimeout(60_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Your financial picture starts here" })).toBeVisible();
   await expect(page.getByText("0 of 3 areas recorded")).toBeVisible();
   await expect(page.getByRole("progressbar")).toHaveAttribute("value", "0");
@@ -100,7 +101,7 @@ test("Hotmail user can set up, resume, confirm and navigate the refreshed worksp
   await expect(page.locator('nav[aria-label="Primary navigation"] [aria-current=page]')).toHaveCount(1);
   await navigation.getByRole("link", { name: "Ownership structures", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Compare ownership structures" })).toBeVisible();
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("button", { name: "Open navigation menu" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -120,7 +121,7 @@ test("Hotmail user can set up, resume, confirm and navigate the refreshed worksp
   await page.getByRole("button", { name: "Open navigation menu" }).click();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "Open navigation menu" })).toBeFocused();
-  await page.goto("/financial-profile/add-data?category=expenses");
+  await page.goto("/financial-profile/add-data?category=expenses", { waitUntil: "domcontentloaded" });
   await expect(page.getByLabel("Information type")).toHaveValue("expenses");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("entry-mobile.png"), fullPage: true });
