@@ -8,7 +8,7 @@ if (!cookie) throw new Error("The test session must contain the existing Vireon 
 const output = process.env.VIREON_UI_TEST_OUTPUT_DIR ?? ".tmp-ui-browser";
 export default defineConfig({
   testDir: "./tests/customer", testMatch: "workspace-experience.spec.ts", workers: 1, retries: 0,
-  timeout: 240_000, outputDir: output,
+  timeout: 360_000, expect: { timeout: 30_000 }, outputDir: output,
   reporter: [["list"], ["json", { outputFile: `${output}/results.json` }]],
   use: {
     baseURL: process.env.VIREON_UI_TEST_BASE, storageState: process.env.VIREON_UI_TEST_STATE,

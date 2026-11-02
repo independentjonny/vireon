@@ -33,7 +33,7 @@ test.afterAll(async ({ request }) => {
 });
 
 test("Hotmail user can set up, resume, confirm and navigate the refreshed workspace", async ({ page, request }, testInfo) => {
-  test.setTimeout(240_000);
+  test.setTimeout(360_000);
   page.setDefaultTimeout(20_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));

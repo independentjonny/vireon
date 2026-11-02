@@ -1,4 +1,5 @@
 import { setupCategories, type SetupCategory } from "@/lib/financialSetup";
+import { createFinancialVaultServiceFromEnv } from "@/server/services/financialVaultPostgresService";
 import AppShell from "../../components/AppShell";
 import AddFinancialDataClient from "../../components/AddFinancialDataClient";
 import FinancialSetupClient from "../../components/FinancialSetupClient";
@@ -11,7 +12,10 @@ export const dynamic = "force-dynamic";
 export default async function AddFinancialDataPage({ searchParams }: { searchParams: Promise<{ category?: string; propertyId?: string; legacy?: string }> }) {
   const params = await searchParams;
   const session = await requireServerPageSession("/financial-profile/add-data");
-  if (!params.propertyId && params.legacy !== "property") return <AppShell active="financial-data"><FinancialSetupClient initialCategory={params.category && Object.hasOwn(setupCategories, params.category) ? params.category as SetupCategory : undefined} /></AppShell>;
+  if (!params.propertyId && params.legacy !== "property") {
+    const setup = await createFinancialVaultServiceFromEnv().getSetup(session);
+    return <AppShell active="financial-data"><FinancialSetupClient initialData={setup} initialCategory={params.category && Object.hasOwn(setupCategories, params.category) ? params.category as SetupCategory : undefined} /></AppShell>;
+  }
   const position = await createFinancialPositionReadServiceFromEnv().read(session);
   const summary = buildAddFinancialDataSummary(position);
   const savedProperties = position.propertyDetails
