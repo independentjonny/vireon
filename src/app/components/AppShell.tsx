@@ -14,7 +14,6 @@ import {
   BrainCircuit,
   Building2,
   Code2,
-  FileCheck2,
   Gauge,
   Goal,
   Landmark,
@@ -126,7 +125,7 @@ function Sidebar({
         )}
       </nav>
 
-      <div className="workspace-nav-footer"><Link href="/financial-profile/add-data"><FileCheck2 size={17} aria-hidden="true" />Add financial data</Link><Link href="/settings" aria-current={pathname === "/settings" ? "page" : undefined}><Lock size={17} aria-hidden="true" />Settings & privacy</Link></div>
+      <div className="workspace-nav-footer"><Link href="/settings" aria-current={pathname === "/settings" ? "page" : undefined}><Lock size={17} aria-hidden="true" />Settings & privacy</Link></div>
       {developerMode && <><label className="mt-4 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-semibold text-slate-200">
         <span className="inline-flex items-center gap-2">
           <Lock className="h-4 w-4" />

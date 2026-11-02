@@ -26,7 +26,7 @@ function DetailList({ records, empty }: { records: CanonicalFinancialRecord[]; e
   );
 }
 
-export default function BaselineFinancialPosition({ position }: { position: FinancialPositionReadModel }) {
+export default function BaselineFinancialPosition({ position, embedded = false }: { position: FinancialPositionReadModel; embedded?: boolean }) {
   const summary = confirmedPositionSummary(position);
   const { assets, liabilities, netPosition: netWorth, assetGroups } = summary;
   const monthlyIncome = position.monthlyCashFlow.monthlyIncome;
@@ -34,11 +34,11 @@ export default function BaselineFinancialPosition({ position }: { position: Fina
   const liabilityRatio = assets !== null && assets > 0 && liabilities !== null ? liabilities / assets * 100 : null;
 
   return (
-    <main className="mx-auto max-w-[1480px] p-6 lg:p-10">
+    <section id="financial-position" aria-labelledby="financial-position-heading" className={embedded ? "min-w-0 scroll-mt-20" : "mx-auto max-w-[1480px] p-6 lg:p-10"}>
       <div className="mb-6 flex items-start justify-between gap-6">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Financial profile</div>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Financial Position</h1>
+          {embedded ? <h2 id="financial-position-heading" className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Financial Position</h2> : <h1 id="financial-position-heading" className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Financial Position</h1>}
           <p className="mt-1 text-sm text-slate-600">{summary.note}</p>
         </div>
       </div>
@@ -72,6 +72,6 @@ export default function BaselineFinancialPosition({ position }: { position: Fina
           <div className="mt-3 flex justify-between border-t border-slate-200 pt-3 text-sm"><span className="text-slate-500">Average monthly income</span><strong>{format(monthlyIncome)}</strong></div>
         </article>
       </section>
-    </main>
+    </section>
   );
 }

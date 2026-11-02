@@ -11,8 +11,10 @@ function record(kind: CanonicalFinancialRecord["kind"], value: Record<string, un
 test("five shared groups keep deep links available and select the most specific route", () => {
   assert.deepEqual(workspaceNavigation.map(group => group.label), ["Overview", "Money", "Planning", "AI adviser", "Documents"]);
   assert.equal(selectedWorkspaceHref("/financial-profile/add-data"), "/financial-profile/add-data");
-  assert.equal(selectedWorkspaceHref("/financial-profile/property"), "/financial-profile");
-  assert.equal(selectedWorkspaceHref("/balance-sheet"), "/financial-profile");
+  assert.equal(selectedWorkspaceHref("/financial-profile/property"), "/");
+  assert.equal(selectedWorkspaceHref("/balance-sheet"), "/");
+  assert.deepEqual(workspaceNavigation.find(group => group.id === "overview")?.items.map(item => item.label), ["Dashboard"]);
+  assert.ok(workspaceNavigation.find(group => group.id === "documents")?.items.some(item => item.href === "/financial-profile/add-data"));
   assert.equal(selectedWorkspaceHref("/"), "/");
   assert.equal(selectedWorkspaceHref("/accounts-unknown"), undefined);
   const links = workspaceNavigation.flatMap(group => group.items.map(item => item.href));

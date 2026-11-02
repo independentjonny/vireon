@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ArrowRight, CircleDollarSign, WalletCards, CalendarDays, Landmark, AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { CanonicalFinancialRecord } from "@/lib/manualFinancialDataPlatform";
 import type { TrajectorySettings } from "@/lib/wealthTrajectory";
@@ -10,6 +11,7 @@ import "./command-centre.css";
 
 type GoalSummary = { id: string; title: string; current: number; target: number; targetDate: string | null; status: string; risk: string; opportunity: string };
 type Props = {
+  financialPosition: ReactNode;
   trajectory: TrajectorySettings | null;
   netWorth: number | null; assets: number | null; liabilities: number | null;
   monthlyChange: number | null; monthlySurplus: number | null; monthlyIncome: number | null;
@@ -43,6 +45,7 @@ export default function BaselineDashboard(props: Props) {
   return <main className="workspace-dashboard" id="dashboard-content">
     <header className="workspace-page-heading"><div><p className="workspace-eyebrow">Overview</p><h1>Your money, with a clearer next step</h1><p>Your current position and the information to act on.</p></div><Link href="/financial-profile/add-data" className="workspace-secondary">Update financial data</Link></header>
     <section className="workspace-metrics" aria-label="Current financial position">{metrics.map(({ label, value, detail, href, icon: Icon }) => <Link href={href} key={label} className="workspace-metric"><div><span>{label}</span><Icon size={18} aria-hidden="true" /></div><strong>{value}</strong><p>{detail}</p></Link>)}</section>
+    {props.financialPosition}
     {coverage.recorded < 3 && <SetupChecklist records={props.records.filter(record => !props.staleRecordIds.includes(record.id))} now={Date.parse(props.updatedAt)} />}
     <div className="workspace-two-columns">
       <section className="workspace-panel" aria-labelledby="cashflow-heading"><p className="workspace-eyebrow">Where you stand</p><h2 id="cashflow-heading">Your monthly cash flow</h2><p>Current recorded amounts, shown as monthly equivalents.</p>{comparable ? <><dl className="workspace-cash-bars">{[{ label: "Income after tax", value: props.monthlyIncome!, className: "income" }, { label: "Expenses & repayments", value: props.monthlyExpenses!, className: "expenses" }].map(item => <div key={item.label}><dt>{item.label}</dt><dd>{money(item.value)}</dd><div aria-hidden="true"><span className={item.className} style={{ width: `${Math.max(0, item.value / maximum * 100)}%` }} /></div></div>)}</dl><p className={deficit ? "workspace-warning" : "workspace-status"}>{deficit ? <AlertTriangle size={16} aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}{money(props.monthlySurplus)} {deficit ? "monthly shortfall" : "monthly surplus"}</p></> : <p className="workspace-empty-note">Add income and expenses to see what is available each month. Missing amounts are not treated as zero.</p>}<Link className="workspace-link" href="/cash-flow">View cash flow and sources<ArrowRight size={15} aria-hidden="true" /></Link></section>

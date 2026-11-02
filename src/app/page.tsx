@@ -2,6 +2,7 @@ import { retirementDisplayTitle } from "@/lib/goalPresentation";
 import { createFinancialVaultServiceFromEnv } from "@/server/services/financialVaultPostgresService";
 import AppShell from "./components/AppShell";
 import BaselineDashboard from "./components/BaselineDashboard";
+import BaselineFinancialPosition from "./components/BaselineFinancialPosition";
 import AutonomousTaskComposer from "./components/AutonomousTaskComposer";
 import SupervisorInbox from "./components/SupervisorInbox";
 import DeveloperModeGate from "./components/DeveloperModeGate";
@@ -111,6 +112,7 @@ export default async function HomePage() {
   return (
     <AppShell active="dashboard">
             <BaselineDashboard
+              financialPosition={<BaselineFinancialPosition position={readModel} embedded />}
               staleRecordIds={readModel.staleDataSummary.staleRecordIds}
               records={readModel.confirmedFacts}
               trajectory={trajectory}

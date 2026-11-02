@@ -199,7 +199,7 @@ test("two persisted properties retain independent identity, mortgage and documen
 
 test("desktop and mobile navigation expose the shared financial journeys", () => {
   const navigation = source("src/lib/workspaceNavigation.ts");
-  assert.ok(navigation.includes('href: "/financial-profile"'));
+  assert.ok(navigation.includes('label: "Dashboard", href: "/"'));
   assert.ok(navigation.includes('href: "/financial-profile/add-data"'));
   for (const path of ["src/app/components/AppShell.tsx", "src/app/components/MobileNav.tsx"]) assert.match(source(path), /workspaceNavigation/);
 });
