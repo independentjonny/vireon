@@ -206,6 +206,11 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
 
   async function initializeProfile(ctx: RepositoryContext): Promise<void> {
     const userId = await ensureUser(ctx);
+    const existing = await scopedDb(ctx).query<{ id: string }>("select id from financial_profiles where user_id = $1 limit 1", [userId]);
+    if (existing.rows.length) return;
+    // Only first-time creation serialises. Existing-profile reads never take
+    // an identity-row write lock, and concurrent first reads cannot duplicate it.
+    await scopedDb(ctx).query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [`financial-profile:${userId}`]);
     await scopedDb(ctx).query(
       `insert into financial_profiles(user_id, state, relationship_status, profile_confidence, source, correlation_id)
        select $1, $2, null, 0, $3, $4
