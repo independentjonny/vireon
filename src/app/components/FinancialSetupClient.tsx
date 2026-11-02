@@ -8,12 +8,13 @@ import { confirmedBalance } from "@/lib/confirmedPositionSummary";
 import type { CanonicalFinancialRecord } from "@/lib/manualFinancialDataPlatform";
 import "./financial-setup.css";
 import FinancialDataSummary from "./FinancialDataSummary";
+import { monthlyRecurringAmount } from "@/lib/monthlyCashFlow";
 
 const formatMoney = (amount: unknown) => typeof amount === "number" ? new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(amount) : "Not recorded";
 const makeDraft = (): SetupDraft => ({ id: crypto.randomUUID(), revision: 0, status: "draft", entries: [], files: [], updatedAt: "" });
 const blankEntry = (category: SetupCategory = "bank", source = "Manual entry"): SetupEntry => ({ id: crypto.randomUUID(), category, label: "", amount: "", frequency: "", asOfDate: "", ownership: "", source, snippet: "", replaceId: "", replaceUpdatedAt: "", included: true });
 
-export default function FinancialSetupClient({ initialData }: { initialData?: { drafts: SetupDraft[]; records: CanonicalFinancialRecord[] } } = {}) {
+export default function FinancialSetupClient({ initialData, initialCategory }: { initialData?: { drafts: SetupDraft[]; records: CanonicalFinancialRecord[] }; initialCategory?: SetupCategory } = {}) {
   const [asOf] = useState(() => Date.now());
   const [draft, setDraft] = useState<SetupDraft | null>(null);
   const [saved, setSaved] = useState<SetupDraft[]>([]);
@@ -26,6 +27,7 @@ export default function FinancialSetupClient({ initialData }: { initialData?: { 
   const [dirty, setDirty] = useState(false);
   const [checked, setChecked] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { if (step > 1) heading.current?.focus(); }, [step]);
 
@@ -34,10 +36,15 @@ export default function FinancialSetupClient({ initialData }: { initialData?: { 
     (initialData ? Promise.resolve({ ok: true, json: async () => initialData } as Response) : fetch("/api/financial-setup")).then(async response => {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not load your saved information.");
-      if (!cancelled) { setSaved(result.drafts); setRecords(result.records); setDraft(makeDraft()); }
+      if (!cancelled) {
+        const next = makeDraft();
+        if (initialCategory) next.entries = [blankEntry(initialCategory)];
+        setSaved(result.drafts); setRecords(result.records); setDraft(next);
+        if (initialCategory) setStep(2);
+      }
     }).catch(error => { if (!cancelled) setError(error.message); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [initialData]);
+  }, [initialData, initialCategory]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault(); };
     window.addEventListener("beforeunload", warn);
@@ -45,7 +52,7 @@ export default function FinancialSetupClient({ initialData }: { initialData?: { 
   }, [dirty]);
 
   function change(next: SetupDraft) { setDraft(next); setDirty(true); setChecked(false); setMessage(""); }
-  function edit(id: string, patch: Partial<SetupEntry>) { if (draft) change({ ...draft, entries: draft.entries.map(entry => entry.id === id ? { ...entry, ...patch } : entry) }); }
+  function edit(id: string, patch: Partial<SetupEntry>) { if (draft) { change({ ...draft, entries: draft.entries.map(entry => entry.id === id ? { ...entry, ...patch } : entry) }); setTouched(current => current[id] ? current : { ...current, [id]: true }); } }
   async function persist(next: SetupDraft, confirm = false) {
     const response = await fetch("/api/financial-setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: confirm ? "confirm" : "save", draft: next }) });
     const result = await response.json();
@@ -89,7 +96,7 @@ export default function FinancialSetupClient({ initialData }: { initialData?: { 
   function review() {
     if (!draft) return;
     try { validateSetupEntries(draft.entries); setStep(3); setChecked(false); setError(""); }
-    catch (error) { setError((error as Error).message); }
+    catch (error) { setTouched(Object.fromEntries(draft.entries.map(entry => [entry.id, true]))); setError((error as Error).message); }
   }
   async function confirm() {
     if (!draft || !checked) return;
@@ -106,7 +113,7 @@ export default function FinancialSetupClient({ initialData }: { initialData?: { 
     <header className="fs-heading"><p className="fs-eyebrow">Your financial picture</p><h1 ref={heading} tabIndex={-1}>{step === 4 ? "Your position has been updated" : "Build your financial picture"}</h1><p>Add what you have now. Review every value before it changes your position.</p></header>
     {step < 4 && <ol className="fs-steps" aria-label="Setup progress">{["Add information", "Check the details", "Confirm changes"].map((label, index) => <li key={label} aria-current={step === index + 1 ? "step" : undefined}><span>{step > index + 1 ? <Check size={16} /> : index + 1}</span>{label}</li>)}</ol>}
     {error && <div className="fs-error" role="alert">{error}</div>}
-    {message && <div className="fs-notice" role="status">{message}</div>}
+    {message && <div className="fs-notice" role="status">{message}{!dirty && <Link href="/">Return to Dashboard</Link>}</div>}
     {loading && <p role="status">Loading your saved information…</p>}
     {!loading && !draft && <button className="fs-primary" onClick={() => window.location.reload()}>Try again</button>}
     {draft && <fieldset className="fs-workspace" disabled={busy}>
@@ -139,9 +146,11 @@ export default function FinancialSetupClient({ initialData }: { initialData?: { 
               <label>Repayment frequency<select value={entry.repaymentFrequency ?? ""} onChange={event => edit(entry.id, { repaymentFrequency: event.target.value })}><option value="">Choose repayment frequency</option><option value="weekly">Weekly</option><option value="fortnightly">Fortnightly</option><option value="monthly">Monthly</option><option value="annual">Yearly</option></select></label>
             </>}
             {["income", "expenses"].includes(entry.category) && <label>How often?<select value={entry.frequency} onChange={event => edit(entry.id, { frequency: event.target.value })}><option value="">Choose frequency</option><option value="weekly">Weekly</option><option value="fortnightly">Fortnightly</option><option value="monthly">Monthly</option><option value="annual">Yearly</option></select></label>}
-            <label>Statement / effective date<input type="date" value={entry.asOfDate} onChange={event => edit(entry.id, { asOfDate: event.target.value })} /></label>
+            {["income", "expenses"].includes(entry.category) && entry.amount.trim() && Number.isFinite(Number(entry.amount)) && Number(entry.amount) >= 0 && entry.frequency && <p className="fs-monthly-preview">Monthly equivalent: {formatMoney(monthlyRecurringAmount({ label: entry.label, subtype: "setup", value: { amount: Number(entry.amount), frequency: entry.frequency } }))}</p>}
+            <label>Statement / effective date<input type="date" max={new Date().toLocaleDateString("en-CA")} value={entry.asOfDate} onChange={event => edit(entry.id, { asOfDate: event.target.value })} /></label>
             <label>Whose amount is this?<select value={entry.ownership} onChange={event => edit(entry.id, { ownership: event.target.value })}><option value="">Choose ownership</option><option value="Sole">Mine only</option><option value="My share of joint">My share of a joint amount</option></select></label>
           </div>
+          {touched[entry.id] && (() => { try { validateSetupEntries([{ ...entry, included: true }]); return <p className="fs-ready">Details ready to review</p>; } catch (error) { return <p className="fs-field-error" role="status">{(error as Error).message}</p>; } })()}
           {entry.replaceId && <p className="fs-notice">This updates the selected item; it will not add a second balance. Check the previous amount on the next screen.</p>}
           {entry.category === "property" && <p className="fs-muted">Property value, mortgage balance and repayments are saved together. Repayments feed your monthly cash flow. For rent and other property details, use <Link href="/financial-profile/add-data?legacy=property&category=property">the existing property form</Link>. Save this draft first.</p>}
         </article>)}
@@ -152,7 +161,7 @@ export default function FinancialSetupClient({ initialData }: { initialData?: { 
       </section>}
       {step === 4 && <section className="fs-card fs-success"><div className="fs-success-icon"><Check size={30} /></div><h2>{draft.confirmedCount} item{draft.confirmedCount === 1 ? "" : "s"} confirmed</h2><p>Your confirmed changes are saved. Updated balances and recurring amounts are available to your financial position and Dashboard.</p><div className="fs-review-list">{entries.filter(entry => entry.included).map(entry => <article key={entry.id}><div><strong>{entry.label}</strong><p>{entry.replaceId ? "Updated existing item" : "Added new item"}</p></div><strong>{entry.category === "property" && "Property Value: "}{formatMoney(Number(entry.amount))}{["income", "expenses"].includes(entry.category) ? ` / ${entry.frequency}` : ""}{entry.category === "property" && <><br />Current Mortgage: {formatMoney(Number(entry.mortgageAmount))}{!isMortgageFree(entry) && entry.repaymentAmount && <><br />Repayment: {formatMoney(Number(entry.repaymentAmount))} · {entry.repaymentFrequency}</>}</>}</strong></article>)}</div><p className="fs-muted">An age-65 forecast still needs a complete position, your age and retirement assumptions. Uploading documents alone does not create a forecast.</p><div className="fs-success-actions"><Link className="fs-primary" href="/">View Dashboard <ArrowRight size={16} /></Link><Link className="fs-secondary" href="/financial-profile">Review financial position</Link><button className="fs-link" onClick={() => window.location.reload()}>Add more information</button></div></section>}
       {step < 4 && <footer className="fs-footer"><button className="fs-link" onClick={() => { setStep(Math.max(1, step - 1)); setError(""); }} disabled={step === 1}>Back</button><span className="fs-muted">{dirty ? "Unsaved changes" : draft.updatedAt ? "Draft saved to your account" : "Your position is unchanged"}</span><button className="fs-secondary" onClick={() => void save()}>Save and finish later</button>{step === 1 ? <button className="fs-primary" disabled={!entries.length} onClick={() => setStep(2)}>Check details <ArrowRight size={16} /></button> : step === 2 ? <button className="fs-primary" disabled={!entries.length} onClick={review}>Review changes <ArrowRight size={16} /></button> : <button className="fs-primary" disabled={!checked} onClick={() => void confirm()}>Confirm and update my position <Check size={16} /></button>}</footer>}
-      {step === 2 && <FinancialDataSummary records={records} draft={draft} />}
+      {step === 2 && <details className="fs-saved-summary"><summary>View your saved financial data</summary><FinancialDataSummary records={records} draft={draft} /></details>}
     </fieldset>}
     {busy && <p className="fs-saving" role="status">{uploadStatus || "Saving your changes…"}</p>}
   </main>;

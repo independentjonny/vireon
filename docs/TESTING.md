@@ -1,5 +1,15 @@
 # Testing
 
+## Workspace UI acceptance (2 November 2026)
+
+- `workspaceExperience.test.ts` validates the five shared navigation groups, longest matching route, recorded-area coverage, explicit zero debts and stale/unconfirmed exclusions.
+- `sessionCookieExperience.test.ts` validates cookie-authenticated session lookup through the existing proxy, preserving trusted identity and rejecting expired tokens.
+- `tests/customer/financial-setup.spec.ts` rehearses document suggestions, explicit confirmation and failed-save recovery on desktop and mobile using synthetic responses. These checks do not establish database durability.
+- The opt-in `tests/customer/workspace-experience.spec.ts` uses the approved `boardn@hotmail.com` account for a real persisted journey: empty state, category links, validation, monthly equivalents, save/resume, explicit confirmation, four dashboard metrics, sources, renamed workspaces, mobile focus containment, existing-record edits and shortfall presentation after reload.
+- Run that account test with `playwright.workspace.config.ts`, setting `VIREON_UI_TEST_ACCOUNT=boardn@hotmail.com`, `VIREON_UI_TEST_BASE` to the approved Preview URL, and `VIREON_UI_TEST_STATE` to a private browser session file. Set `VIREON_TEST_BROWSER_CHANNEL=msedge` when using installed Edge. Do not commit session files or credentials.
+- The account test refuses a non-empty starting account. Cleanup runs only when all resulting records and draft entries carry the run's synthetic label. It restores the initial empty state through the existing Preview-only reset endpoint. Ordinary smoke runs skip this destructive opt-in test.
+- Historical trend charts remain unavailable without comparable historical records. A current monthly income/expense comparison must never be presented as historical change.
+
 ## Fresh-start regressions (2 November 2026)
 
 - `betaHardening.test.ts` checks the golden household's cash flow after mortgage repayments and compares monthly equivalents across weekly and fortnightly inputs. Expected-output version v2 includes the existing mortgage repayment; source fixture v1 is unchanged.

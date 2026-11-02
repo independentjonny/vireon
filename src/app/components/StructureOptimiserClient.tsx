@@ -184,9 +184,9 @@ export default function StructureOptimiserClient({ initialAssumptions }: { initi
                 <Scale className="h-3.5 w-3.5" />
                 Tax and Ownership Structure Intelligence
               </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-normal text-slate-950">Structure Optimiser</h1>
+              <h1 className="mt-4 text-3xl font-semibold tracking-normal text-slate-950">Compare ownership structures</h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Compare Australian investment ownership structures using deterministic assumptions. Outputs are educational scenarios, not tax, legal or financial advice.
+                Compare Australian investment ownership structures using your chosen assumptions. These educational scenarios help you prepare questions for a qualified adviser.
               </p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-600">

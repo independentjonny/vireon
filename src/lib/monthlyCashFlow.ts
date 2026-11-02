@@ -65,7 +65,7 @@ function finiteNumber(value: unknown): number | null {
   return null;
 }
 
-function firstPresentNumber(record: CanonicalFinancialRecord, keys: string[]): number | null {
+function firstPresentNumber(record: Pick<CanonicalFinancialRecord, "value">, keys: string[]): number | null {
   for (const key of keys) {
     if (!(key in record.value)) continue;
     const parsed = finiteNumber(record.value[key]);
@@ -74,12 +74,12 @@ function firstPresentNumber(record: CanonicalFinancialRecord, keys: string[]): n
   return null;
 }
 
-function cadence(record: CanonicalFinancialRecord): string {
+function cadence(record: Pick<CanonicalFinancialRecord, "value">): string {
   const raw = record.value.cadence ?? record.value.frequency ?? record.value.period ?? record.value.paymentFrequency;
   return typeof raw === "string" ? raw.trim().toLowerCase().replace(/[\s_-]+/g, "") : "";
 }
 
-function normaliseExplicitRecord(record: CanonicalFinancialRecord): NormalisedAmount | null {
+function normaliseExplicitRecord(record: Pick<CanonicalFinancialRecord, "value" | "subtype" | "label">): NormalisedAmount | null {
   const monthly = firstPresentNumber(record, ["monthlyAmount", "netMonthlyAmount", "monthlyIncome", "monthlyExpense"]);
   if (monthly !== null) return { amount: Math.abs(monthly), cadence: "monthly" };
 
@@ -125,7 +125,7 @@ function normaliseAmount(amount: unknown, rawCadence: unknown): NormalisedAmount
   return multiplier === undefined ? null : { amount: Math.abs(parsed) * multiplier, cadence: valueCadence };
 }
 
-export function monthlyRecurringAmount(record: CanonicalFinancialRecord): number | null {
+export function monthlyRecurringAmount(record: Pick<CanonicalFinancialRecord, "value" | "subtype" | "label">): number | null {
   return normaliseExplicitRecord(record)?.amount ?? null;
 }
 

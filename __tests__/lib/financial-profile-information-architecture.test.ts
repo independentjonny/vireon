@@ -57,21 +57,12 @@ test("legacy builder journey language is absent from the rendered component", ()
   }
 });
 
-test("mobile navigation exposes the unconditional Financial Position route", () => {
-  const navigation = source("src/app/components/MobileNav.tsx");
-  assert.match(navigation, /label: "Financial Profile"/);
-  assert.match(navigation, /\["Financial Position", "\/financial-profile"\]/);
-  assert.match(navigation, /\["Add\/Modify Financial Data", "\/financial-profile\/add-data"\]/);
-});
-
-test("desktop navigation preserves the Vireon mark and selects Financial Position", () => {
-  const shell = source("src/app/components/AppShell.tsx");
-  const page = source("src/app/financial-profile/page.tsx");
-  assert.match(shell, /src="\/vireon2-white\.png"/);
-  assert.doesNotMatch(shell, /bg-orange-400[^\n]*<Sparkles/);
-  assert.match(shell, /label: "Financial Profile"/);
-  assert.match(shell, /\["Financial Position", "\/financial-profile", ClipboardCheck\]/);
-  assert.match(shell, /\["Add\/Modify Financial Data", "\/financial-profile\/add-data", FileCheck2\]/);
-  assert.match(shell, /active === "financial-position" && label === "Financial Position"/);
-  assert.match(page, /<AppShell active="financial-position">/);
+test("desktop and mobile use shared navigation and retain the brand", () => {
+  for (const path of ["src/app/components/AppShell.tsx", "src/app/components/MobileNav.tsx"]) {
+    assert.match(source(path), /workspaceNavigation/);
+    assert.match(source(path), /selectedWorkspaceHref/);
+    assert.match(source(path), /aria-current/);
+  }
+  assert.match(source("src/app/components/AppShell.tsx"), /src="\/vireon2-white\.png"/);
+  assert.match(source("src/app/financial-profile/page.tsx"), /<AppShell active="financial-position">/);
 });

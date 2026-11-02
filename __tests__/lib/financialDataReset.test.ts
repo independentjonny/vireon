@@ -131,9 +131,9 @@ test("customer-facing reset copy distinguishes deleted financial data from retai
   assert.match(privacy, /Delete financial data/);
   assert.doesNotMatch(privacy, /request account deletion/i);
   assert.match(home, /financialPositionIsEmpty/);
-  assert.match(dashboard, /Financial data cleared/);
-  assert.match(dashboard, /account and personal details are retained/i);
-  assert.match(dashboard, /No confirmed financial data/);
+  assert.match(dashboard, /SetupChecklist records=\{\[\]\}/);
+  assert.match(dashboard, /confirmed zero balance/i);
+  assert.doesNotMatch(dashboard, /Financial data cleared/);
   assert.match(route, /requireSession/);
   assert.match(route, /service\.reset/);
 });

@@ -175,11 +175,11 @@ export default function DigitalTwinClient({ initialState, initialForecast }: { i
         <article className="rounded-lg border border-slate-200 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.045)]">
           <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
             <BrainCircuit className="h-3.5 w-3.5" />
-            Financial Digital Twin
+            Financial scenarios
           </div>
-          <h1 className="mt-4 text-3xl font-semibold tracking-normal text-slate-950">Digital Twin</h1>
+          <h1 className="mt-4 text-3xl font-semibold tracking-normal text-slate-950">Explore financial scenarios</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Simulate the user&apos;s complete financial life from Vault-backed facts. GPT can explain these outputs, but deterministic engines own every calculation.
+            Explore how a change in income, spending or timing could affect your plan. Scenarios use your recorded information and the assumptions you choose.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric label="Current age" value={`${twin.identity.currentAge}`} />

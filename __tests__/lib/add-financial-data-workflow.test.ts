@@ -197,14 +197,11 @@ test("two persisted properties retain independent identity, mortgage and documen
   );
 });
 
-test("desktop and mobile navigation expose both Financial Profile journeys", () => {
-  for (const path of ["src/app/components/AppShell.tsx", "src/app/components/MobileNav.tsx"]) {
-    const navigation = source(path);
-    assert.match(navigation, /Financial Position/);
-    assert.match(navigation, /Add\/Modify Financial Data/);
-    assert.match(navigation, /\/financial-profile\/add-data/);
-  }
-  assert.match(source("src/app/components/AppShell.tsx"), /src="\/vireon2-white\.png"/);
+test("desktop and mobile navigation expose the shared financial journeys", () => {
+  const navigation = source("src/lib/workspaceNavigation.ts");
+  assert.ok(navigation.includes('href: "/financial-profile"'));
+  assert.ok(navigation.includes('href: "/financial-profile/add-data"'));
+  for (const path of ["src/app/components/AppShell.tsx", "src/app/components/MobileNav.tsx"]) assert.match(source(path), /workspaceNavigation/);
 });
 
 test("workflow preserves Vault authority and explicit confirmation semantics", () => {

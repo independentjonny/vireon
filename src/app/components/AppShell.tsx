@@ -5,25 +5,22 @@ import Image from "next/image";
 import { useEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import MobileNav from "./MobileNav";
+import { workspaceNavigation, selectedWorkspaceHref } from "@/lib/workspaceNavigation";
 import {
+  ChevronDown,
   BarChart3,
   Bell,
   Bot,
   BrainCircuit,
   Building2,
-  ChartNoAxesCombined,
-  ClipboardCheck,
   Code2,
   FileCheck2,
   Gauge,
   Goal,
-  HousePlus,
   Landmark,
   LayoutDashboard,
   Lock,
   Network,
-  ReceiptText,
-  Repeat2,
   Scale,
   Search,
   ShieldCheck,
@@ -34,54 +31,7 @@ import {
 
 type ActiveSection = "dashboard" | "financial-position" | "financial-data" | "financial-vault" | "housing-scenarios" | "digital-twin" | "ai-cfo" | "settings" | "workspace";
 
-const navGroups = [
-  {
-    label: "Overview",
-    items: [["Dashboard", "/", LayoutDashboard]],
-  },
-  {
-    label: "Financial Profile",
-    items: [
-      ["Financial Position", "/financial-profile", ClipboardCheck],
-      ["Add/Modify Financial Data", "/financial-profile/add-data", FileCheck2],
-    ],
-  },
-  {
-    label: "Daily Money",
-    items: [
-      ["Bank Accounts", "/accounts", WalletCards],
-      ["Cash Flow", "/cash-flow", ChartNoAxesCombined],
-      ["Subscriptions", "/subscriptions", Repeat2],
-    ],
-  },
-  {
-    label: "Wealth",
-    items: [["Investments", "/investments", Gauge]],
-  },
-  {
-    label: "Planning",
-    items: [
-      ["Goals", "/goals", Goal],
-      ["Budgets", "/budgets", ReceiptText],
-      ["Housing", "/housing-scenarios", HousePlus],
-      ["Structure Optimiser", "/structure-optimiser", Network],
-    ],
-  },
-  {
-    label: "Intelligence",
-    items: [
-      ["AI CFO", "/ai-cfo", Bot],
-      ["Digital Twin", "/digital-twin", BrainCircuit],
-    ],
-  },
-  {
-    label: "Vault & Control",
-    items: [
-      ["Document Vault", "/financial-vault", ShieldCheck],
-      ["Privacy & settings", "/privacy", Lock],
-    ],
-  },
-] as const;
+const groupIcons = { overview: LayoutDashboard, money: WalletCards, planning: Goal, adviser: Bot, documents: ShieldCheck };
 
 const developerItems = [
   ["Build Automation", "/#build-automation", TerminalSquare],
@@ -129,30 +79,11 @@ function RuntimeBanner() {
   );
 }
 
-function isSelected(active: ActiveSection, label: string, href: string, pathname: string) {
-  const matchingHref = navGroups.flatMap(group => group.items.map(item => item[1]))
-    .filter(target => target === "/" ? pathname === "/" : pathname === target || pathname.startsWith(`${target}/`))
-    .sort((a, b) => b.length - a.length)[0];
-  if (matchingHref) return href === matchingHref;
-  return (
-    (active === "dashboard" && label === "Dashboard") ||
-    (active === "financial-position" && label === "Financial Position") ||
-    (active === "financial-data" && label === "Add/Modify Financial Data") ||
-    (active === "financial-vault" && label === "Document Vault") ||
-    (active === "housing-scenarios" && label === "Housing") ||
-    (active === "digital-twin" && label === "Digital Twin") ||
-    (active === "ai-cfo" && label === "AI CFO") ||
-    (active === "settings" && label === "Settings")
-  );
-}
-
 function Sidebar({
-  active,
   developerMode,
   setDeveloperMode,
   pathname,
 }: {
-  active: ActiveSection;
   developerMode: boolean;
   setDeveloperMode: (enabled: boolean) => void;
   pathname: string;
@@ -166,30 +97,16 @@ function Sidebar({
         <span className="text-2xl font-semibold tracking-normal">vireon</span>
       </Link>
 
-      <nav className="mt-8 flex-1 space-y-6" aria-label="Primary navigation">
-        {navGroups.map((group) => (
-          <section key={group.label}>
-            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{group.label}</div>
-            <div className="space-y-1">
-              {group.items.map(([label, href, Icon]) => (
-                <Link
-                  key={`${label}-${href}`}
-                  href={href}
-                  aria-current={isSelected(active, label, href, pathname) ? "page" : undefined}
-                  className={
-                    "flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 " +
-                    (isSelected(active, label, href, pathname)
-                      ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                      : "text-slate-300 hover:bg-white/[0.07] hover:text-white")
-                  }
-                >
-                  <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={2} />
-                  {label}
-                </Link>
-              ))}
-            </div>
-          </section>
-        ))}
+      <nav className="mt-8 flex-1 space-y-2" aria-label="Primary navigation">
+        {workspaceNavigation.map((group) => {
+          const Icon = groupIcons[group.id];
+          const selected = selectedWorkspaceHref(pathname);
+          const current = group.items.some(item => item.href === selected);
+          return <details className="workspace-nav-group" key={group.id + pathname} open={current}>
+            <summary><Icon size={19} aria-hidden="true" /><span>{group.label}</span><ChevronDown size={16} aria-hidden="true" /></summary>
+            <div>{group.items.map(item => <Link key={item.href} href={item.href} aria-current={selected === item.href ? "page" : undefined}>{item.label}</Link>)}</div>
+          </details>;
+        })}
 
         {developerMode && (
           <section>
@@ -209,18 +126,8 @@ function Sidebar({
         )}
       </nav>
 
-      <div className="mt-6 rounded-lg bg-white/8 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-        <div className="flex items-center gap-3 text-sm font-semibold text-sky-200">
-          <ShieldCheck className="h-5 w-5 text-orange-300" />
-          Financial Profile
-        </div>
-        <p className="mt-3 text-xs leading-5 text-slate-300">Review your documents and confirmed financial information.</p>
-        <Link href="/financial-vault" className="mt-4 flex h-10 items-center justify-center rounded-lg border border-white/10 bg-white/8 text-sm font-semibold text-white">
-          Review Vault
-        </Link>
-      </div>
-
-      <label className="mt-4 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-semibold text-slate-200">
+      <div className="workspace-nav-footer"><Link href="/financial-profile/add-data"><FileCheck2 size={17} aria-hidden="true" />Add financial data</Link><Link href="/settings" aria-current={pathname === "/settings" ? "page" : undefined}><Lock size={17} aria-hidden="true" />Settings & privacy</Link></div>
+      {developerMode && <><label className="mt-4 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-semibold text-slate-200">
         <span className="inline-flex items-center gap-2">
           <Lock className="h-4 w-4" />
           Developer Mode
@@ -233,7 +140,7 @@ function Sidebar({
           aria-label="Enable Developer Mode"
         />
       </label>
-      <div className="mt-2 px-3 text-[11px] leading-5 text-slate-400">Shortcut: Ctrl+Shift+D</div>
+      <div className="mt-2 px-3 text-[11px] leading-5 text-slate-400">Shortcut: Ctrl+Shift+D</div></>}
     </aside>
   );
 }
@@ -265,13 +172,14 @@ export default function AppShell({
   }, []);
 
   return (
-    <div className={`min-h-screen bg-[#f7f8fb] text-slate-950 font-sans ${active === "dashboard" ? "cc-shell" : ""}`}>
+    <div data-active-workspace={active} className="min-h-screen bg-[#f7f8fb] text-slate-950 font-sans">
       <MobileNav developerMode={developerMode} />
       <RuntimeBanner />
 
       <div className="min-h-screen lg:pl-[268px]">
-        <Sidebar active={active} developerMode={developerMode} setDeveloperMode={setDeveloperMode} pathname={pathname} />
-        <section className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <Sidebar developerMode={developerMode} setDeveloperMode={setDeveloperMode} pathname={pathname} />
+        <a href="#workspace-content" className="workspace-skip">Skip to main content</a>
+        <section id="workspace-content" tabIndex={-1} className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <div className="w-full space-y-8">{children}</div>
         </section>
       </div>

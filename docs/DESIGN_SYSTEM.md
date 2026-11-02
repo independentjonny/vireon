@@ -78,3 +78,13 @@ The main Dashboard summarises and routes. It should not duplicate the full Daily
 - Buttons and links require descriptive labels.
 - Colour must not be the only signal for risk, status, or opportunity.
 - Keyboard navigation should work for menus, dialogs, command palette, and key workflows.
+
+## Workspace navigation and setup
+
+- Desktop and mobile share `workspaceNavigation`: Overview, Money, Planning, AI adviser and Documents. Expand the current group and select the most specific matching route.
+- Empty accounts lead with a four-step setup checklist. Coverage counts three recorded financial areas; reviewing the position is a separate action, never an invented completion state.
+- Coverage uses confirmed current records, including explicit zero debts, and never browser storage. Saved drafts do not count as confirmed financial information.
+- The dashboard leads with one next action, four position figures and a monthly cash-flow comparison. A shortfall has a written warning as well as colour.
+- Historical changes require comparable historical records. Until those are available, present the latest recorded update and identify it as a snapshot.
+- Source details distinguish effective dates, update dates, manual/imported evidence, estimates and stale records. Missing values remain unknown.
+- Primary actions use navy; blue identifies links and intelligence. Mobile entry controls use readable text and a reachable sticky action area. Previously saved information is disclosed separately from pending changes.

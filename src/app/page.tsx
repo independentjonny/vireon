@@ -93,7 +93,7 @@ export default async function HomePage() {
   if (financialPositionIsEmpty) {
     return (
       <AppShell active="dashboard">
-        <EmptyFinancialDashboard />
+        <EmptyFinancialDashboard now={Date.parse(readModel.generatedAt)} />
       </AppShell>
     );
   }
@@ -109,6 +109,8 @@ export default async function HomePage() {
   return (
     <AppShell active="dashboard">
             <BaselineDashboard
+              staleRecordIds={readModel.staleDataSummary.staleRecordIds}
+              records={readModel.confirmedFacts}
               trajectory={trajectory}
               netWorth={summary.netPosition}
               assets={summary.assets}

@@ -199,11 +199,11 @@ export default function FinancialVaultClient({ initialVault }: { initialVault: F
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
             <ShieldCheck className="h-3.5 w-3.5" />
-            PostgreSQL-backed Financial Profile Vault
+            Documents & evidence
           </div>
-          <h1 className="mt-4 text-3xl font-semibold tracking-normal text-slate-950">Financial Vault</h1>
+          <h1 className="mt-4 text-3xl font-semibold tracking-normal text-slate-950">Document vault</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Upload lender documents once. Vireon extracts a traceable profile, estimates borrowing capacity, and prepares a lender-ready package from persisted Vault metadata.
+            Upload financial documents, review extracted amounts, and manage the evidence supporting your financial position.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">

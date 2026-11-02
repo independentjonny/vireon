@@ -17,7 +17,7 @@ test("upload, review and explicit confirmation stay usable on desktop and mobile
   if (testInfo.project.name === "desktop") {
     const navigation = page.getByRole("navigation", { name: "Primary navigation" });
     await expect(navigation.locator('[aria-current="page"]')).toHaveCount(1);
-    await expect(navigation.getByRole("link", { name: "Add/Modify Financial Data" })).toHaveAttribute("aria-current", "page");
+    await expect(navigation.getByRole("link", { name: "Add financial data", exact: true })).toHaveAttribute("aria-current", "page");
   }
   await page.getByLabel("Choose financial documents").setInputFiles({ name: "synthetic-statement.txt", mimeType: "text/plain", buffer: Buffer.from("Synthetic bank statement. Closing balance: $2,345.67. Statement date 2026-10-01.") });
   await expect(page.getByText("Document suggestions saved as a draft.", { exact: false })).toBeVisible();
