@@ -101,6 +101,9 @@ test("Hotmail user can set up, resume, confirm and navigate the refreshed worksp
   await expect(page.locator('nav[aria-label="Primary navigation"] [aria-current=page]')).toHaveCount(1);
   await navigation.getByRole("link", { name: "Ownership structures", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Compare ownership structures" })).toBeVisible();
+  await page.goto("/timeline", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Your financial timeline" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: `${prefix} income`, exact: true })).toBeVisible();
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("button", { name: "Open navigation menu" })).toBeVisible();

@@ -198,7 +198,7 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
     await scopedDb(ctx).query(
       `insert into users(id, email, display_name, source, correlation_id)
        values ($1, $2, $3, $4, $5)
-       on conflict (id) do update set updated_at = now(), correlation_id = excluded.correlation_id`,
+       on conflict (id) do nothing`,
       [userId, `${userId}@users.vireon.local`, "Vireon user", ctx.source, ctx.correlationId],
     );
     return userId;

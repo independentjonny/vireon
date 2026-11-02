@@ -190,6 +190,9 @@ test("workflow reads and mutations resolve inputs before locking user state", as
   const session = { userId: "workflow-user-a", expiresAt: "2027-01-01T00:00:00.000Z" };
   const state = await service.readWorkflows(session);
   assert.ok(state.workflows.length > 0);
+  const userBootstraps = calls.filter(call => call.sql.includes("insert into users"));
+  assert.ok(userBootstraps.length > 0);
+  assert.ok(userBootstraps.every(call => /on conflict \(id\) do nothing/.test(call.sql)), "Existing identities must not be rewritten and row-locked during reads");
   await service.dismissWorkflow(session, state.workflows[0].id);
 });
 
