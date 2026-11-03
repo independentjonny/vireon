@@ -132,7 +132,7 @@ test("customer-facing reset copy distinguishes deleted financial data from retai
   assert.doesNotMatch(privacy, /request account deletion/i);
   assert.match(home, /ControlCentre/);
   assert.match(home, /position: readModel/);
-  assert.match(home, /initialWorkspace=\{fundingWorkspace\}/);
+  assert.match(home, /initialWorkspace=\{\{ \.\.\.fundingWorkspace, accountEmail: session.email \}\}/);
   assert.match(dashboard, /SetupChecklist records=\{\[\]\}/);
   assert.match(dashboard, /confirmed zero balance/i);
   assert.doesNotMatch(dashboard, /Financial data cleared/);

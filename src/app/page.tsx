@@ -92,7 +92,7 @@ export default async function HomePage() {
     <AppShell active="dashboard">
             <BaselineDashboard
               title="Control Centre"
-              controlCentre={<ControlCentre initialWorkspace={fundingWorkspace} />}
+              controlCentre={<ControlCentre initialWorkspace={{ ...fundingWorkspace, accountEmail: session.email }} />}
               financialPosition={<BaselineFinancialPosition position={{ ...readModel, monthlyCashFlow }} embedded />}
               staleRecordIds={readModel.staleDataSummary.staleRecordIds}
               records={readModel.confirmedFacts}

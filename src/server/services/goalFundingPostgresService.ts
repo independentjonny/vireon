@@ -11,7 +11,7 @@ import { createFinancialPositionReadServiceFromEnv, type FinancialPositionReadMo
 import { createFinancialVaultServiceFromEnv, uuidFromTrustedUserId } from "@/server/services/financialVaultPostgresService";
 if (typeof window !== "undefined") throw new Error("Goal funding PostgreSQL service is server-only.");
 
-export type FundingWorkspace = { facts: FundingFacts; plan: FundingPlan; revision: string; alternatives: Array<{ id: string; name: string; plan: FundingPlan }>; history: Array<{ id: string; name: string; plan: FundingPlan }> };
+export type FundingWorkspace = { accountEmail?: string; facts: FundingFacts; plan: FundingPlan; revision: string; alternatives: Array<{ id: string; name: string; plan: FundingPlan }>; history: Array<{ id: string; name: string; plan: FundingPlan }> };
 type Seed = { position: FinancialPositionReadModel; trajectory: TrajectorySettings | null; retirement?: RetirementGoals | null };
 type GoalRow = { id: string; payload: FinancialGoal; version: number };
 type Preference = { value: { assumptions: FundingPlan["assumptions"] }; version: number };

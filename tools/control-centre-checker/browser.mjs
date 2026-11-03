@@ -114,6 +114,21 @@ await ready();assert.equal(await today().locator('.workspace-metric').nth(0).loc
 saved.facts.otherAssets=null;for(const account of saved.facts.accounts)account.balance=null;
 await ready();assert.equal(await today().locator('.workspace-metric').nth(0).locator('strong').first().innerText(),'Unavailable');assert.equal(await today().locator('.workspace-metric').nth(2).locator('strong').first().innerText(),'Unavailable');await captureGeometry(320);
 
+// Legacy hosted accounts have cash flow but incomplete loan/account modelling metadata.
+saved=structuredClone({facts:fundingFixture().facts,plan:fundingFixture().plan,revision:'legacy',alternatives:[],history:[]});
+saved.facts.confirmedMonthlySurplus=2000;saved.facts.confirmedKnownNetPosition=140000;
+saved.facts.accounts[0].annualRate=null;saved.facts.loans[0].remainingMonths=null;
+saved.plan.goals=[];saved.plan.assumptions.settlementAccountId=null;
+saved.plan.assumptions.retirementDate='2040-11-03';saved.plan.assumptions.retirementIncome=2000;saved.plan.assumptions.retirementSpending=1500;
+await page.setViewportSize({width:1440,height:1100});await ready();
+await page.getByText('Cash-flow preview from your current settings',{exact:true}).waitFor();
+assert.match(await selected().innerText(),/160,000/);assert.doesNotMatch(await selected().innerText(),/Unavailable/);
+await page.getByLabel('Selected endpoint',{exact:true}).fill('2027-11-03');assert.match(await selected().innerText(),/64,000/);
+assert.match(await page.getByLabel('Retirement comparison',{exact:true}).innerText(),/500/);
+await page.screenshot({path:out+'/legacy-cash-flow-preview.png'});
+await page.setViewportSize({width:320,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+await page.screenshot({path:out+'/legacy-cash-flow-preview-mobile.png'});
+
 let retirementWrite=null;
 await page.route('**/api/financial-setup',async route=>{retirementWrite=route.request().postDataJSON();await route.fulfill({json:{ok:true,retirementGoals:retirementWrite.settings}})});
 await page.goto(url+'/goals',{waitUntil:'networkidle'});
