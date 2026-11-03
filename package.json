@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "verify:outcome": "node tools/neven-supervisor/completion-gate.mjs",
+    "completion:check": "node tools/neven-supervisor/completion-gate.mjs check",
+    "test:completion-gate": "node --test tests/completion-gate.test.mjs",
     "auth:diagnose": "node scripts/auth-diagnose.mjs",
     "bootstrap:first-owner": "node --experimental-strip-types --experimental-loader ./scripts/ts-paths-loader.mjs scripts/bootstrap-first-owner.mjs",
     "dev": "next dev --hostname 0.0.0.0",
@@ -82,7 +85,8 @@
     "engineer": "node tools/neven-supervisor/engineer.mjs",
     "engineer:smoke:sanitization": "node --experimental-strip-types --experimental-loader ./scripts/ts-paths-loader.mjs scripts/engineer-sanitization-smoke.mjs",
     "automate": "node scripts/local-automation.mjs",
-    "validate": "npm run lint && npm run typecheck && npm run test && npm run build && npm run neven"
+    "validate": "npm run lint && npm run typecheck && npm run test && npm run build && npm run neven",
+    "check:control-centre": "node scripts/check-control-centre.mjs"
   },
   "dependencies": {
     "@types/pg": "^8.20.4",

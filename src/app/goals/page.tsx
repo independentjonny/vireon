@@ -12,11 +12,12 @@ export default async function GoalsPage({
   searchParams: Promise<{ edit?: string }>;
 }) {
   const session = await requireServerPageSession("/goals");
-  const [state, trajectory, position, query] = await Promise.all([
+  const [state, trajectory, position, query, retirementGoals] = await Promise.all([
     createCoreDecisioningServiceFromEnv().readGoalState(session),
     createFinancialVaultServiceFromEnv().getTrajectory(session),
     createFinancialPositionReadServiceFromEnv().read(session),
     searchParams,
+    createFinancialVaultServiceFromEnv().getRetirementGoals(session),
   ]);
   return (
     <AppShell active="workspace">
@@ -25,6 +26,7 @@ export default async function GoalsPage({
         initialGoals={state.goals}
         initialScenarios={state.scenarios}
         initialTrajectory={trajectory}
+        initialRetirement={retirementGoals}
         netWorth={confirmedPositionSummary(position).netPosition}
         openRetirement={query.edit === "retirement"}
       />

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "playwright/test";
 
 test("financial timeline baseline and scenario workflow", async ({ page }) => {
   await page.goto("/digital-twin/timeline");

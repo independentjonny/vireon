@@ -1,0 +1,127 @@
+{
+  "task": "Build and run repeatable Control Centre change checkers, including UI; fix failures and rerun until compliant.",
+  "kind": "ui",
+  "criteria": [
+    {
+      "id": "states",
+      "description": "Exactly three main rows in order Current State, Take Control, Retirement; identical four metric names and ordering."
+    },
+    {
+      "id": "layout",
+      "description": "Aligned four-column desktop metrics, centred slider/date group under metric area, Change goals link left of date selectors; responsive mobile with no clipping or horizontal overflow."
+    },
+    {
+      "id": "journey",
+      "description": "Funding previews, slider/date synchronisation, missing inputs, alternative save/adoption/reload/recovery, keyboard-safe dialog, charts and Goals retirement save work without altering confirmed facts."
+    },
+    {
+      "id": "model",
+      "description": "Deterministic financial and account-isolated PostgreSQL tests pass; no production fixture route, reset, authentication change or deployment."
+    },
+    {
+      "id": "account",
+      "description": "Read-only saved boardn@hotmail.com retirement date is 2040-11-03, income 2000/month, expenses 1500/month."
+    },
+    {
+      "id": "visual",
+      "description": "Fresh rendered desktop/mobile screenshots contain legible text, teal Take Control highlight, correctly positioned Retirement mark and no blank or clipped primary UI."
+    }
+  ],
+  "checks": [
+    {
+      "id": "quality",
+      "role": "test",
+      "criteria": [
+        "model"
+      ],
+      "program": "node",
+      "args": [
+        "scripts/check-control-centre.mjs",
+        "quality"
+      ],
+      "evidence": [
+        ".verification/control-centre/quality.json"
+      ]
+    },
+    {
+      "id": "browser",
+      "role": "render",
+      "criteria": [
+        "states",
+        "journey"
+      ],
+      "program": "node",
+      "args": [
+        "scripts/check-control-centre.mjs",
+        "ui"
+      ],
+      "evidence": [
+        ".verification/control-centre/ui.json",
+        ".verification/control-centre/desktop.png",
+        ".verification/control-centre/mobile-390.png",
+        ".verification/control-centre/mobile-320.png",
+        ".verification/control-centre/goals-retirement.png"
+      ]
+    },
+    {
+      "id": "interactions",
+      "role": "interaction",
+      "criteria": [
+        "journey"
+      ],
+      "program": "node",
+      "args": [
+        "scripts/check-control-centre.mjs",
+        "interaction"
+      ],
+      "evidence": [
+        ".verification/control-centre/interaction.json"
+      ]
+    },
+    {
+      "id": "geometry",
+      "role": "geometry",
+      "criteria": [
+        "layout"
+      ],
+      "program": "node",
+      "args": [
+        "scripts/check-control-centre.mjs",
+        "geometry"
+      ],
+      "evidence": [
+        ".verification/control-centre/geometry.json"
+      ]
+    },
+    {
+      "id": "visual",
+      "role": "visual-review",
+      "criteria": [
+        "visual"
+      ],
+      "program": "node",
+      "args": [
+        "scripts/check-control-centre.mjs",
+        "visual"
+      ],
+      "evidence": [
+        ".verification/control-centre/visual.json"
+      ]
+    },
+    {
+      "id": "account",
+      "role": "test",
+      "criteria": [
+        "account"
+      ],
+      "program": "node",
+      "args": [
+        "scripts/check-control-centre.mjs",
+        "account"
+      ],
+      "evidence": [
+        ".verification/control-centre/account.json"
+      ]
+    }
+  ]
+}

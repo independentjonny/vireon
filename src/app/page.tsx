@@ -1,17 +1,16 @@
-import { retirementDisplayTitle } from "@/lib/goalPresentation";
 import { createFinancialVaultServiceFromEnv } from "@/server/services/financialVaultPostgresService";
 import AppShell from "./components/AppShell";
 import BaselineDashboard from "./components/BaselineDashboard";
 import BaselineFinancialPosition from "./components/BaselineFinancialPosition";
 import ControlCentre from "./components/ControlCentre";
-import type { ControlGoal } from "@/lib/controlCentreProjection";
+import { createGoalFundingServiceFromEnv } from "@/server/services/goalFundingPostgresService";
 import AutonomousTaskComposer from "./components/AutonomousTaskComposer";
 import SupervisorInbox from "./components/SupervisorInbox";
 import DeveloperModeGate from "./components/DeveloperModeGate";
+import { confirmedFundingCashFlow } from "@/lib/goalFundingInputs";
 import { confirmedPositionSummary } from "@/lib/confirmedPositionSummary";
 import { requireServerPageSession } from "@/lib/auth/serverPageSession";
 import { createFinancialPositionReadServiceFromEnv } from "@/server/services/financialPositionReadService";
-import { createCoreDecisioningServiceFromEnv } from "@/server/services/coreDecisioningPostgresService";
 
 export const dynamic = "force-dynamic";
 
@@ -66,15 +65,6 @@ function ScreenshotPanel() {
   );
 }
 
-function formatAud(value: number, compact = false) {
-  return new Intl.NumberFormat("en-AU", {
-    style: "currency",
-    currency: "AUD",
-    maximumFractionDigits: compact ? 2 : 0,
-    notation: compact ? "compact" : "standard",
-  }).format(value);
-}
-
 export default async function HomePage() {
   const session = await requireServerPageSession("/");
   let readModel;
@@ -89,13 +79,11 @@ export default async function HomePage() {
       </AppShell>
     );
   }
-  const core = createCoreDecisioningServiceFromEnv();
   const summary = confirmedPositionSummary(readModel);
-  const [goalState, trajectory] = await Promise.all([
-    core.readGoalState(session),
-    createFinancialVaultServiceFromEnv().getTrajectory(session),
-  ]);
-  const monthlyCashFlow = readModel.monthlyCashFlow;
+  const trajectory = await createFinancialVaultServiceFromEnv().getTrajectory(session);
+  const retirement = await createFinancialVaultServiceFromEnv().getRetirementGoals(session);
+  const fundingWorkspace = await createGoalFundingServiceFromEnv().read(session, { position: readModel, trajectory, retirement });
+  const monthlyCashFlow = confirmedFundingCashFlow(readModel);
   const runwayMonths = summary.assetGroups[2].value !== null && monthlyCashFlow.monthlyExpenses !== null && monthlyCashFlow.monthlyExpenses > 0
     ? summary.assetGroups[2].value! / monthlyCashFlow.monthlyExpenses
     : null;
@@ -104,15 +92,8 @@ export default async function HomePage() {
     <AppShell active="dashboard">
             <BaselineDashboard
               title="Control Centre"
-              controlCentre={<ControlCentre asOf={readModel.generatedAt} trajectory={trajectory}
-                position={{ assets: summary.assets, liabilities: summary.liabilities, cash: summary.assetGroups[2].value, monthlyIncome: monthlyCashFlow.monthlyIncome, monthlyExpenses: monthlyCashFlow.monthlyExpenses }}
-                goals={goalState.goals.filter(goal => !["ARCHIVED", "PAUSED", "ACHIEVED", "DRAFT"].includes(goal.status)).map(goal => ({
-                  id: goal.id, title: goal.title, target: goal.targetAmount, current: goal.currentAmount,
-                  monthly: goal.contributionFrequency === "weekly" ? goal.contributionAmount * 52 / 12 : goal.contributionFrequency === "fortnightly" ? goal.contributionAmount * 26 / 12 : goal.contributionFrequency === "one-off" ? 0 : goal.contributionAmount,
-                  date: goal.targetDate?.slice(0, 10) ?? "", enabled: true,
-                  effect: (["INVESTMENT", "RETIREMENT"].includes(goal.type) ? "invest" : goal.type === "DEBT_REPAYMENT" ? "repay" : ["TRAVEL", "EDUCATION", "VEHICLE_PURCHASE"].includes(goal.type) ? "spend" : "reserve") as ControlGoal["effect"],
-                }))} />}
-              financialPosition={<BaselineFinancialPosition position={readModel} embedded />}
+              controlCentre={<ControlCentre initialWorkspace={fundingWorkspace} />}
+              financialPosition={<BaselineFinancialPosition position={{ ...readModel, monthlyCashFlow }} embedded />}
               staleRecordIds={readModel.staleDataSummary.staleRecordIds}
               records={readModel.confirmedFacts}
               trajectory={trajectory}
@@ -127,16 +108,7 @@ export default async function HomePage() {
               updatedAt={readModel.generatedAt}
               dataNote={summary.note}
               cashFlowBasis={monthlyCashFlow.basis}
-              goals={goalState.snapshot.activeGoals.map((evaluation) => ({
-                id: evaluation.goal.id,
-                title: evaluation.goal.type === "RETIREMENT" ? retirementDisplayTitle(trajectory) : evaluation.goal.title,
-                current: evaluation.goal.currentAmount,
-                target: evaluation.goal.targetAmount,
-                targetDate: evaluation.goal.targetDate,
-                status: evaluation.feasibility === "INSUFFICIENT_DATA" ? "NEEDS_INFORMATION" : evaluation.goal.status,
-                risk: evaluation.feasibility === "INSUFFICIENT_DATA" ? "More information is needed to assess this goal." : evaluation.competingGoalConflicts[0] ?? (evaluation.fundingGap > 0 ? `${formatAud(evaluation.fundingGap)} remains to be funded.` : "Funding target met; this does not establish retirement readiness or assess all risks."),
-                opportunity: evaluation.decisions[0]?.nextAction ?? (evaluation.requiredMonthlyContribution > 0 ? `Contribute ${formatAud(evaluation.requiredMonthlyContribution)} each month.` : "Maintain the current contribution."),
-              }))}
+              goals={[]}
               assetGroups={summary.assetGroups}
               attention={monthlyCashFlow.missingInputs.map((item) => ({ title: item.title, detail: item.detail, href: item.href, action: "Review data" }))}
 

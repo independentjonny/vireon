@@ -13,6 +13,8 @@ import {
   wealthTrajectory,
   type TrajectorySettings,
 } from "@/lib/wealthTrajectory";
+import RetirementGoalsClient from "./RetirementGoalsClient";
+import type { RetirementGoals } from "@/lib/retirementGoals";
 import TrajectorySettingsClient from "./TrajectorySettingsClient";
 import "./goals.css";
 import { hasGoalEstimate } from "@/lib/goalPresentation";
@@ -59,6 +61,7 @@ export default function GoalsPlanningClient({
   initialGoals,
   initialScenarios,
   initialTrajectory,
+  initialRetirement = null,
   netWorth,
   openRetirement = false,
 }: {
@@ -66,6 +69,7 @@ export default function GoalsPlanningClient({
   initialGoals: FinancialGoal[];
   initialScenarios: GoalScenarioVariant[];
   initialTrajectory: TrajectorySettings | null;
+  initialRetirement?: RetirementGoals | null;
   netWorth: number | null;
   openRetirement?: boolean;
 }) {
@@ -345,12 +349,14 @@ export default function GoalsPlanningClient({
           <div className="goals-card-heading">
             <div>
               <h2 id="retirement-title">Retirement</h2>
-              <p>Your retirement age and wealth projection</p>
+              <p>Your saved date, income and expenses feed Control Centre.</p>
             </div>
             <span className="goals-badge">
               {outcome ? "Illustrative projection" : "Needs setup"}
             </span>
           </div>
+          <RetirementGoalsClient initial={initialRetirement} />
+          <details><summary>Optional age-based wealth illustration</summary>
           <dl className="goals-metrics">
             <div>
               <dt>Retirement age</dt>
@@ -403,6 +409,7 @@ export default function GoalsPlanningClient({
               />
             )}
           </div>
+          </details>
           {retirementGoals.length > 0 && (
             <details>
               <summary>

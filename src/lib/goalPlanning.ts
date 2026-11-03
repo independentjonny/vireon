@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "crypto";
 import type { CanonicalFinancialRecord } from "@/lib/manualFinancialDataPlatform";
+import type { GoalFunding } from "./goalFundingModel";
 import type { ForecastEvent, ForecastQuality, ForecastSnapshot } from "@/lib/financialForecasting";
 
 export const GOAL_PLANNING_VERSION = "goals-scenario-planning-v1";
@@ -33,6 +34,7 @@ export type GoalAssumption = {
 };
 
 export type FinancialGoal = {
+  funding?: GoalFunding;
   id: string;
   userId: string;
   type: GoalType;

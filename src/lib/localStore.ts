@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "fs";
-import { join } from "path";
+import { join, resolve } from "path";
 import type {
   TransactionRecord,
   SubscriptionRecord,
@@ -7,7 +7,11 @@ import type {
   MemoryNodeRecord,
 } from "./persistence/schema";
 
-const DATA_DIR = join(process.cwd(), ".ai", "local-data");
+// The legacy store remains unchanged at runtime. Explicit test runs get isolated
+// per-worker storage rather than modifying tracked fixtures or another worker.
+const DATA_DIR = process.env.NODE_ENV === "test" && process.env.LOCAL_DATA_DIR_OVERRIDE
+  ? join(resolve(process.env.LOCAL_DATA_DIR_OVERRIDE), `worker-${process.pid}`)
+  : join(process.cwd(), ".ai", "local-data");
 
 function ensureDataDir(): void {
   if (!existsSync(DATA_DIR)) {

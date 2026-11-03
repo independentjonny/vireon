@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "playwright/test";
 
 test("manual import review works on desktop and mobile", async ({ page }) => {
   await page.goto("/financial-vault/imports");

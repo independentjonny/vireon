@@ -41,9 +41,9 @@ test("Financial Position consumes the same canonical monthly cash flow", () => {
   assert.doesNotMatch(client, /total\(position\.income, \["monthlyAmount", "monthlyIncome", "amount"\]\)/);
 });
 
-test("Dashboard consumes the same canonical monthly cash flow and savings rate", () => {
+test("Control Centre consumes the confirmed canonical monthly cash-flow builder", () => {
   const dashboard = readFileSync(resolve(process.cwd(), "src/app/page.tsx"), "utf8");
-  assert.match(dashboard, /const monthlyCashFlow = readModel\.monthlyCashFlow/);
+  assert.match(dashboard, /const monthlyCashFlow = confirmedFundingCashFlow\(readModel\)/);
   assert.match(dashboard, /monthlyCashFlow\.monthlySurplus/);
   assert.match(dashboard, /monthlyCashFlow\.monthlyIncome/);
   assert.match(dashboard, /monthlyCashFlow\.monthlyExpenses/);

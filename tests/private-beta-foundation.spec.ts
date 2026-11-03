@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "playwright/test";
 
 test("private beta onboarding shows deterministic first value and provenance", async ({ page }) => {
   await page.goto("/beta-onboarding");

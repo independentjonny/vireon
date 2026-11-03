@@ -1,3 +1,4 @@
+import { validateRetirementGoals, type RetirementGoals } from "@/lib/retirementGoals";
 import { validateTrajectory, type TrajectorySettings } from "@/lib/wealthTrajectory";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -462,6 +463,21 @@ export function createFinancialVaultPostgresService(client: PostgresPilotClient)
     contextFromSession,
     toSafeError: toFinancialVaultSafeError,
 
+    async getRetirementGoals(session: AuthenticatedSession): Promise<RetirementGoals | null> {
+      return withScopedTransaction(contextFromSession(session), async ctx => {
+        const result = await scopedDb(ctx).query<{preview:RetirementGoals}>("select preview from migration_runs where user_id = $1 and target_version = 'retirement-goals-v1' order by updated_at desc limit 1", [ctx.session.userId]);
+        return result.rows[0]?.preview ?? null;
+      });
+    },
+    async saveRetirementGoals(session: AuthenticatedSession, settings: RetirementGoals) {
+      validateRetirementGoals(settings);
+      return withScopedTransaction(contextFromSession(session), async ctx => {
+        await initializeProfile(ctx);
+        const saved = { retirementDate: settings.retirementDate, monthlyIncome: settings.monthlyIncome, monthlyExpenses: settings.monthlyExpenses, updatedAt: new Date().toISOString() };
+        await scopedDb(ctx).query("insert into migration_runs(id,user_id,source_version,target_version,status,preview,record_count,source_checksum,rollback_metadata,source,correlation_id) values ($1,$2,'retirement-goals-v1','retirement-goals-v1','CONFIRMED',$3::jsonb,1,$4,'{}'::jsonb,$5,$6)", [randomUUID(),ctx.session.userId,JSON.stringify(saved),hashRecord(saved),ctx.source,ctx.correlationId]);
+        return saved;
+      });
+    },
     async getTrajectory(session: AuthenticatedSession): Promise<TrajectorySettings | null> {
       return withScopedTransaction(contextFromSession(session), async ctx => {
         const result = await scopedDb(ctx).query<{preview:TrajectorySettings}>("select preview from migration_runs where user_id = $1 and target_version = 'wealth-trajectory-v1' order by updated_at desc limit 1", [ctx.session.userId]);

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "playwright/test";
 
 test("goals planning creates and compares deterministic goals", async ({ page }) => {
   await page.goto("/goals");

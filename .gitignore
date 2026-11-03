@@ -37,6 +37,7 @@ next-env.d.ts
 .codex-bridge/
 .vireon/
 .ai-agent-runs/
+.verification/
 
 # temporary files and logs
 .tmp-*

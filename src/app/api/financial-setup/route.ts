@@ -35,6 +35,7 @@ export async function POST(request: Request) {
     const raw = await request.text();
     if (raw.length > 250_000) return Response.json({ error: "This draft is too large. Confirm a smaller set of changes." }, { status: 413 });
     const body = JSON.parse(raw), draft = body.draft as SetupDraft;
+    if (body.action === "save-retirement-goals") return Response.json({ ok: true, retirementGoals: await createFinancialVaultServiceFromEnv().saveRetirementGoals(auth.session, body.settings) });
     if (body.action === "save-trajectory") return Response.json({ ok: true, trajectory: await createFinancialVaultServiceFromEnv().saveTrajectory(auth.session, body.settings) });
     if (!["save", "confirm"].includes(body.action) || !draft || !/^[0-9a-f-]{36}$/i.test(draft.id) || !Number.isInteger(draft.revision) || draft.revision < 0 || !Array.isArray(draft.entries) || draft.entries.length > 50 || !Array.isArray(draft.files) || draft.files.length > 20) throw new Error("Invalid draft. Use up to 20 files and 50 items.");
     for (const entry of draft.entries) {
